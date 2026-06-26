@@ -1,0 +1,11 @@
+name = "nemonuri-formal-verification"
+version = "0.1.0"
+defaultTargets = ["Nemonuri"]
+
+[[require]]
+name = "cslib"
+scope = "leanprover"
+rev = "v4.31.0"
+
+[[lean_lib]]
+name = "Nemonuri"
