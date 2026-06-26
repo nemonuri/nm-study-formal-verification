@@ -8,14 +8,105 @@ namespace Nemonuri
 
 structure ModelChecking (M: Type*) where
   fintype: Fintype M
-  specs: List (Σ spec: (M → Prop), DecidablePred spec)
+  specs: List (M → Prop)
+  specToDecidable (spec: M → Prop) (req: spec ∈ specs) : DecidablePred spec
+
 
 namespace ModelChecking
 
 variable {M: Type*}
 
-def IsValid (mc: ModelChecking M) : Prop := ∀m ∈ mc.fintype.elems, ∀spec ∈ mc.specs, spec.fst m
+--def ToProp (mc: ModelChecking M) : Prop := ∀m ∈ mc.univ, ∀spec ∈ mc.specs, spec m
 
+--@[reducible]
+--def check_aux (fintype: Fintype M) (specs: List (M → Prop))
+
+/-
+@[reducible]
+def check_aux fintype specs decidable : Decidable (ToProp (⟨fintype, specs, decidable⟩: ModelChecking M)) :=
+  match specs with
+  | [] => .isTrue (by simp [ToProp])
+  | hd_spec::tl =>
+  let dec1 : Decidable (∀(m: M), hd_spec m) := @fintype.decidableForallFintype _ hd_spec (decidable hd_spec)
+  if h2: dec1.decide _ then
+    let dec2 : Decidable (ToProp ⟨fintype, specs, inferInstance⟩) := check_aux fintype tl decidable
+    --@decidable_of_decidable_of_iff _ _ dec2
+-/
+--def check (mc: ModelChecking M) : Bool :=
+
+
+def check (mc: ModelChecking M) : Bool :=
+  let (eq := h1) ⟨fintype, specs, specToDecidable⟩ := mc
+  match h2: specs with
+  | [] => .true
+  | hd_spec::tl =>
+  let dec1 := @fintype.decidableForallFintype M hd_spec (specToDecidable hd_spec (by simp))
+  match dec1 with
+  | .isFalse _ => .false
+  | .isTrue _ =>
+    let dec2 spec (req: spec ∈ tl) : DecidablePred spec := fun (m: M) => specToDecidable spec (by simp [req]) m
+    ModelChecking.mk fintype tl dec2 |> check
+
+
+theorem check_iff (mc: ModelChecking M) : (mc.check = .true) ↔ ∀spec ∈ mc.specs, ∀model, spec model := by
+  rcases mc with ⟨fintype, specs, specToDecidable⟩
+  induction specs with
+  | nil =>
+    unfold check
+    simp only [List.not_mem_nil, false_implies, implies_true]
+  | cons hd_spec tl tl_ih =>
+    unfold check
+    simp
+    split
+    · simp only [Bool.false_eq_true, false_iff, not_and]
+      intro _; contradiction
+    · simp only at tl_ih
+      rename_i h _
+      simp [h]
+      rw [← tl_ih]
+
+
+
+/-
+  unfold check
+  split
+  · grind only [← List.not_mem_nil]
+  · rcases mc with ⟨fintype,_,_⟩
+    subst_eqs
+    extract_lets dec1 dec2
+    subst dec1 dec2
+    split
+    · simp? [-not_forall]
+      intro lm1 lm2
+      rename_i heq
+      revert heq
+      simp
+      --rename_i heq
+      --simp at heq
+-/
+    --subst dec1
+    --revert mc
+    --dsimp
+    --rename_i mc_eq _ _ _ _ _
+    --subst mc_eq
+    --split
+    --· rename_i mc_eq _ _ _ _ _ _
+
+/-
+  if h3: dec1.decide _ then
+    sorry
+  else
+    .false
+-/
+
+/-
+  match h1: mc.specs with
+  | [] => .true
+  | hd::tl =>
+    have lm1 :
+-/
+
+/-
 @[reducible]
 def decidableIsValid_aux fintype specs : Decidable (IsValid (⟨fintype, specs⟩: ModelChecking M)) :=
   match specs with
@@ -39,13 +130,10 @@ def decidableIsValid_aux fintype specs : Decidable (IsValid (⟨fintype, specs�
         simp
       )
 
-set_option pp.proofs true in
-#print decidableIsValid_aux._f
 
 instance decidableIsValid (mc: ModelChecking M) : Decidable (IsValid mc) := decidableIsValid_aux mc.fintype mc.specs
+-/
 
-set_option pp.explicit true in
-#print decidableIsValid
 
 /-
 instance decidableIsValid (mc: ModelChecking M) : Decidable (IsValid mc) :=
