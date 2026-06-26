@@ -39,8 +39,13 @@ def decidableIsValid_aux fintype specs : Decidable (IsValid (‚ü®fintype, specs‚ü
         simp
       )
 
+set_option pp.proofs true in
+#print decidableIsValid_aux._f
 
 instance decidableIsValid (mc: ModelChecking M) : Decidable (IsValid mc) := decidableIsValid_aux mc.fintype mc.specs
+
+set_option pp.explicit true in
+#print decidableIsValid
 
 /-
 instance decidableIsValid (mc: ModelChecking M) : Decidable (IsValid mc) :=
