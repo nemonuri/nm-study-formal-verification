@@ -35,6 +35,9 @@ def check_aux fintype specs decidable : Decidable (ToProp (⟨fintype, specs, de
 --def check (mc: ModelChecking M) : Bool :=
 
 
+--set_option trace.Debug.Meta.Tactic.simp true
+--set_option trace.Meta.Tactic.simp.heads true
+
 def check (mc: ModelChecking M) : Bool :=
   let (eq := h1) ⟨fintype, specs, specToDecidable⟩ := mc
   match h2: specs with
@@ -65,7 +68,23 @@ theorem check_iff (mc: ModelChecking M) : (mc.check = .true) ↔ ∀spec ∈ mc.
       simp [h]
       rw [← tl_ih]
 
+def myFunc (arr : Array Nat) : Unit := Id.run do
+  let mut abc := 0
+  if 0 = 0 then
+    ()
+  for (i, j) in [(0, 0)] do
+    let a : Nat := i + 2
+    if h : arr.size ≤ 4 then
+      continue
+    else if h : arr[4] ≤ a then
+      continue
+    else
+      if 0 = 0 then
+        continue
+      abc := 0
 
+set_option pp.notation false in
+#print myFunc
 
 /-
   unfold check
