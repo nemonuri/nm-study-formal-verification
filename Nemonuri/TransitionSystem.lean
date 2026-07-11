@@ -28,13 +28,14 @@ macro_rules
 
 end Notation
 
+/-
 def attachUniv (α: Type _) [Fintype α] : α ↪ (𝒰 α) where
   toFun a := ⟨a, Finset.mem_univ a⟩
   inj' a1 a2 := by simp
 
 def attachUnivToFinset (α: Type _) [Fintype α] : Finset α ↪o Finset (𝒰 α) :=
   Finset.mapEmbedding (attachUniv α)
-
+-/
 
 open PropositionalLogics Formula SatRel IsSat
 
@@ -92,33 +93,38 @@ scoped instance (α: Sort _) : FunLike (ts.AP → α) (𝒰 ts.AP) α where
     exact lm1 a
 
 
-abbrev coeS (s: ts.S) : Eval (𝒰 ts.AP) := ⟨ts.L s⟩
+/-- Not always injective -/
+def evalStateToBoolPred (s: ts.S) : (𝒰 ts.AP) → Bool :=
+  ts.L s
 
-instance : Coe ts.S (Eval (𝒰 ts.AP)) := ⟨ts.coeS⟩
+instance : CoeOut ts.S (Eval (𝒰 ts.AP)) where
+  coe s := ts.evalStateToBoolPred s
 
 
-def evalState (s: ts.S) : Finset (𝒰 ts.AP) := { ap : 𝒰 ts.AP | ts.L s ap = .true }
+/-- Not always injective -/
+def evalStateToFinset (s: ts.S) : Finset (𝒰 ts.AP) := { ap : 𝒰 ts.AP | ts.L s ap = .true }
 
 section Notation
 
 syntax:30 " 𝐿{" term "}( " term " )" : term
 
 macro_rules
-  | `( 𝐿{ $ts }( $s ) ) => ``( evalState $ts $s )
+  | `( 𝐿{ $ts }( $s ) ) => ``( evalStateToFinset $ts $s )
 
 
 end Notation
 
-
+@[scoped grind =]
 theorem isSat_iff [DecidableEq ts.AP] (p: Formula (𝒰 ts.AP)) (s: ts.S) (sr: SatRel (𝒰 ts.AP))
   : s ⊨ₚ{sr} p ↔ (𝐿{ts}(s)) ⊨ₚ{sr} p := by
-  simp only [coeS, evalState, Eval.ofSubset]
+  apply propext_iff.mp
+  refine congrArg₂ (IsSat sr) ?_ rfl
+  simp only [evalStateToBoolPred, evalStateToFinset]
+  refine Eq.trans (Eval.mk _ |> Eq.refl) ?_
+  refine Eq.trans ?_ (Eval.ofSubset _ |> Eq.refl)
+  simp only [Eval.ofSubset]
   simp
   rfl
-
-#print isSat_iff
-
-
 
 /-
 theorem evalState_injective : Function.Injective (ts.evalState) := by

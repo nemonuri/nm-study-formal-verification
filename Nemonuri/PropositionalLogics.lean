@@ -1,6 +1,6 @@
 module
 
-public import Mathlib.Data.Finset.Basic
+public import Nemonuri.FinsetLike
 
 /-!
 
@@ -129,29 +129,30 @@ instance : FunLike (Eval AP) AP Bool where
 
 theorem app_eq_eval_app (μ: Eval AP) (a: AP) : μ a = μ.eval a := by rfl
 
-def toFinSet (μ: Eval AP) : Finset AP := AP.attach.filter (fun (a: AP) => μ a = .true)
-
-theorem toFinSet_injective : Function.Injective (@toFinSet _ AP) := by
-  rintro ⟨ev1⟩ ⟨ev2⟩
-  simp [toFinSet]
-  intro lm1
-  simp [app_eq_eval_app, SetLike.ext_iff] at lm1
-  ext x
-  specialize lm1 x.val x.property
-  simpa using lm1
-
-instance : SetLike (Eval AP) AP where
-  coe μ := μ.toFinSet
-  coe_injective := by
-    intro μ1 μ2
-    simp only [SetLike.coe_set_eq]
-    exact toFinSet_injective.eq_iff.mp
 
 
-@[ext]
-theorem ext {p q: Eval AP} (h : ∀ x, x ∈ p ↔ x ∈ q) : p = q := SetLike.ext h
+instance : FinsetLike (Eval AP) AP where
+  coe := (FinsetLike.coeBoolPredFor AP) ∘ (Eval.eval ·)
+  coe_injective := (FinsetLike.coeBoolPredFor_injective AP).comp (by rintro ⟨ev1⟩ ⟨ev2⟩; simp)
+
+
 
 section Coe
+
+class EvalLike (E: Type _) {Atom: outParam <| Type _} (AP: outParam <| Finset Atom) where
+  protected coe (e: E) : Eval AP
+  coe_injective : Function.Injective coe
+
+namespace EvalLike
+
+attribute [coe] EvalLike.coe
+
+variable {E: Type _} {Atom: Type _} {AP: Finset Atom} [EvalLike E AP]
+
+instance : CoeOut E (Eval AP) where coe := EvalLike.coe
+
+end EvalLike
+
 
 variable [DecidableEq AP]
 
@@ -170,9 +171,14 @@ theorem ofSubset_injective : Function.Injective (@ofSubset _ AP _) := by
   simpa only [decide_eq_decide] using lm1
 
 
-instance : Coe (Finset AP) (Eval AP) := ⟨ofSubset⟩
+instance : EvalLike (Finset AP) AP where
+  coe := ofSubset
+  coe_injective := ofSubset_injective
 
-instance : Coe (AP → Bool) (Eval AP) := ⟨Eval.mk⟩
+instance : EvalLike (AP → Bool) AP where
+  coe := Eval.mk
+  coe_injective := by intro _ _; simp
+
 
 end Coe
 
