@@ -159,7 +159,20 @@ scoped instance (A: Finset AP) (a: AP) : Decidable (a ∈ A) := A.decidableMem a
 
 def ofSubset (A: Finset AP) : Eval AP := ⟨fun a => decide (a ∈ A)⟩
 
+theorem ofSubset_injective : Function.Injective (@ofSubset _ AP _) := by
+  intro a1 a2
+  unfold ofSubset
+  simp
+  intro lm1
+  rewrite [funext_iff] at lm1
+  ext a
+  specialize lm1 a
+  simpa only [decide_eq_decide] using lm1
+
+
 instance : Coe (Finset AP) (Eval AP) := ⟨ofSubset⟩
+
+instance : Coe (AP → Bool) (Eval AP) := ⟨Eval.mk⟩
 
 end Coe
 
