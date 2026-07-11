@@ -82,27 +82,22 @@ instance : CoeDep TransitionSystem ts (Cslib.LTS ts.S ts.Act) := ⟨ts.lts⟩
 variable [ConcreteFinite ts]
 
 
+protected abbrev univ : Finset ts.AP := @ConcreteFinite.fintypeAP ts _
 
-scoped instance (α: Sort _) : FunLike (ts.AP → α) (𝒰 ts.AP) α where
-  coe f e := f e
-  coe_injective f1 f2 := by
-    simp only
-    intro lm1
-    simp [funext_iff] at lm1
-    ext a
-    exact lm1 a
+@[defeq] theorem univ_eq : ts.univ = Finset.univ := rfl
 
 
 /-- Not always injective -/
-def evalStateToBoolPred (s: ts.S) : (𝒰 ts.AP) → Bool :=
+def evalStateToBoolPred (s: ts.S) : ts.AP → Bool :=
   ts.L s
 
-instance : CoeOut ts.S (Eval (𝒰 ts.AP)) where
+
+instance : CoeOut ts.S (Eval ts.univ) where
   coe s := ts.evalStateToBoolPred s
 
 
 /-- Not always injective -/
-def evalStateToFinset (s: ts.S) : Finset (𝒰 ts.AP) := { ap : 𝒰 ts.AP | ts.L s ap = .true }
+def evalStateToFinset (s: ts.S) : Finset (ts.AP) := { ap : ts.AP | ts.L s ap = .true }
 
 section Notation
 
@@ -114,9 +109,11 @@ macro_rules
 
 end Notation
 
+
 @[scoped grind =]
-theorem isSat_iff [DecidableEq ts.AP] (p: Formula (𝒰 ts.AP)) (s: ts.S) (sr: SatRel (𝒰 ts.AP))
+theorem isSat_iff [DecidableEq ts.AP] (p: Formula ts.univ) (s: ts.S) (sr: SatRel ts.univ)
   : s ⊨ₚ{sr} p ↔ (𝐿{ts}(s)) ⊨ₚ{sr} p := by
+  revert p sr; dsimp only [univ_eq]; intro p sr
   apply propext_iff.mp
   refine congrArg₂ (IsSat sr) ?_ rfl
   simp only [evalStateToBoolPred, evalStateToFinset]
@@ -125,17 +122,6 @@ theorem isSat_iff [DecidableEq ts.AP] (p: Formula (𝒰 ts.AP)) (s: ts.S) (sr: S
   simp only [Eval.ofSubset]
   simp
   rfl
-
-/-
-theorem evalState_injective : Function.Injective (ts.evalState) := by
-  intro s1 s2
-  simp [evalState]
-  intro lm1
-  simp [funext_iff] at lm1
--/
-
-
---theorem toFinite (h1: Finite ts.S) (h2: Finite ts.Act) (h3: Finite ts.AP) : Fini
 
 
 

@@ -179,6 +179,26 @@ instance : EvalLike (AP → Bool) AP where
   coe := Eval.mk
   coe_injective := by intro _ _; simp
 
+instance [ft: Fintype Atom] [DecidableEq Atom] : EvalLike (Finset Atom) (ft: Finset Atom) :=
+  let attachUniv : Function.Embedding Atom (.univ: Finset Atom) :=
+    .mk (fun x => ⟨x, Finset.mem_univ x⟩) (by intro _ _; simp)
+  { coe := fun (fs: Finset Atom) => fs.map attachUniv
+    coe_injective fs1 fs2 := by
+      subst attachUniv
+      intro lm1
+      simpa [EvalLike.coe_injective.eq_iff] using lm1 }
+
+instance [ft: Fintype Atom] : EvalLike (Atom → Bool) (ft: Finset Atom) where
+  coe f := fun (a: (ft: Finset Atom)) => f a
+  coe_injective f1 f2 := by
+    simp only
+    intro lm1
+    simp only [EvalLike.coe_injective.eq_iff] at lm1
+    simp [funext_iff] at lm1
+    ext a
+    exact lm1 a (Finset.mem_univ a)
+
+
 
 end Coe
 

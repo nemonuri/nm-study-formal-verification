@@ -51,6 +51,9 @@ instance {α: Type _} [Fintype α] : FinsetLike (Fintype α) α where
   coe_injective ft1 ft2 _ := Fintype.subsingleton α |>.allEq ft1 ft2
 
 
+theorem fintype_coe_eq_univ {α: Type _} [ft: Fintype α] : (ft: Finset α) = Finset.univ := rfl
+
+
 end FinsetLike
 
 end Nemonuri
