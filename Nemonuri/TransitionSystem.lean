@@ -101,18 +101,19 @@ def evalStateToFinset (s: ts.S) : Finset (ts.AP) := { ap : ts.AP | ts.L s ap = .
 
 section Notation
 
-syntax:30 " 𝐿{" term "}( " term " )" : term
+
+
+syntax:51 " 𝐿{" term "}⸨ " term " ⸩" : term
 
 macro_rules
-  | `( 𝐿{ $ts }( $s ) ) => ``( evalStateToFinset $ts $s )
-
+  | `( 𝐿{ $ts }⸨ $s ⸩ ) => ``( evalStateToFinset $ts $s )
 
 end Notation
 
 
 @[scoped grind =]
 theorem isSat_iff [DecidableEq ts.AP] (p: Formula ts.univ) (s: ts.S) (sr: SatRel ts.univ)
-  : s ⊨ₚ{sr} p ↔ (𝐿{ts}(s)) ⊨ₚ{sr} p := by
+  : s ⊨ₚ{sr} p ↔ 𝐿{ts}⸨s⸩ ⊨ₚ{sr} p := by
   revert p sr; dsimp only [univ_eq]; intro p sr
   apply propext_iff.mp
   refine congrArg₂ (IsSat sr) ?_ rfl

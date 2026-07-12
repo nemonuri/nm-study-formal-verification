@@ -369,6 +369,8 @@ theorem eqv : Equivalence (· ≡ₚ{sr} ·) where
 
 instance : IsEquiv (Formula AP) (· ≡ₚ{sr} ·) := IsEquiv.of_equivalence (SemEquiv.eqv sr)
 
+
+
 @[reducible]
 def toSetoid : Setoid (Formula AP) where
   r := sr.SemEquiv
