@@ -74,9 +74,18 @@ attribute [reducible, instance] ConcreteFinite.fintypeAP
 
 variable (ts: TransitionSystem)
 
-def lts : Cslib.LTS ts.S ts.Act := ⟨ts.tr⟩
+abbrev lts : Cslib.LTS ts.S ts.Act := ⟨ts.tr⟩
 
-instance : CoeDep TransitionSystem ts (Cslib.LTS ts.S ts.Act) := ⟨ts.lts⟩
+
+section Notation
+
+syntax:52 term:53 " ─⌞" term "⌟→{ " term " } " term:52 : term
+
+macro_rules
+  | `( $s1 ─⌞ $act ⌟→{ $ts } $s2 ) => ``( Cslib.LTS.Tr (TransitionSystem.lts $ts) $s1 $act $s2 )
+
+
+end Notation
 
 
 variable [ConcreteFinite ts]
@@ -101,8 +110,6 @@ def evalStateToFinset (s: ts.S) : Finset (ts.AP) := { ap : ts.AP | ts.L s ap = .
 
 section Notation
 
-
-
 syntax:51 " 𝐿{" term "}⸨ " term " ⸩" : term
 
 macro_rules
@@ -124,6 +131,87 @@ theorem isSat_iff [DecidableEq ts.AP] (p: Formula ts.univ) (s: ts.S) (sr: SatRel
   simp
   rfl
 
+/-!
+
+### Definition 2.3. Direct Predecessors and Successors
+
+-/
+
+
+def SetOfDirectSuccessorAt (s: ts.S) (α: ts.Act) : Set ts.S := { s': ts.S | s ─⌞α⌟→{ts} s' }
+
+def SetOfDirectPredecessorAt (s: ts.S) (α: ts.Act) : Set ts.S := { s': ts.S | s' ─⌞α⌟→{ts} s }
+
+section Notation
+
+syntax:61 " 𝑃𝑜𝑠𝑡{" term "}⸨" term "," term "⸩ " : term
+syntax:61 " 𝑃𝑟𝑒{" term "}⸨" term "," term "⸩ " : term
+
+macro_rules
+  | `( 𝑃𝑜𝑠𝑡{ $ts }⸨ $s , $α ⸩ ) => ``( SetOfDirectSuccessorAt $ts $s $α )
+  | `( 𝑃𝑟𝑒{ $ts }⸨ $s , $α ⸩ ) => ``( SetOfDirectPredecessorAt $ts $s $α )
+
+end Notation
+
+
+def SetOfDirectSuccessor (s: ts.S) : Set ts.S := ⋃ α: ts.Act, 𝑃𝑜𝑠𝑡{ts}⸨s, α⸩
+
+def SetOfDirectPredecessor (s: ts.S) : Set ts.S := ⋃ α: ts.Act, 𝑃𝑟𝑒{ts}⸨s, α⸩
+
+
+section Notation
+
+syntax:61 " 𝑃𝑜𝑠𝑡{" term "}⸨" term "⸩ " : term
+syntax:61 " 𝑃𝑟𝑒{" term "}⸨" term "⸩ " : term
+
+macro_rules
+  | `( 𝑃𝑜𝑠𝑡{ $ts }⸨ $s ⸩ ) => ``( SetOfDirectSuccessor $ts $s )
+  | `( 𝑃𝑟𝑒{ $ts }⸨ $s ⸩ ) => ``( SetOfDirectPredecessor $ts $s )
+
+end Notation
+
+
+def UnionOfDirectSuccessorAt (C: Set ts.S) (α: ts.Act) : Set ts.S := ⋃ s ∈ C, 𝑃𝑜𝑠𝑡{ts}⸨s, α⸩
+
+def UnionOfDirectPredecessorAt (C: Set ts.S) (α: ts.Act) : Set ts.S := ⋃ s ∈ C, 𝑃𝑟𝑒{ts}⸨s, α⸩
+
+def UnionOfDirectSuccessor (C: Set ts.S) : Set ts.S := ⋃ s ∈ C, 𝑃𝑜𝑠𝑡{ts}⸨s⸩
+
+def UnionOfDirectPredecessor (C: Set ts.S) : Set ts.S := ⋃ s ∈ C, 𝑃𝑟𝑒{ts}⸨s⸩
+
+
+section Notation
+
+syntax:61 " 𝑃𝑜𝑠𝑡ᵤ{" term "}⸨" term "," term "⸩ " : term
+syntax:61 " 𝑃𝑟𝑒ᵤ{" term "}⸨" term "," term "⸩ " : term
+syntax:61 " 𝑃𝑜𝑠𝑡ᵤ{" term "}⸨" term "⸩ " : term
+syntax:61 " 𝑃𝑟𝑒ᵤ{" term "}⸨" term "⸩ " : term
+
+macro_rules
+  | `( 𝑃𝑜𝑠𝑡ᵤ{ $ts }⸨ $C, $α ⸩ ) => ``( UnionOfDirectSuccessorAt $ts $C $α )
+  | `( 𝑃𝑟𝑒ᵤ{ $ts }⸨ $C, $α ⸩ ) => ``( UnionOfDirectPredecessorAt $ts $C $α )
+  | `( 𝑃𝑜𝑠𝑡ᵤ{ $ts }⸨ $C ⸩ ) => ``( UnionOfDirectSuccessor $ts $C )
+  | `( 𝑃𝑟𝑒ᵤ{ $ts }⸨ $C ⸩ ) => ``( UnionOfDirectPredecessor $ts $C )
+
+end Notation
+
+
+/-!
+
+### Definition 2.4. Terminal State
+
+-/
+
+def IsTerminal (s: ts.S) : Prop := 𝑃𝑜𝑠𝑡{ts}⸨s⸩ = ∅
+
+
+/-!
+
+### Definition 2.5. Deterministic Transition System
+
+-/
+
+--#print Cardinal.toENatAux
 
 
 end TransitionSystem
