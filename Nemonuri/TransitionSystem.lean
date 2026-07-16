@@ -2,6 +2,7 @@ module
 
 
 public import Mathlib.Data.Finite.Defs
+public import Mathlib.Data.Setoid.Basic
 public import Cslib.Foundations.Semantics.LTS.Basic
 public import Cslib.Foundations.Semantics.LTS.Relation
 import Cslib.Foundations.Semantics.LTS.Notation
@@ -91,7 +92,7 @@ end Notation
 variable [ConcreteFinite ts]
 
 
-protected abbrev univ : Finset ts.AP := @ConcreteFinite.fintypeAP ts _
+protected abbrev univ : Finset ts.AP := @Finset.univ _ (@ConcreteFinite.fintypeAP ts _)
 
 @[defeq] theorem univ_eq : ts.univ = Finset.univ := rfl
 
@@ -100,9 +101,38 @@ protected abbrev univ : Finset ts.AP := @ConcreteFinite.fintypeAP ts _
 def evalStateToBoolPred (s: ts.S) : ts.AP → Bool :=
   ts.L s
 
+@[reducible]
+def evalStateKernel : Setoid ts.S := Setoid.ker ts.evalStateToBoolPred
 
-instance : CoeOut ts.S (Eval ts.univ) where
-  coe s := ts.evalStateToBoolPred s
+omit [ts.ConcreteFinite] in
+@[defeq] theorem evalStateKernel_eq_ker : Quotient ts.evalStateKernel = Quotient (Setoid.ker ts.evalStateToBoolPred) := rfl
+
+
+instance : Eval.EvalLike (Quotient ts.evalStateKernel) ts.univ where
+  coe s := Quotient.liftOn s (Eval.mk ∘ (fun f x => f x.val) ∘ ts.evalStateToBoolPred) (by
+    simp
+    intro s1 s2 lm1
+    simp [funext_iff] at lm1
+    ext x; exact lm1 x.val )
+  coe_injective s1 s2 := by
+    cases s1 using Quotient.inductionOn
+    cases s2 using Quotient.inductionOn
+    simp
+    intro lm1
+    simp [funext_iff] at lm1
+    apply Quotient.sound
+    simp
+    ext x; exact lm1 x
+
+
+section Notation
+
+syntax:51 " ⟦" term "⟧{" term "} " : term
+
+macro_rules
+  | `( ⟦ $s ⟧{ $ts } ) => ``( Quotient.mk (evalStateKernel $ts) $s )
+
+end Notation
 
 
 /-- Not always injective -/
@@ -120,16 +150,17 @@ end Notation
 
 @[scoped grind =]
 theorem isSat_iff [DecidableEq ts.AP] (p: Formula ts.univ) (s: ts.S) (sr: SatRel ts.univ)
-  : s ⊨ₚ{sr} p ↔ 𝐿{ts}⸨s⸩ ⊨ₚ{sr} p := by
+  : ⟦s⟧{ts} ⊨ₚ{sr} p ↔ 𝐿{ts}⸨s⸩ ⊨ₚ{sr} p := by
   revert p sr; dsimp only [univ_eq]; intro p sr
   apply propext_iff.mp
   refine congrArg₂ (IsSat sr) ?_ rfl
-  simp only [evalStateToBoolPred, evalStateToFinset]
   refine Eq.trans (Eval.mk _ |> Eq.refl) ?_
   refine Eq.trans ?_ (Eval.ofSubset _ |> Eq.refl)
-  simp only [Eval.ofSubset]
-  simp
-  rfl
+  simp [evalStateToBoolPred, evalStateToFinset, Eval.ofSubset]
+
+
+
+
 
 /-!
 
@@ -211,7 +242,15 @@ def IsTerminal (s: ts.S) : Prop := 𝑃𝑜𝑠𝑡{ts}⸨s⸩ = ∅
 
 -/
 
---#print Cardinal.toENatAux
+structure IsActionDeterministic (ts: TransitionSystem) : Prop where
+  initial_subsingleton : ts.I.Subsingleton
+  post_subsingleton (s: ts.S) (α: ts.Act) : (𝑃𝑜𝑠𝑡{ts}⸨s, α⸩).Subsingleton
+
+structure IsAPDeterministic (ts: TransitionSystem) [ConcreteFinite ts] : Prop where
+  initial_subsingleton : ts.I.Subsingleton
+  post_subsingleton (s: ts.S) (A: ts.AP → Bool) : ((𝑃𝑜𝑠𝑡{ts}⸨s⸩) ∩ { s': ts.S | (𝐿{ts}⸨s'⸩) = A }).Subsingleton
+
+
 
 
 end TransitionSystem

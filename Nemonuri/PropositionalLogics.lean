@@ -150,6 +150,7 @@ attribute [coe] EvalLike.coe
 variable {E: Type _} {Atom: Type _} {AP: Finset Atom} [EvalLike E AP]
 
 instance : CoeOut E (Eval AP) where coe := EvalLike.coe
+--instance : EvalLike (Eval AP) AP := ⟨id, Function.injective_id⟩
 
 end EvalLike
 
@@ -179,17 +180,20 @@ instance : EvalLike (AP → Bool) AP where
   coe := Eval.mk
   coe_injective := by intro _ _; simp
 
+/-
+open scoped EvalLike in
 instance [ft: Fintype Atom] [DecidableEq Atom] : EvalLike (Finset Atom) (ft: Finset Atom) :=
   let attachUniv : Function.Embedding Atom (.univ: Finset Atom) :=
     .mk (fun x => ⟨x, Finset.mem_univ x⟩) (by intro _ _; simp)
-  { coe := fun (fs: Finset Atom) => fs.map attachUniv
+  { coe := fun (fs: Finset Atom) => fs.map attachUniv --|> EvalLike.coe
     coe_injective fs1 fs2 := by
       subst attachUniv
       intro lm1
       simpa [EvalLike.coe_injective.eq_iff] using lm1 }
 
+open scoped EvalLike in
 instance [ft: Fintype Atom] : EvalLike (Atom → Bool) (ft: Finset Atom) where
-  coe f := fun (a: (ft: Finset Atom)) => f a
+  coe f := (fun (a: (ft: Finset Atom)) => f a) --|> EvalLike.coe
   coe_injective f1 f2 := by
     simp only
     intro lm1
@@ -197,8 +201,7 @@ instance [ft: Fintype Atom] : EvalLike (Atom → Bool) (ft: Finset Atom) where
     simp [funext_iff] at lm1
     ext a
     exact lm1 a (Finset.mem_univ a)
-
-
+-/
 
 end Coe
 
@@ -232,7 +235,9 @@ instance : FunLike (SatRel AP) (Eval AP) (Formula AP → Prop) where
 
 namespace SatRel
 
+
 variable (sr: SatRel AP) (μ: Eval AP)
+
 
 theorem app_eq_raw_app
   : sr μ = sr.raw μ :=
