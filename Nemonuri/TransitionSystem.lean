@@ -317,10 +317,57 @@ theorem lastState_eq_getLast : ϱ.lastState = ϱ.raw.states.getLast ϱ.raw_state
   exact is_valid.lastState_eq.symm
 
 
+def length : Nat := ϱ.raw.actions.length
 
-protected def refl (s: ts.S) : FiniteExecutionFragment ts where
+
+protected def refl (ts: TransitionSystem) (s: ts.S) : FiniteExecutionFragment ts where
   raw := .mk s [] s [s]
   is_valid := by constructor <;> simp
+
+
+theorem length_eq_zero_iff_actions_eq_nil : (ϱ.length = 0) ↔ (ϱ.raw.actions = []) :=
+  calc
+    _ ↔ _ := by dsimp only [FiniteExecutionFragment.length]; rfl
+    _ ↔ _ := by simp only [List.length_eq_zero_iff]
+
+
+theorem actions_eq_nil_iff_states_eq_singleton
+  : (ϱ.raw.actions = []) ↔ (ϱ.raw.states = [ϱ.firstState]) := by
+  constructor
+  · intro lm1
+    replace lm1 := congrArg List.length lm1
+    have lm2 := ϱ.is_valid.length_eq
+    rewrite [lm1] at lm2; clear lm1
+    simp at lm2
+    simp only [List.length_eq_one_iff] at lm2
+    rcases lm2 with ⟨s, lm3⟩
+    cases lm4: ϱ.raw.states with
+    | nil => simp only [lm3, List.cons_ne_self] at lm4
+    | cons hd tl =>
+      simp only [ϱ.firstState_eq_head]
+      simp [lm4]
+      simp [lm3] at lm4
+      exact lm4.right
+  · intro lm1
+    replace lm1 := congrArg List.length lm1
+    have lm2 := ϱ.is_valid.length_eq
+    rewrite [lm1] at lm2; clear lm1
+    simpa using lm2
+
+theorem actions_eq_nil_imp_firstState_eq_lastState (h: ϱ.raw.actions = [])
+  : (ϱ.firstState = ϱ.lastState) := by
+  have lm1 := ϱ.actions_eq_nil_iff_states_eq_singleton.mp h
+  simp only [FiniteExecutionFragment.firstState_eq_head, FiniteExecutionFragment.lastState_eq_getLast]
+  simp [lm1]
+
+/-
+theorem length_zero_iff_refl : (ϱ.length = 0) ↔ ∃(s: ts.S), ϱ = FiniteExecutionFragment.refl ts s := by
+  constructor
+  · intro lm1
+    exists ϱ.firstState
+    dsimp [FiniteExecutionFragment.refl]
+-/
+
 
 
 protected def stepL (s: ts.S) (act: ts.Act) (req: s ─⌞act⌟→{ts} ϱ.firstState) : FiniteExecutionFragment ts where
@@ -347,7 +394,33 @@ protected def stepL (s: ts.S) (act: ts.Act) (req: s ─⌞act⌟→{ts} ϱ.first
 
 
 
-def length : Nat := ϱ.raw.states.length - 1
+
+
+
+/-
+@[elab_as_elim, induction_eliminator]
+protected def ind
+  {motive : ts.FiniteExecutionFragment → Sort _}
+  (refl: (s: ts.S) → motive <| FiniteExecutionFragment.refl ts s )
+  (stepL: (ϱ : ts.FiniteExecutionFragment) → (s: ts.S) → (act: ts.Act) → (req: s ─⌞act⌟→{ts} ϱ.firstState) → motive <| ϱ.stepL s act req)
+  (t: ts.FiniteExecutionFragment)
+  : motive t :=
+  match eq1: t.raw.actions with
+  | .nil => refl (t.firstState) |> cast (by
+      refine congrArg motive ?_
+      dsimp [FiniteExecutionFragment.refl]
+      have lm2 := t.actions_eq_nil_iff_states_eq_singleton.mp eq1
+      simp only [← lm2]
+      have lm3 := t.actions_eq_nil_imp_firstState_eq_lastState eq1
+      conv => lhs; arg 1; arg 3; rw [lm3]
+      conv => lhs; arg 1; arg 2; rw [← eq1]
+      dsimp only [FiniteExecutionFragment.firstState, FiniteExecutionFragment.lastState]
+    )
+  | .cons hd tl => stepL
+-/
+
+
+
 
 
 structure ActionList (ϱ: ts.FiniteExecutionFragment) where
