@@ -308,6 +308,7 @@ theorem firstState_eq_head : ϱ.firstState = ϱ.raw.states.head ϱ.raw_states_ne
   exact is_valid.firstState_eq.symm
 
 
+
 protected def lastState : ts.S := ϱ.raw.lastState
 
 theorem lastState_eq_getLast : ϱ.lastState = ϱ.raw.states.getLast ϱ.raw_states_ne_nil := by
@@ -318,6 +319,30 @@ theorem lastState_eq_getLast : ϱ.lastState = ϱ.raw.states.getLast ϱ.raw_state
 
 
 def length : Nat := ϱ.raw.actions.length
+
+@[defeq] theorem length_eq_actions_length : ϱ.length = ϱ.raw.actions.length := rfl
+
+theorem zero_lt_states_length : (0 < ϱ.raw.states.length) :=
+  calc
+    0 < _ := Nat.add_one_pos _
+    _ = _ := ϱ.is_valid.length_eq.symm
+
+theorem firstState_eq_getElem : ϱ.firstState = ϱ.raw.states[0]'(ϱ.zero_lt_states_length) := by
+  dsimp [FiniteExecutionFragment.firstState]
+  exact ϱ.is_valid.firstState_eq.symm
+
+theorem states_length_lt_states_sub_one : ϱ.raw.states.length - 1 < ϱ.raw.states.length :=
+  Nat.sub_lt ϱ.zero_lt_states_length Nat.zero_lt_one
+
+
+theorem lastState_eq_getElem : ϱ.lastState = ϱ.raw.states[ϱ.raw.states.length - 1]'(ϱ.states_length_lt_states_sub_one) := by
+  dsimp [FiniteExecutionFragment.lastState]
+  exact ϱ.is_valid.lastState_eq.symm
+
+theorem length_eq_states_length_sub_one : ϱ.length = ϱ.raw.states.length - 1 :=
+  calc
+    ϱ.length = _ := ϱ.length_eq_actions_length
+    _ = _ := by simp [ϱ.is_valid.length_eq]
 
 
 protected def refl (ts: TransitionSystem) (s: ts.S) : FiniteExecutionFragment ts where
@@ -331,67 +356,128 @@ theorem length_eq_zero_iff_actions_eq_nil : (ϱ.length = 0) ↔ (ϱ.raw.actions 
     _ ↔ _ := by simp only [List.length_eq_zero_iff]
 
 
-theorem actions_eq_nil_iff_states_eq_singleton
-  : (ϱ.raw.actions = []) ↔ (ϱ.raw.states = [ϱ.firstState]) := by
-  constructor
-  · intro lm1
-    replace lm1 := congrArg List.length lm1
-    have lm2 := ϱ.is_valid.length_eq
-    rewrite [lm1] at lm2; clear lm1
-    simp at lm2
-    simp only [List.length_eq_one_iff] at lm2
-    rcases lm2 with ⟨s, lm3⟩
-    cases lm4: ϱ.raw.states with
-    | nil => simp only [lm3, List.cons_ne_self] at lm4
-    | cons hd tl =>
-      simp only [ϱ.firstState_eq_head]
-      simp [lm4]
-      simp [lm3] at lm4
-      exact lm4.right
-  · intro lm1
-    replace lm1 := congrArg List.length lm1
-    have lm2 := ϱ.is_valid.length_eq
-    rewrite [lm1] at lm2; clear lm1
-    simpa using lm2
+theorem length_eq_zero_iff_states_eq_singleton : (ϱ.length = 0) ↔ (ϱ.raw.states = [ϱ.firstState]) :=
+  calc (ϱ.length = 0)
+    _ ↔ _ := by dsimp only [FiniteExecutionFragment.length]; rfl
+    _ ↔ ϱ.raw.states.length = 1 := by simp [ϱ.is_valid.length_eq]
+    _ ↔ _ := List.length_eq_one_iff
+    _ ↔ _ := by
+      constructor
+      · rintro ⟨s, lm1⟩
+        cases lm2: ϱ.raw.states with
+        | nil => rewrite [lm2] at lm1; simp at lm1
+        | cons hd tl =>
+          simp only [ϱ.firstState_eq_head]
+          simp [lm2]
+          simp [lm1] at lm2
+          exact lm2.right
+      · intro lm1
+        exact Exists.intro _ lm1
 
-theorem actions_eq_nil_imp_firstState_eq_lastState (h: ϱ.raw.actions = [])
-  : (ϱ.firstState = ϱ.lastState) := by
-  have lm1 := ϱ.actions_eq_nil_iff_states_eq_singleton.mp h
+
+theorem length_eq_zero_imp_firstState_eq_lastState (h: ϱ.length = 0)
+  : ϱ.firstState = ϱ.lastState := by
+  have lm1 := ϱ.length_eq_zero_iff_states_eq_singleton.mp h
   simp only [FiniteExecutionFragment.firstState_eq_head, FiniteExecutionFragment.lastState_eq_getLast]
   simp [lm1]
 
-/-
-theorem length_zero_iff_refl : (ϱ.length = 0) ↔ ∃(s: ts.S), ϱ = FiniteExecutionFragment.refl ts s := by
+
+theorem length_eq_zero_iff_refl_eq : (ϱ.length = 0) ↔ (∃s, ϱ = FiniteExecutionFragment.refl ts s) := by
   constructor
   · intro lm1
+    have lm2 := ϱ.length_eq_zero_iff_actions_eq_nil.mp lm1
+    have lm3 := ϱ.length_eq_zero_iff_states_eq_singleton.mp lm1
+    have lm4 := ϱ.length_eq_zero_imp_firstState_eq_lastState lm1
     exists ϱ.firstState
     dsimp [FiniteExecutionFragment.refl]
--/
+    conv =>
+      rhs; arg 1
+      conv => arg 1; dsimp only [FiniteExecutionFragment.firstState]
+      conv => arg 2; rw [← lm2]
+      conv => arg 3; rw [lm4]; dsimp only [FiniteExecutionFragment.lastState]
+      conv => arg 4; rw [← lm3]
+  · rintro ⟨s, lm1⟩
+    subst lm1
+    dsimp [FiniteExecutionFragment.refl, FiniteExecutionFragment.length]
+
 
 
 
 protected def stepL (s: ts.S) (act: ts.Act) (req: s ─⌞act⌟→{ts} ϱ.firstState) : FiniteExecutionFragment ts where
   raw := .mk s (act :: ϱ.raw.actions) ϱ.lastState (s :: ϱ.raw.states)
   is_valid := by
-    rcases ϱ with ⟨raw, is_valid⟩
-    revert is_valid
-    simp only [ts.isFiniteExecutionFragment_iff]
-    rcases raw with ⟨firstState, actions, lastState, states⟩
-    simp
-    intro length_eq firstState_eq lastState_eq states_actions_valid lm1
-    change ts.tr s act firstState at lm1
-    exists length_eq
     constructor
-    · simp [← lastState_eq, length_eq]
-      rfl
-    · intro i lm2
+    · dsimp
+    · simp [lastState_eq_getElem, ϱ.is_valid.length_eq]
+    · dsimp
+      intro i lm1
       induction i with
-      | zero => simp only [List.getElem_cons_zero, firstState_eq]; exact lm1
-      | succ i ih =>
-        simp only [List.getElem_cons_succ]
-        refine states_actions_valid i ?_
+      | zero =>
+        dsimp
+        simpa only [firstState_eq_getElem] using req
+      | succ i _ =>
+        dsimp
+        refine ϱ.is_valid.states_actions_valid i ?_
+    · dsimp
+      simp [ϱ.is_valid.length_eq]
+
+structure StepLEntry (ts : TransitionSystem) where
+  ϱ: ts.FiniteExecutionFragment
+  s: ts.S
+  act: ts.Act
+  req: s ─⌞act⌟→{ts} ϱ.firstState
 
 
+protected def stepLInv (req: 0 < ϱ.length) : StepLEntry ts :=
+  have lm1 := ϱ.length_eq_actions_length ▸ req
+  have lm2 : 1 < ϱ.raw.states.length := by have _ := ϱ.length_eq_states_length_sub_one ▸ req; omega
+  {
+    ϱ := {
+      raw := {
+        firstState := ϱ.raw.states[1]'(lm2)
+        actions := ϱ.raw.actions.tail
+        lastState := ϱ.lastState
+        states := ϱ.raw.states.tail
+      }
+      is_valid := by
+        constructor
+        · dsimp; simp only [List.getElem_tail, zero_add]
+        · dsimp
+          simp [lastState_eq_getElem]
+          congr
+          omega
+        · dsimp; simp only [List.length_tail, List.getElem_tail]
+          intro i lm3
+          refine ϱ.is_valid.states_actions_valid (i+1) ?_
+        · dsimp; simp only [List.length_tail]
+          rw [ϱ.is_valid.length_eq]
+          omega
+    }
+    s := ϱ.firstState
+    act := ϱ.raw.actions[0]'(lm1)
+    req := by
+      dsimp [FiniteExecutionFragment.firstState]
+      rw [← ϱ.is_valid.firstState_eq]
+      exact ϱ.is_valid.states_actions_valid 0 lm1
+  }
+
+
+
+
+
+
+
+--protected def stepLInv (req: 0 < ϱ.length) : Σ' (ϱ': ts.FiniteExecutionFragment) (s: ts.S) (act: ts.Act), (s ─⌞act⌟→{ts} ϱ'.firstState) :=
+--∑(ϱ': ts.FiniteExecutionFragment), ∑(s: ts.S), ∑(act: ts.Act), (s ─⌞act⌟→{ts} ϱ'.firstState) :=
+
+
+/-
+theorem length_ne_zero_iff_stepL_eq
+  : (ϱ.length ≠ 0) ↔ (∃(ϱ': ts.FiniteExecutionFragment), ∃ s act req, ϱ = ϱ'.stepL s act req) := by
+  simp only [Nat.ne_zero_iff_zero_lt]
+  constructor
+  · intro lm1
+-/
 
 
 
