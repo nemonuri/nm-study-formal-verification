@@ -7,6 +7,8 @@ public import Cslib.Foundations.Semantics.LTS.Basic
 public import Cslib.Foundations.Semantics.LTS.Relation
 import Cslib.Foundations.Semantics.LTS.Notation
 public import Nemonuri.PropositionalLogics
+public import Cslib.Foundations.Semantics.LTS.Execution
+public import Cslib.Foundations.Semantics.LTS.OmegaExecution
 
 /-!
 
@@ -159,9 +161,6 @@ theorem isSat_iff [DecidableEq ts.AP] (p: Formula ts.univ) (s: ts.S) (sr: SatRel
   simp [evalStateToBoolPred, evalStateToFinset, Eval.ofSubset]
 
 
-
-
-
 /-!
 
 ### Definition 2.3. Direct Predecessors and Successors
@@ -249,6 +248,149 @@ structure IsActionDeterministic (ts: TransitionSystem) : Prop where
 structure IsAPDeterministic (ts: TransitionSystem) [ConcreteFinite ts] : Prop where
   initial_subsingleton : ts.I.Subsingleton
   post_subsingleton (s: ts.S) (A: ts.AP → Bool) : ((𝑃𝑜𝑠𝑡{ts}⸨s⸩) ∩ { s': ts.S | (𝐿{ts}⸨s'⸩) = A }).Subsingleton
+
+
+/-!
+
+### Definition 2.6. Execution Fragment
+
+-/
+
+structure FiniteExecutionFragmentRaw (ts: TransitionSystem) where
+  firstState: ts.S
+  actions: List ts.Act
+  lastState: ts.S
+  states: List ts.S
+
+@[mk_iff]
+structure IsFiniteExecutionFragment (raw: ts.FiniteExecutionFragmentRaw) : Prop where
+  length_eq : raw.states.length = raw.actions.length + 1
+  firstState_eq : raw.states[0] = raw.firstState
+  lastState_eq : raw.states[raw.states.length - 1] = raw.lastState
+  states_actions_valid (i: Nat) (h: i < raw.actions.length) : raw.states[i] ─⌞(raw.actions[i])⌟→{ts} raw.states[i+1]
+
+open Cslib.LTS in
+omit [ts.ConcreteFinite] in
+theorem isFiniteExecutionFragment_iff_execution (raw: ts.FiniteExecutionFragmentRaw)
+  : ts.IsFiniteExecutionFragment raw ↔ ts.lts.Execution raw.firstState raw.actions raw.lastState raw.states := by
+  dsimp only [Execution]
+  constructor
+  · intro lm1
+    exact ⟨lm1.length_eq, lm1.firstState_eq, lm1.lastState_eq, lm1.states_actions_valid⟩
+  · rintro ⟨length_eq, firstState_eq, lastState_eq, states_actions_valid⟩
+    exact IsFiniteExecutionFragment.mk length_eq firstState_eq lastState_eq states_actions_valid
+
+/-
+def IsFiniteExecutionFragment (raw: ts.FiniteExecutionFragmentRaw) : Prop :=
+  ts.lts.Execution raw.firstState raw.actions raw.lastState raw.states
+-/
+
+structure FiniteExecutionFragment (ts: TransitionSystem) where
+  raw: ts.FiniteExecutionFragmentRaw
+  is_valid: ts.IsFiniteExecutionFragment raw
+
+
+namespace FiniteExecutionFragment
+
+
+variable {ts: TransitionSystem} (ϱ: ts.FiniteExecutionFragment)
+
+
+theorem raw_states_ne_nil : ϱ.raw.states ≠ [] := List.ne_nil_of_length_eq_add_one ϱ.is_valid.length_eq
+
+
+protected def firstState : ts.S := ϱ.raw.firstState
+
+theorem firstState_eq_head : ϱ.firstState = ϱ.raw.states.head ϱ.raw_states_ne_nil := by
+  rcases ϱ with ⟨raw, is_valid⟩
+  dsimp [FiniteExecutionFragment.firstState]
+  simp only [List.head_eq_getElem]
+  exact is_valid.firstState_eq.symm
+
+
+protected def lastState : ts.S := ϱ.raw.lastState
+
+theorem lastState_eq_getLast : ϱ.lastState = ϱ.raw.states.getLast ϱ.raw_states_ne_nil := by
+  rcases ϱ with ⟨raw, is_valid⟩
+  dsimp [FiniteExecutionFragment.lastState]
+  simp only [List.getLast_eq_getElem]
+  exact is_valid.lastState_eq.symm
+
+
+
+protected def refl (s: ts.S) : FiniteExecutionFragment ts where
+  raw := .mk s [] s [s]
+  is_valid := by constructor <;> simp
+
+
+protected def stepL (s: ts.S) (act: ts.Act) (req: s ─⌞act⌟→{ts} ϱ.firstState) : FiniteExecutionFragment ts where
+  raw := .mk s (act :: ϱ.raw.actions) ϱ.lastState (s :: ϱ.raw.states)
+  is_valid := by
+    rcases ϱ with ⟨raw, is_valid⟩
+    revert is_valid
+    simp only [ts.isFiniteExecutionFragment_iff]
+    rcases raw with ⟨firstState, actions, lastState, states⟩
+    simp
+    intro length_eq firstState_eq lastState_eq states_actions_valid lm1
+    change ts.tr s act firstState at lm1
+    exists length_eq
+    constructor
+    · simp [← lastState_eq, length_eq]
+      rfl
+    · intro i lm2
+      induction i with
+      | zero => simp only [List.getElem_cons_zero, firstState_eq]; exact lm1
+      | succ i ih =>
+        simp only [List.getElem_cons_succ]
+        refine states_actions_valid i ?_
+
+
+
+
+def length : Nat := ϱ.raw.states.length - 1
+
+
+structure ActionList (ϱ: ts.FiniteExecutionFragment) where
+  toList: List ts.Act
+  is_valid: toList = ϱ.raw.actions
+
+def actions : ActionList ϱ := .mk ϱ.raw.actions rfl
+
+def IsValidStateIndex (idx: Nat) : Prop := idx ≤ ϱ.length
+
+def IsValidActionIndex (idx: Nat) : Prop := (0 < idx) ∧ (ϱ.IsValidStateIndex idx)
+
+
+namespace ActionList
+
+variable {ϱ: ts.FiniteExecutionFragment}
+
+/-
+def getAt (as: ActionList ϱ) (idx: Nat) (req: ϱ.IsValidActionIndex idx) : ts.Act :=
+  as.toList.get ⟨idx, (by
+    rcases as with ⟨toList, is_valid⟩
+    dsimp [IsValidActionIndex, IsValidStateIndex, FiniteExecutionFragment.length] at req
+    subst is_valid
+    simp only
+  )⟩
+-/
+
+
+end ActionList
+
+
+structure StateList (ϱ: ts.FiniteExecutionFragment) where
+  toList: List ts.S
+  is_valid: toList = ϱ.raw.states
+
+def states : StateList ϱ := .mk ϱ.raw.states rfl
+
+
+
+end FiniteExecutionFragment
+
+
+
 
 
 
