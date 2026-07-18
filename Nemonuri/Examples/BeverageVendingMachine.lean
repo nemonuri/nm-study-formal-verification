@@ -1,8 +1,9 @@
+module
 
-import Nemonuri.TransitionSystem
-import Mathlib.Data.FinEnum
-import Mathlib.Tactic.DeriveFintype
-import Cslib.Foundations.Semantics.LTS.Notation
+public import Nemonuri.TransitionSystem
+public import Mathlib.Data.FinEnum
+public import Mathlib.Tactic.DeriveFintype
+public import Cslib.Foundations.Semantics.LTS.Notation
 
 /-!
 
@@ -11,6 +12,8 @@ import Cslib.Foundations.Semantics.LTS.Notation
 * [Christel Baier, Joost-Pieter Katoen, *Principles of Model Checking*][PoMC], Example 2.2. Beverage Vending Machine, p.21
 
 -/
+
+@[expose] public section
 
 namespace Examples
 
@@ -58,7 +61,7 @@ inductive AP where
   | paid | drink
   deriving DecidableEq, Fintype
 
-set_option trace.Compiler true in
+
 def State.evalToSet (s: State) : Finset AP :=
   match s with
   | .pay => ∅
@@ -96,3 +99,5 @@ example : 𝐿{ts}⸨.select⸩ = { .paid } := by
 
 
 end Examples
+
+end
