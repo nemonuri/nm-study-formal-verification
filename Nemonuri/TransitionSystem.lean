@@ -421,23 +421,32 @@ protected def stepL (s: ts.S) (act: ts.Act) (req: s ─⌞act⌟→{ts} ϱ.first
     · dsimp
       simp [ϱ.is_valid.length_eq]
 
+theorem stepL_length_ne_zero {ϱ: ts.FiniteExecutionFragment} {s act req}
+  : (ϱ.stepL s act req).length ≠ 0 := by
+  dsimp [FiniteExecutionFragment.stepL, length_eq_actions_length]
+  simp
+
+
 structure StepLEntry (ts : TransitionSystem) where
   ϱ: ts.FiniteExecutionFragment
   s: ts.S
   act: ts.Act
   req: s ─⌞act⌟→{ts} ϱ.firstState
 
+protected def StepLEntry.stepL (sle: StepLEntry ts) : FiniteExecutionFragment ts :=
+  sle.ϱ.stepL sle.s sle.act sle.req
 
-protected def stepLInv (req: 0 < ϱ.length) : StepLEntry ts :=
-  have lm1 := ϱ.length_eq_actions_length ▸ req
-  have lm2 : 1 < ϱ.raw.states.length := by have _ := ϱ.length_eq_states_length_sub_one ▸ req; omega
+
+protected def stepLInv (ϱ': ts.FiniteExecutionFragment) (req: 0 < ϱ'.length) : StepLEntry ts :=
+  have lm1 := ϱ'.length_eq_actions_length ▸ req
+  have lm2 : 1 < ϱ'.raw.states.length := by have _ := ϱ'.length_eq_states_length_sub_one ▸ req; omega
   {
     ϱ := {
       raw := {
-        firstState := ϱ.raw.states[1]'(lm2)
-        actions := ϱ.raw.actions.tail
-        lastState := ϱ.lastState
-        states := ϱ.raw.states.tail
+        firstState := ϱ'.raw.states[1]'(lm2)
+        actions := ϱ'.raw.actions.tail
+        lastState := ϱ'.lastState
+        states := ϱ'.raw.states.tail
       }
       is_valid := by
         constructor
@@ -448,36 +457,46 @@ protected def stepLInv (req: 0 < ϱ.length) : StepLEntry ts :=
           omega
         · dsimp; simp only [List.length_tail, List.getElem_tail]
           intro i lm3
-          refine ϱ.is_valid.states_actions_valid (i+1) ?_
+          refine ϱ'.is_valid.states_actions_valid (i+1) ?_
         · dsimp; simp only [List.length_tail]
-          rw [ϱ.is_valid.length_eq]
+          rw [ϱ'.is_valid.length_eq]
           omega
     }
-    s := ϱ.firstState
-    act := ϱ.raw.actions[0]'(lm1)
+    s := ϱ'.firstState
+    act := ϱ'.raw.actions.head (List.length_pos_iff.mp req)
     req := by
       dsimp [FiniteExecutionFragment.firstState]
-      rw [← ϱ.is_valid.firstState_eq]
-      exact ϱ.is_valid.states_actions_valid 0 lm1
+      rw [← ϱ'.is_valid.firstState_eq]
+      rw [List.head_eq_getElem]
+      exact ϱ'.is_valid.states_actions_valid 0 lm1
   }
 
 
 
+theorem stepInv_stepL_leftInverse (h: ϱ.length ≠ 0) : (ϱ.stepLInv (Nat.ne_zero_iff_zero_lt.mp h)).stepL = ϱ := by
+  dsimp [StepLEntry.stepL, FiniteExecutionFragment.stepL, FiniteExecutionFragment.stepLInv]
+  simp only [List.cons_head_tail]
+  dsimp [FiniteExecutionFragment.firstState, FiniteExecutionFragment.lastState]
+  conv =>
+    lhs; arg 1; arg 4;
+    simp only [← FiniteExecutionFragment.firstState.eq_1]
+    simp [FiniteExecutionFragment.firstState_eq_head]
 
 
 
-
---protected def stepLInv (req: 0 < ϱ.length) : Σ' (ϱ': ts.FiniteExecutionFragment) (s: ts.S) (act: ts.Act), (s ─⌞act⌟→{ts} ϱ'.firstState) :=
---∑(ϱ': ts.FiniteExecutionFragment), ∑(s: ts.S), ∑(act: ts.Act), (s ─⌞act⌟→{ts} ϱ'.firstState) :=
-
-
-/-
 theorem length_ne_zero_iff_stepL_eq
-  : (ϱ.length ≠ 0) ↔ (∃(ϱ': ts.FiniteExecutionFragment), ∃ s act req, ϱ = ϱ'.stepL s act req) := by
-  simp only [Nat.ne_zero_iff_zero_lt]
+  : (ϱ.length ≠ 0) ↔ (∃(sle: StepLEntry ts), ϱ = sle.stepL) := by
   constructor
   · intro lm1
--/
+    have lm2 := Nat.ne_zero_iff_zero_lt.mp lm1
+    exists (ϱ.stepLInv lm2)
+    rw [stepInv_stepL_leftInverse]; exact lm1
+  · rintro ⟨sle, lm1⟩
+    subst lm1
+    dsimp [StepLEntry.stepL]
+    simp [stepL_length_ne_zero]
+
+
 
 
 
