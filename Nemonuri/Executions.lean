@@ -337,6 +337,23 @@ end FiniteExecutionFragment
 
 section Definition
 
+/-
+@[mk_iff]
+structure IsFiniteExecutionFragment (raw: ts.FiniteExecutionFragmentRaw) : Prop where
+  length_eq : raw.states.length = raw.actions.length + 1
+  firstState_eq : raw.states[0] = raw.firstState
+  lastState_eq : raw.states[raw.states.length - 1] = raw.lastState
+  states_actions_valid (i: Nat) (h: i < raw.actions.length) : raw.states[i] ─⌞(raw.actions[i])⌟→{ts} raw.states[i+1]
+-/
+variable {ts: TransitionSystem}
+
+structure IsExecutionFragmentPrefix (raw: ts.FiniteExecutionFragmentRaw) : Prop where
+  length_eq : raw.states.length = raw.actions.length
+
+end Definition
+
+section Definition
+
 open Cslib
 
 variable {ts: TransitionSystem}
