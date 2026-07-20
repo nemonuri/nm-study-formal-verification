@@ -28,89 +28,77 @@ section Definition
 variable {ts: TransitionSystem}
 
 structure FiniteExecutionFragmentRaw (ts: TransitionSystem) where
-  firstState: ts.S
-  actions: List ts.Act
-  lastState: ts.S
   states: List ts.S
+  actions: List ts.Act
 
-@[mk_iff]
 structure IsFiniteExecutionFragment (raw: ts.FiniteExecutionFragmentRaw) : Prop where
   length_eq : raw.states.length = raw.actions.length + 1
-  firstState_eq : raw.states[0] = raw.firstState
-  lastState_eq : raw.states[raw.states.length - 1] = raw.lastState
+--  firstState_eq : raw.states[0] = raw.firstState
+--  lastState_eq : raw.states[raw.states.length - 1] = raw.lastState
   states_actions_valid (i: Nat) (h: i < raw.actions.length) : raw.states[i] ─⌞(raw.actions[i])⌟→{ts} raw.states[i+1]
-
-open Cslib.LTS in
-theorem isFiniteExecutionFragment_iff_execution (raw: ts.FiniteExecutionFragmentRaw)
-  : ts.IsFiniteExecutionFragment raw ↔ ts.lts.Execution raw.firstState raw.actions raw.lastState raw.states := by
-  dsimp only [Execution]
-  constructor
-  · intro lm1
-    exact ⟨lm1.length_eq, lm1.firstState_eq, lm1.lastState_eq, lm1.states_actions_valid⟩
-  · rintro ⟨length_eq, firstState_eq, lastState_eq, states_actions_valid⟩
-    exact IsFiniteExecutionFragment.mk length_eq firstState_eq lastState_eq states_actions_valid
-
 
 structure FiniteExecutionFragment (ts: TransitionSystem) where
   raw: ts.FiniteExecutionFragmentRaw
   is_valid: ts.IsFiniteExecutionFragment raw
 
-
 end Definition
+
+
 
 namespace FiniteExecutionFragment
 
-
 variable {ts: TransitionSystem} (ϱ: ts.FiniteExecutionFragment)
 
+protected def states := ϱ.raw.states
 
-theorem raw_states_ne_nil : ϱ.raw.states ≠ [] := List.ne_nil_of_length_eq_add_one ϱ.is_valid.length_eq
+protected def actions := ϱ.raw.actions
 
+theorem states_length_pos : 0 < ϱ.states.length :=
+  calc ϱ.states.length
+    _ = _ := by dsimp only [FiniteExecutionFragment.states]
+    _ = _ := ϱ.is_valid.length_eq
+    _ > 0 := by
+      dsimp only [GT.gt]
+      exact Nat.add_one_pos _
 
-protected def firstState : ts.S := ϱ.raw.firstState
-
-theorem firstState_eq_head : ϱ.firstState = ϱ.raw.states.head ϱ.raw_states_ne_nil := by
-  rcases ϱ with ⟨raw, is_valid⟩
-  dsimp [FiniteExecutionFragment.firstState]
-  simp only [List.head_eq_getElem]
-  exact is_valid.firstState_eq.symm
-
-
-
-protected def lastState : ts.S := ϱ.raw.lastState
-
-theorem lastState_eq_getLast : ϱ.lastState = ϱ.raw.states.getLast ϱ.raw_states_ne_nil := by
-  rcases ϱ with ⟨raw, is_valid⟩
-  dsimp [FiniteExecutionFragment.lastState]
-  simp only [List.getLast_eq_getElem]
-  exact is_valid.lastState_eq.symm
+theorem states_ne_nil : ϱ.states ≠ [] := List.length_pos_iff.mp ϱ.states_length_pos
 
 
-def length : Nat := ϱ.raw.actions.length
-
-@[defeq] theorem length_eq_actions_length : ϱ.length = ϱ.raw.actions.length := rfl
-
-theorem states_length_pos : (0 < ϱ.raw.states.length) :=
-  calc
-    0 < _ := Nat.add_one_pos _
-    _ = _ := ϱ.is_valid.length_eq.symm
-
-theorem firstState_eq_getElem : ϱ.firstState = ϱ.raw.states[0]'(ϱ.states_length_pos) := by
-  dsimp [FiniteExecutionFragment.firstState]
-  exact ϱ.is_valid.firstState_eq.symm
-
-theorem states_length_sub_one_lt : ϱ.raw.states.length - 1 < ϱ.raw.states.length :=
-  Nat.sub_lt ϱ.states_length_pos Nat.zero_lt_one
+def firstState : ts.S := ϱ.states[0]'(ϱ.states_length_pos)
 
 
-theorem lastState_eq_getElem : ϱ.lastState = ϱ.raw.states[ϱ.raw.states.length - 1]'(ϱ.states_length_sub_one_lt) := by
-  dsimp [FiniteExecutionFragment.lastState]
-  exact ϱ.is_valid.lastState_eq.symm
+theorem states_length_sub_one_lt_self : ϱ.states.length - 1 < ϱ.states.length := Nat.sub_succ_lt_self _ 0 ϱ.states_length_pos
 
-theorem length_eq_states_length_sub_one : ϱ.length = ϱ.raw.states.length - 1 :=
-  calc
-    ϱ.length = _ := ϱ.length_eq_actions_length
-    _ = _ := by simp [ϱ.is_valid.length_eq]
+def lastState : ts.S := ϱ.states[ϱ.states.length - 1]'(ϱ.states_length_sub_one_lt_self)
+
+
+open Cslib.LTS in
+theorem isFiniteExecutionFragment_iff_execution
+  : ts.IsFiniteExecutionFragment ϱ.raw ↔ ts.lts.Execution ϱ.firstState ϱ.actions ϱ.lastState ϱ.states := by
+  dsimp only [Execution]
+  constructor
+  · rintro ⟨length_eq, states_actions_valid⟩
+    exists length_eq
+  · rintro ⟨length_eq, _, _, states_actions_valid⟩
+    exact IsFiniteExecutionFragment.mk length_eq states_actions_valid
+
+
+theorem firstState_eq_head : ϱ.firstState = ϱ.states.head ϱ.states_ne_nil := by
+  dsimp only [FiniteExecutionFragment.firstState]
+  rw [List.head_eq_getElem]
+
+
+theorem lastState_eq_getLast : ϱ.lastState = ϱ.states.getLast ϱ.states_ne_nil := by
+  dsimp only [FiniteExecutionFragment.lastState]
+  rw [List.getLast_eq_getElem]
+
+def length : Nat := ϱ.actions.length
+
+
+end FiniteExecutionFragment
+
+
+/-
 
 
 protected def refl (ts: TransitionSystem) (s: ts.S) : FiniteExecutionFragment ts where
@@ -295,56 +283,10 @@ protected def indOn
   @FiniteExecutionFragment.ind ts motive refl stepL t
 
 
-/-
-structure ActionList (ϱ: ts.FiniteExecutionFragment) where
-  toList: List ts.Act
-  is_valid: toList = ϱ.raw.actions
-
-def actions : ActionList ϱ := .mk ϱ.raw.actions rfl
-
-def IsValidStateIndex (idx: Nat) : Prop := idx ≤ ϱ.length
-
-def IsValidActionIndex (idx: Nat) : Prop := (0 < idx) ∧ (ϱ.IsValidStateIndex idx)
-
-
-namespace ActionList
-
-variable {ϱ: ts.FiniteExecutionFragment}
-
-
-def getAt (as: ActionList ϱ) (idx: Nat) (req: ϱ.IsValidActionIndex idx) : ts.Act :=
-  as.toList.get ⟨idx, (by
-    rcases as with ⟨toList, is_valid⟩
-    dsimp [IsValidActionIndex, IsValidStateIndex, FiniteExecutionFragment.length] at req
-    subst is_valid
-    simp only
-  )⟩
-
-
-
-end ActionList
-
-
-structure StateList (ϱ: ts.FiniteExecutionFragment) where
-  toList: List ts.S
-  is_valid: toList = ϱ.raw.states
-
-def states : StateList ϱ := .mk ϱ.raw.states rfl
--/
-
-
 end FiniteExecutionFragment
 
 section Definition
 
-/-
-@[mk_iff]
-structure IsFiniteExecutionFragment (raw: ts.FiniteExecutionFragmentRaw) : Prop where
-  length_eq : raw.states.length = raw.actions.length + 1
-  firstState_eq : raw.states[0] = raw.firstState
-  lastState_eq : raw.states[raw.states.length - 1] = raw.lastState
-  states_actions_valid (i: Nat) (h: i < raw.actions.length) : raw.states[i] ─⌞(raw.actions[i])⌟→{ts} raw.states[i+1]
--/
 variable {ts: TransitionSystem}
 
 structure IsExecutionFragmentPrefix (raw: ts.FiniteExecutionFragmentRaw) : Prop where
@@ -409,7 +351,7 @@ def IsInitial (ef: ts.ExecutionFragment) : Prop := ef.firstState ∈ ts.I
 
 end ExecutionFragment
 
-
+-/
 
 
 
