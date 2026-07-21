@@ -258,16 +258,109 @@ protected def indOn
 end FiniteExecutionFragment
 
 
-/-
+section Definition
+
+variable {ts: TransitionSystem}
+
+
+structure IsExecutionFragmentPrefix (raw: ts.FiniteExecutionFragmentRaw) : Prop where
+  length_eq : raw.states.length = raw.actions.length
+  states_actions_valid (i: Nat) (h: i < raw.actions.length - 1) : raw.states[i] ─⌞(raw.actions[i])⌟→{ts} raw.states[i+1]
+
+structure ExecutionFragmentPrefix (ts: TransitionSystem) where
+  raw: ts.FiniteExecutionFragmentRaw
+  is_valid: ts.IsExecutionFragmentPrefix raw
+
+end Definition
+
+
+namespace ExecutionFragmentPrefix
+
+variable {ts: TransitionSystem} (pf: ts.ExecutionFragmentPrefix)
+
+def states : List ts.S := pf.raw.states
+
+def actions : List ts.Act := pf.raw.actions
+
+def length : Nat := pf.actions.length
+
+@[defeq]
+theorem length_eq_actions_length : pf.length = pf.actions.length := rfl
+
+theorem length_eq_states_length : pf.length = pf.states.length := by
+  dsimp [length_eq_actions_length, ExecutionFragmentPrefix.actions, ExecutionFragmentPrefix.states]
+  exact pf.is_valid.length_eq.symm
+
+
+protected def nil (ts: TransitionSystem) : ts.ExecutionFragmentPrefix where
+  raw := .mk [] []
+  is_valid := by
+    constructor
+    · simp
+    · simp
+
+theorem length_eq_zero_iff_nil : (pf.length = 0) ↔ (pf = ExecutionFragmentPrefix.nil ts) := by
+  constructor
+  · intro lm1
+    have lm2 := pf.length_eq_actions_length.symm.trans lm1 |> List.length_eq_zero_iff.mp
+    have lm3 := pf.length_eq_states_length.symm.trans lm1  |> List.length_eq_zero_iff.mp
+    dsimp [ExecutionFragmentPrefix.nil]
+    conv =>
+      rhs; arg 1
+      conv => rw [← lm3]
+      conv => rw [← lm2]
+    rfl
+  · intro lm1; subst lm1
+    dsimp [ExecutionFragmentPrefix.nil, ExecutionFragmentPrefix.length, ExecutionFragmentPrefix.actions]
+
+
+def firstState (req: 0 < pf.length) : ts.S := pf.states[0]'(pf.length_eq_states_length ▸ req)
+
+protected def stepL
+  (s: ts.S) (act: ts.Act)
+  (req: (h: 0 < pf.length) → (s ─⌞act⌟→{ts} (pf.firstState h))) : ts.ExecutionFragmentPrefix where
+  raw := .mk (s :: pf.states) (act :: pf.actions)
+  is_valid := by
+    constructor
+    · dsimp
+      intro i lm1
+      induction i with
+      | zero =>
+        dsimp
+        dsimp [firstState] at req
+        exact req lm1
+      | succ i _ =>
+        dsimp [ExecutionFragmentPrefix.states, ExecutionFragmentPrefix.actions] at lm1 ⊢
+        refine pf.is_valid.states_actions_valid i ?_
+        exact Nat.lt_sub_of_add_lt lm1
+    · dsimp; rw [← pf.length_eq_actions_length, ← pf.length_eq_states_length]
+
+
+
+
+
+end ExecutionFragmentPrefix
+
+
+
 
 section Definition
 
 variable {ts: TransitionSystem}
 
-structure IsExecutionFragmentPrefix (raw: ts.FiniteExecutionFragmentRaw) : Prop where
+structure IsExecutionFragmentPostfix (raw: ts.FiniteExecutionFragmentRaw) : Prop where
   length_eq : raw.states.length = raw.actions.length
+  states_actions_valid (i: Nat) (h: i < raw.actions.length - 1) : raw.states[i] ─⌞(raw.actions[i+1])⌟→{ts} raw.states[i+1]
+
+structure ExecutionFragmentPostfix (ts: TransitionSystem) where
+  raw: ts.FiniteExecutionFragmentRaw
+  is_valid: ts.IsExecutionFragmentPostfix raw
+
+
 
 end Definition
+
+/-
 
 section Definition
 
