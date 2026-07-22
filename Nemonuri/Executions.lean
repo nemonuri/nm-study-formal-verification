@@ -335,8 +335,114 @@ protected def stepL
         exact Nat.lt_sub_of_add_lt lm1
     · dsimp; rw [← pf.length_eq_actions_length, ← pf.length_eq_states_length]
 
+theorem stepL_length_pos {pf : ts.ExecutionFragmentPrefix} {s act req}
+  : 0 < (pf.stepL s act req).length := by
+  dsimp [ExecutionFragmentPrefix.length, ExecutionFragmentPrefix.actions, ExecutionFragmentPrefix.stepL]
+  exact Nat.add_one_pos _
+
+structure StepLEntry (ts : TransitionSystem) where
+  pf: ts.ExecutionFragmentPrefix
+  s: ts.S
+  act: ts.Act
+  req (h: 0 < pf.length) : s ─⌞act⌟→{ts} (pf.firstState h)
+
+def StepLEntry.stepL (sle: StepLEntry ts) : ts.ExecutionFragmentPrefix :=
+  sle.pf.stepL sle.s sle.act sle.req
+
+def stepLInv (pf': ts.ExecutionFragmentPrefix) (req: 0 < pf'.length) : StepLEntry ts where
+  pf := {
+    raw := {
+      states := pf'.states.tail
+      actions := pf'.actions.tail
+    }
+    is_valid := by
+      constructor
+      · simp
+        intro i lm1
+        refine pf'.is_valid.states_actions_valid (i+1) ?_
+        dsimp [ExecutionFragmentPrefix.length_eq_actions_length, ExecutionFragmentPrefix.actions] at req lm1
+        omega
+      · simp only [List.length_tail]
+        rw [← pf'.length_eq_actions_length, ← pf'.length_eq_states_length]
+  }
+  s := pf'.firstState req
+  act := pf'.actions[0]'(pf'.length_eq_actions_length ▸ req)
+  req := by
+    dsimp
+    intro lm1
+    dsimp [ExecutionFragmentPrefix.firstState]
+    conv => arg 4; dsimp [ExecutionFragmentPrefix.states]; simp
+    refine pf'.is_valid.states_actions_valid 0 ?_
+    dsimp [ExecutionFragmentPrefix.length_eq_actions_length, ExecutionFragmentPrefix.actions] at lm1
+    simpa using lm1
 
 
+theorem stepInv_stepL_leftInverse (req: 0 < pf.length)
+  : (pf.stepLInv req).stepL = pf := by
+  dsimp [
+      ExecutionFragmentPrefix.StepLEntry.stepL, ExecutionFragmentPrefix.stepL, ExecutionFragmentPrefix.stepLInv,
+      ExecutionFragmentPrefix.firstState, ExecutionFragmentPrefix.states, ExecutionFragmentPrefix.actions
+    ]
+  have lm1 := pf.length_eq_states_length ▸ req
+  have lm2 := pf.length_eq_actions_length ▸ req
+  have lm3 := List.head_eq_getElem (List.length_pos_iff.mp lm1)
+  dsimp [ExecutionFragmentPrefix.states] at lm3
+  simp only [← lm3]
+  have lm4 := List.head_eq_getElem (List.length_pos_iff.mp lm2)
+  dsimp [ExecutionFragmentPrefix.actions] at lm4
+  simp only [← lm4]
+  simp only [List.cons_head_tail]
+
+
+
+theorem length_pos_iff_stepL_eq : (0 < pf.length) ↔ (∃(sle: StepLEntry ts), pf = sle.stepL) := by
+  constructor
+  · intro lm1
+    exists (pf.stepLInv lm1)
+    exact (pf.stepInv_stepL_leftInverse lm1).symm
+  · rintro ⟨sle, lm1⟩
+    subst lm1
+    dsimp [ExecutionFragmentPrefix.StepLEntry.stepL]
+    exact stepL_length_pos
+
+
+
+@[elab_as_elim, induction_eliminator]
+protected def ind
+  {motive : ts.ExecutionFragmentPrefix → Sort _}
+  (nil: motive <| ExecutionFragmentPrefix.nil ts )
+  (stepL:
+    (pf: ts.ExecutionFragmentPrefix) → (s: ts.S) →
+    (act: ts.Act) → (req: (h: 0 < pf.length) → s ─⌞act⌟→{ts} (pf.firstState h)) →
+    motive <| ExecutionFragmentPrefix.stepL pf s act req )
+  (t: ts.ExecutionFragmentPrefix)
+  : motive t :=
+  if h1: t.length = 0 then
+    nil |> cast (by
+      congr
+      have lm1 := t.length_eq_zero_iff_nil.mp h1
+      exact lm1.symm
+    )
+  else
+    let sle : StepLEntry ts := t.stepLInv (Nat.pos_iff_ne_zero.mpr h1)
+    stepL sle.pf sle.s sle.act sle.req |> cast (by
+      congr
+      subst sle
+      exact t.stepInv_stepL_leftInverse _
+    )
+
+
+@[elab_as_elim, cases_eliminator]
+protected def indOn
+  {motive : ts.ExecutionFragmentPrefix → Sort _}
+  (t: ts.ExecutionFragmentPrefix)
+  (nil: motive <| ExecutionFragmentPrefix.nil ts )
+  (stepL:
+    (pf: ts.ExecutionFragmentPrefix) → (s: ts.S) →
+    (act: ts.Act) → (req: (h: 0 < pf.length) → s ─⌞act⌟→{ts} (pf.firstState h)) →
+    motive <| ExecutionFragmentPrefix.stepL pf s act req )
+  : motive t :=
+  @ExecutionFragmentPrefix.ind ts motive nil stepL t
 
 
 end ExecutionFragmentPrefix
