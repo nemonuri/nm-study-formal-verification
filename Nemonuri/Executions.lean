@@ -3,6 +3,7 @@ module
 public import Cslib.Foundations.Semantics.LTS.Execution
 public import Cslib.Foundations.Semantics.LTS.OmegaExecution
 public import Nemonuri.TransitionSystem
+public import Mathlib.Data.ENat.Basic
 
 /-!
 
@@ -462,11 +463,8 @@ structure ExecutionFragmentPostfix (ts: TransitionSystem) where
   raw: ts.FiniteExecutionFragmentRaw
   is_valid: ts.IsExecutionFragmentPostfix raw
 
-
-
 end Definition
 
-/-
 
 section Definition
 
@@ -493,12 +491,89 @@ structure InfiniteExecutionFragment (ts: TransitionSystem) where
   raw: ts.InfiniteExecutionFragmentRaw
   is_valid: ts.IsInfiniteExecutionFragment raw
 
-/-- The term `execution fragment` will be used to denote either a finite or an infinite execution fragment -/
+/-| The term `execution fragment` will be used to denote either a finite or an infinite execution fragment -/
+/-
 inductive ExecutionFragment (ts: TransitionSystem) where
   | finite (ϱ: ts.FiniteExecutionFragment) : ExecutionFragment ts
   | infinite (ρ: ts.InfiniteExecutionFragment) : ExecutionFragment ts
+-/
 
 end Definition
+
+
+
+inductive ExecutionFragmentRaw (ts: TransitionSystem) where
+  | finite (ϱ: ts.FiniteExecutionFragmentRaw)
+  | infinite (ρ: ts.InfiniteExecutionFragmentRaw)
+
+namespace ExecutionFragmentRaw
+
+variable {ts: TransitionSystem} {raw: ts.ExecutionFragmentRaw}
+
+
+def isFinite : ts.ExecutionFragmentRaw → Bool
+  | .finite _ => .true
+  | .infinite _ => .false
+
+@[simp, grind =]
+theorem isFinite_finite {ϱ: ts.FiniteExecutionFragmentRaw} : isFinite (.finite ϱ) = .true := rfl
+
+@[simp, grind =]
+theorem isFinite_infinite {ρ: ts.InfiniteExecutionFragmentRaw} : isFinite (.infinite ρ) = .false := rfl
+
+theorem isFinite_iff_eq_finite
+  : raw.isFinite ↔ ∃ϱ, raw = (.finite ϱ) := by
+  cases raw <;> simp
+
+
+
+def isInfinite : ts.ExecutionFragmentRaw → Bool
+  | .finite _ => .false
+  | .infinite _ => .true
+
+@[simp, grind =]
+theorem isInfinite_finite {ϱ: ts.FiniteExecutionFragmentRaw} : isInfinite (.finite ϱ) = .false := rfl
+
+@[simp, grind =]
+theorem isInfinite_infinite {ρ: ts.InfiniteExecutionFragmentRaw} : isInfinite (.infinite ρ) = .true := rfl
+
+theorem isInfinite_iff_eq_infinite
+  : raw.isInfinite ↔ ∃ρ, raw = (.infinite ρ) := by
+  cases raw <;> simp
+
+
+
+@[simp, grind =]
+theorem not_isFinite_eq_isInfinite
+  : (!raw.isFinite) = raw.isInfinite := by
+  cases raw <;> simp
+
+@[simp, grind =]
+theorem not_isInfinite_eq_isFinite
+  : (!raw.isInfinite) = raw.isFinite := by
+  cases raw <;> simp
+
+
+
+def length? (raw: ts.ExecutionFragmentRaw) : ENat :=
+  match raw with
+  | .finite ϱ => ϱ.actions.length
+  | .infinite _ => ⊤
+
+theorem length?_eq_top_iff_isInfinite
+  : (raw.length? = ⊤) ↔ raw.isInfinite := by
+  cases raw <;> simp [length?]
+
+theorem length?_ne_top_iff_isFinite
+  : (raw.length? ≠ ⊤) ↔ raw.isFinite := by
+  cases raw <;> simp [length?]
+
+
+end ExecutionFragmentRaw
+
+
+
+
 
 /-!
 
@@ -506,6 +581,7 @@ end Definition
 
 -/
 
+/-
 namespace ExecutionFragment
 
 variable {ts: TransitionSystem}
@@ -524,8 +600,8 @@ def firstState (ef: ts.ExecutionFragment) : ts.S :=
 def IsInitial (ef: ts.ExecutionFragment) : Prop := ef.firstState ∈ ts.I
 
 end ExecutionFragment
-
 -/
+
 
 
 
