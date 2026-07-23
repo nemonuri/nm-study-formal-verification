@@ -44,6 +44,32 @@ structure FiniteExecutionFragment (ts: TransitionSystem) where
 
 end Definition
 
+namespace FiniteExecutionFragmentRaw
+
+variable {ts: TransitionSystem} (raw: ts.FiniteExecutionFragmentRaw)
+
+def length : Nat := Nat.min raw.states.length raw.actions.length
+
+theorem lt_length_iff (i: Nat) : (i < raw.length) ↔ ((i < raw.states.length) ∧ (i < raw.actions.length)) :=
+  Nat.lt_min
+
+
+theorem lt_length_imp_lt_states_length (i: Nat) (h: i < raw.length) : i < raw.states.length :=
+  raw.lt_length_iff i |>.mp h |>.left
+
+theorem lt_length_imp_lt_actions_length (i: Nat) (h: i < raw.length) : i < raw.actions.length :=
+  raw.lt_length_iff i |>.mp h |>.right
+
+
+def getStateAt (i: Nat) (req: i < raw.length) : ts.S := raw.states[i]'(raw.lt_length_imp_lt_states_length i req)
+
+def getActionAt (i: Nat) (req: i < raw.length) : ts.Act := raw.actions[i]'(raw.lt_length_imp_lt_actions_length i req)
+
+
+end FiniteExecutionFragmentRaw
+
+
+
 
 
 namespace FiniteExecutionFragment
@@ -557,17 +583,37 @@ theorem not_isInfinite_eq_isFinite
 
 def length? (raw: ts.ExecutionFragmentRaw) : ENat :=
   match raw with
-  | .finite ϱ => ϱ.actions.length
+  | .finite ϱ => ϱ.length
   | .infinite _ => ⊤
 
 theorem length?_eq_top_iff_isInfinite
   : (raw.length? = ⊤) ↔ raw.isInfinite := by
   cases raw <;> simp [length?]
 
-theorem length?_ne_top_iff_isFinite
-  : (raw.length? ≠ ⊤) ↔ raw.isFinite := by
+theorem length?_lt_top_iff_isFinite
+  : (raw.length? < ⊤) ↔ raw.isFinite := by
   cases raw <;> simp [length?]
 
+theorem finite_imp_lt_length?_iff_lt_length {ϱ : ts.FiniteExecutionFragmentRaw} {i: Nat}
+  : i < (ExecutionFragmentRaw.finite ϱ).length? ↔ i < ϱ.length := by
+  dsimp [length?]
+  exact Nat.cast_lt
+
+
+def getStateAt (i: Nat) (req: i < raw.length?) : ts.S :=
+  match raw with
+  | .finite ϱ => ϱ.getStateAt i (finite_imp_lt_length?_iff_lt_length.mp req)
+  | .infinite ρ => ρ.states i
+
+def getActionAt (i: Nat) (req: i < raw.length?) : ts.Act :=
+  match raw with
+  | .finite ϱ => ϱ.getActionAt i (finite_imp_lt_length?_iff_lt_length.mp req)
+  | .infinite ρ => ρ.actions i
+
+/-
+structure IsPrefix (raw: ts.ExecutionFragmentRaw) (pf: ts.FiniteExecutionFragmentRaw) : Prop where
+  length_valid:
+-/
 
 end ExecutionFragmentRaw
 
