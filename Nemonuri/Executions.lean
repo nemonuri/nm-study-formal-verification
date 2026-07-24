@@ -648,9 +648,9 @@ theorem IsPostfix.lt_aux {n: Nat} {m: ENat} {i: Nat} (req1: i < n) (req2: n < m.
 
 
 structure IsPostfix (raw: ts.ExecutionFragmentRaw) (pf: ts.FiniteExecutionFragmentRaw) : Prop where
-  states_length_valid: pf.statesLength < raw.statesLength?.toNat
-  states_valid (i: Nat) (req: i < pf.statesLength) :
-    (pf.getStateAt i req) = (raw.getStateAt (raw.statesLength?.toNat - pf.statesLength + i) (IsPostfix.lt_aux req states_length_valid))
+  states_length_valid: pf.states.length < raw.statesLength?.toNat
+  states_valid (i: Nat) (req: i < pf.states.length) :
+    (pf.states[i]'(req)) = (raw.getStateAt (raw.statesLength?.toNat - pf.states.length + i) (IsPostfix.lt_aux req states_length_valid))
   actions_length_valid: pf.actionsLength < raw.actionsLength?.toNat
   actions_valid (i: Nat) (req: i < pf.actionsLength) :
     (pf.getActionAt i req) = (raw.getActionAt (raw.actionsLength?.toNat - pf.actionsLength + i) (IsPostfix.lt_aux req actions_length_valid))
