@@ -75,6 +75,18 @@ theorem toList!_eq_toList (req: seq.isFinite)
   subst lm1
   dsimp [toList!, toList]
 
+@[simp]
+theorem toList_eq (xs: List α) : (Sequence.finite xs).toList isFinite_finite = xs := rfl
+
+
+def toωSequence (seq: Sequence α) (req: seq.isInfinite) : ωSequence α :=
+  match seq with
+  | .finite _ => absurd req (by simp)
+  | .infinite xs => xs
+
+@[simp]
+theorem toωSequence_eq (xs: ωSequence α) : (Sequence.infinite xs).toωSequence isInfinite_infinite = xs := rfl
+
 
 def length! (seq: Sequence α) : Nat := seq.toList!.length
 
@@ -94,29 +106,53 @@ theorem length?_eq_length_natCast (req: seq.isFinite)
   simp [req]
 
 @[simp]
+theorem finite_length_eq_toList_length (req: seq.isFinite)
+  : seq.length req = (seq.toList req).length :=
+  rfl
+
+theorem lt_length?_iff_lt_toList_length
+  (req: seq.isFinite) (i: Nat)
+  : (i < seq.length?) ↔ (i < (seq.toList req).length) := by
+  simp [req]
+
+
+@[simp]
 theorem length?_eq_top (req: seq.isInfinite)
   : seq.length? = ⊤ := by
   rewrite [← seq.not_isFinite_eq_isInfinite, Bool.not_eq_true'] at req
   dsimp [length?]
   simp [req]
 
+theorem lt_length? (req: seq.isInfinite) (i: Nat)
+  : i < seq.length? := by
+  simp [req]
+
+
+
 
 def getAt (seq: Sequence α) (i: Nat) (req: i < seq.length?) : α :=
   match seq with
-  | .finite xs => xs[i]'(by
-      simp at req
-      refine Eq.subst ?_ req
-      rfl )
+  | .finite xs => xs[i]'(by simpa using req)
   | .infinite xs => xs i
 
 
 instance : GetElem (Sequence α) Nat α (fun seq i => i < seq.length?) where
   getElem seq i req := seq.getAt i req
 
-/-
-theorem getElem_eq_list (req: seq.isFinite) (i: Nat)
-  : seq[i] = (seq.length req)[i]
--/
+
+@[simp]
+theorem getElem_eq_list
+  (req1: seq.isFinite) (i: Nat) (req2: i < seq.length?)
+  : seq[i]'(req2) = (seq.toList req1)[i]'((seq.lt_length?_iff_lt_toList_length req1 i).mp req2) := by
+  cases seq <;> simp at req1
+  · simp at req2 ⊢; rfl
+
+@[simp]
+theorem getElem_eq_app
+  (req: seq.isInfinite) (i: Nat)
+  : seq[i]'(lt_length? req i) = (seq.toωSequence req) i := by
+  cases seq <;> simp at req
+  · simp; rfl
 
 
 
