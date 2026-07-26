@@ -44,6 +44,7 @@ structure FiniteExecutionFragment (ts: TransitionSystem) where
 
 end Definition
 
+/-
 namespace FiniteExecutionFragmentRaw
 
 variable {ts: TransitionSystem} (raw: ts.FiniteExecutionFragmentRaw)
@@ -71,8 +72,7 @@ def getActionAt (i: Nat) (req: i < raw.actionsLength) : ts.Act := raw.actions[i]
 
 
 end FiniteExecutionFragmentRaw
-
-
+-/
 
 
 
@@ -80,22 +80,126 @@ namespace FiniteExecutionFragment
 
 variable {ts: TransitionSystem} (ϱ: ts.FiniteExecutionFragment)
 
-protected def states := ϱ.raw.states
+def states : List ts.S := ϱ.raw.states
 
-protected def actions := ϱ.raw.actions
+def actions : List ts.Act := ϱ.raw.actions
 
+def mk' (states: List ts.S) (actions: List ts.Act) (req: ts.IsFiniteExecutionFragment ⟨states, actions⟩) : ts.FiniteExecutionFragment :=
+  ⟨⟨states, actions⟩, req⟩
+
+theorem mk'_eta {ϱ: ts.FiniteExecutionFragment} : (mk' ϱ.states ϱ.actions ϱ.is_valid) = ϱ := rfl
+
+@[elab_as_elim]
+def indMk'
+  {motive: ts.FiniteExecutionFragment → Sort _}
+  (mk': (states: List ts.S) → (actions: List ts.Act) → (req: ts.IsFiniteExecutionFragment ⟨states, actions⟩) → motive (FiniteExecutionFragment.mk' states actions req))
+  (t: ts.FiniteExecutionFragment)
+  : motive t :=
+  mk' t.states t.actions t.is_valid |> Eq.subst mk'_eta
+
+@[defeq, simp]
+theorem mk'_states {states: List ts.S} {actions req} : (mk' states actions req).states = states := rfl
+
+@[defeq, simp]
+theorem mk'_actions {states: List ts.S} {actions req} : (mk' states actions req).actions = actions := rfl
+
+theorem mk'_ext_iff {ϱ1 ϱ2: ts.FiniteExecutionFragment}
+  : (ϱ1.states = ϱ2.states ∧ ϱ1.actions = ϱ2.actions) ↔ (ϱ1 = ϱ2) := by
+  constructor
+  · cases ϱ1 using indMk'
+    cases ϱ2 using indMk'
+    simp
+    intro lm1 lm2
+    subst lm1; subst lm2; rfl
+  · intro lm1; subst lm1; simp
+
+--def refl' (s: ts.S) : ts.FiniteExecutionFragment := mk' [s] [] (by constructor <;> simp)
+
+theorem states_length_eq_actions_length_plus_one : ϱ.states.length = ϱ.actions.length + 1 := by
+  dsimp [FiniteExecutionFragment.states, FiniteExecutionFragment.actions]
+  exact ϱ.is_valid.length_eq
+
+@[simp]
 theorem states_length_pos : 0 < ϱ.states.length :=
   calc ϱ.states.length
-    _ = _ := by dsimp only [FiniteExecutionFragment.states]
-    _ = _ := ϱ.is_valid.length_eq
-    _ > 0 := by
-      dsimp only [GT.gt]
-      exact Nat.add_one_pos _
+    _ = _ := ϱ.states_length_eq_actions_length_plus_one
+    _ > ϱ.actions.length := Nat.lt_add_one _
+    _ ≥ 0 := Nat.zero_le _
+
+theorem actions_length_eq_states_length_sub_one : ϱ.actions.length = ϱ.states.length - 1 := by
+  simp only [states_length_eq_actions_length_plus_one, Nat.add_sub_cancel]
+
+
+def refl (s: ts.S) : ts.FiniteExecutionFragment := mk' [s] [] (by constructor <;> simp)
+
+theorem refl_actions_length_eq_zero {s} : (@FiniteExecutionFragment.refl ts s).actions.length = 0 := by
+  dsimp [FiniteExecutionFragment.refl]
+
+def firstState : ts.S := ϱ.states[0]'(ϱ.states_length_pos)
+
+@[simp]
+theorem refl_eta (req: ϱ.actions.length = 0) : (refl ϱ.firstState) = ϱ := by
+  dsimp [FiniteExecutionFragment.refl]
+  conv => rhs; rw [← ϱ.mk'_eta]
+  congr
+  · replace req := congrArg (· + 1) req;
+    rewrite [← ϱ.states_length_eq_actions_length_plus_one] at req
+    obtain ⟨_, lm1⟩ := List.length_eq_one_iff.mp req
+    dsimp [firstState]
+    simp [lm1]
+  · simpa using req
+
+
+def stepL' (s: ts.S) (act: ts.Act) (req: s ─⌞act⌟→{ts} ϱ.firstState) : FiniteExecutionFragment ts :=
+  mk' (s :: ϱ.states) (act :: ϱ.actions) (by
+    constructor
+    · dsimp
+      intro i lm1
+      induction i with
+      | zero =>
+        simp
+        dsimp [firstState] at req
+        exact req
+      | succ i ih =>
+        simp
+        refine ϱ.is_valid.states_actions_valid i ?_
+    · dsimp
+      rw [ϱ.states_length_eq_actions_length_plus_one] )
+
+theorem stepL_actions_length_pos {s act req} : 0 < (@FiniteExecutionFragment.stepL' ts ϱ s act req).actions.length := by
+  dsimp [FiniteExecutionFragment.stepL']
+  rw [← ϱ.states_length_eq_actions_length_plus_one]
+  exact ϱ.states_length_pos
+
+def firstAction (req: 0 < ϱ.actions.length) : ts.Act := ϱ.actions[0]'(req)
+
+def secondState (req: 0 < ϱ.actions.length) : ts.S := ϱ.states[1]'(by simpa [states_length_eq_actions_length_plus_one] using req)
+
+def tail (req: 0 < ϱ.actions.length) : ts.FiniteExecutionFragment :=
+  mk' ϱ.states.tail ϱ.actions.tail (by
+    constructor
+    · simp
+      intro i lm1
+      refine ϱ.is_valid.states_actions_valid (i+1) ?_
+    · simp [states_length_eq_actions_length_plus_one]
+      rewrite [Nat.lt_iff_add_one_le] at req
+      simp [req] )
+
+
+--theorem stepL_eta (req: 0 < ϱ.actions.length) : (stepL' (ϱ.tail req) (ϱ.f) )
+
+
+
+
+
+
+
+
 
 theorem states_ne_nil : ϱ.states ≠ [] := List.length_pos_iff.mp ϱ.states_length_pos
 
 
-def firstState : ts.S := ϱ.states[0]'(ϱ.states_length_pos)
+
 
 
 theorem states_length_sub_one_lt_self : ϱ.states.length - 1 < ϱ.states.length := Nat.sub_succ_lt_self _ 0 ϱ.states_length_pos
@@ -133,9 +237,7 @@ theorem length_add_one_eq_states_length : ϱ.length + 1 = ϱ.states.length := by
 
 
 
-protected def refl (ts: TransitionSystem) (s: ts.S) : FiniteExecutionFragment ts where
-  raw := .mk [s] []
-  is_valid := by constructor <;> simp
+
 
 theorem length_eq_zero_iff_actions_eq_nil : (ϱ.length = 0) ↔ (ϱ.actions = []) :=
   calc
@@ -159,7 +261,7 @@ theorem length_eq_zero_imp_firstState_eq_lastState (h: ϱ.length = 0)
   simp [← ϱ.length_add_one_eq_states_length, h]
 
 
-theorem length_eq_zero_iff_refl_eq : (ϱ.length = 0) ↔ (∃s, ϱ = FiniteExecutionFragment.refl ts s) := by
+theorem length_eq_zero_iff_refl_eq : (ϱ.length = 0) ↔ (∃s, ϱ = @FiniteExecutionFragment.refl ts s) := by
   dsimp only [FiniteExecutionFragment.refl]
   constructor
   · intro lm1
@@ -684,7 +786,7 @@ structure IsPostfix (raw: ts.ExecutionFragmentRaw) (pf: ts.FiniteExecutionFragme
     (pf.states[i]'(req)) = (raw.states[raw.states.length?.toNat - pf.states.length + i]'(IsPostfix.lt_aux req states_length_lt))
   actions_length_lt: pf.actions.length < raw.actions.length?.toNat
   actions_postfix (i: Nat) (req: i < pf.actions.length) :
-    (pf.actions[i]'(req)) = (raw.actions[raw.actions.length?.toNat - pf.actionsLength + i]'(IsPostfix.lt_aux req actions_length_lt))
+    (pf.actions[i]'(req)) = (raw.actions[raw.actions.length?.toNat - pf.actions.length + i]'(IsPostfix.lt_aux req actions_length_lt))
 
 @[simp]
 theorem infinite_not_isPostfix {ρ} {pf} : ¬(@ExecutionFragmentRaw.infinite ts ρ).IsPostfix pf := by
