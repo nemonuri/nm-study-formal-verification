@@ -87,6 +87,7 @@ def actions : List ts.Act := ϱ.raw.actions
 def mk' (states: List ts.S) (actions: List ts.Act) (req: ts.IsFiniteExecutionFragment ⟨states, actions⟩) : ts.FiniteExecutionFragment :=
   ⟨⟨states, actions⟩, req⟩
 
+@[defeq]
 theorem mk'_eta {ϱ: ts.FiniteExecutionFragment} : (mk' ϱ.states ϱ.actions ϱ.is_valid) = ϱ := rfl
 
 @[elab_as_elim]
@@ -130,35 +131,40 @@ theorem actions_length_eq_states_length_sub_one : ϱ.actions.length = ϱ.states.
   simp only [states_length_eq_actions_length_plus_one, Nat.add_sub_cancel]
 
 
-def refl (s: ts.S) : ts.FiniteExecutionFragment := mk' [s] [] (by constructor <;> simp)
+def refl (state0: ts.S) : ts.FiniteExecutionFragment := mk' [state0] [] (by constructor <;> simp)
 
-theorem refl_actions_length_eq_zero {s} : (@FiniteExecutionFragment.refl ts s).actions.length = 0 := by
+theorem refl_actions_length_eq_zero {state0} : (@FiniteExecutionFragment.refl ts state0).actions.length = 0 := by
   dsimp [FiniteExecutionFragment.refl]
 
-def firstState : ts.S := ϱ.states[0]'(ϱ.states_length_pos)
+def state0 : ts.S := ϱ.states[0]'(ϱ.states_length_pos)
 
-@[simp]
-theorem refl_eta (req: ϱ.actions.length = 0) : (refl ϱ.firstState) = ϱ := by
+
+theorem refl_eta (req: ϱ.actions.length = 0) : (refl ϱ.state0) = ϱ := by
   dsimp [FiniteExecutionFragment.refl]
   conv => rhs; rw [← ϱ.mk'_eta]
   congr
   · replace req := congrArg (· + 1) req;
     rewrite [← ϱ.states_length_eq_actions_length_plus_one] at req
     obtain ⟨_, lm1⟩ := List.length_eq_one_iff.mp req
-    dsimp [firstState]
+    dsimp [state0]
     simp [lm1]
   · simpa using req
 
+@[defeq, simp]
+theorem refl_state0 {state0} : (@FiniteExecutionFragment.refl ts state0).state0 = state0 := by
+  dsimp [FiniteExecutionFragment.refl, FiniteExecutionFragment.state0]
 
-def stepL' (s: ts.S) (act: ts.Act) (req: s ─⌞act⌟→{ts} ϱ.firstState) : FiniteExecutionFragment ts :=
-  mk' (s :: ϱ.states) (act :: ϱ.actions) (by
+
+
+def stepL (state0: ts.S) (action0: ts.Act) (req: state0 ─⌞action0⌟→{ts} ϱ.state0) : FiniteExecutionFragment ts :=
+  mk' (state0 :: ϱ.states) (action0 :: ϱ.actions) (by
     constructor
     · dsimp
       intro i lm1
       induction i with
       | zero =>
         simp
-        dsimp [firstState] at req
+        dsimp [FiniteExecutionFragment.state0] at req
         exact req
       | succ i ih =>
         simp
@@ -166,14 +172,10 @@ def stepL' (s: ts.S) (act: ts.Act) (req: s ─⌞act⌟→{ts} ϱ.firstState) : 
     · dsimp
       rw [ϱ.states_length_eq_actions_length_plus_one] )
 
-theorem stepL_actions_length_pos {s act req} : 0 < (@FiniteExecutionFragment.stepL' ts ϱ s act req).actions.length := by
-  dsimp [FiniteExecutionFragment.stepL']
+theorem stepL_actions_length_pos {ϱ s act req} : 0 < (@FiniteExecutionFragment.stepL ts ϱ s act req).actions.length := by
+  dsimp [FiniteExecutionFragment.stepL]
   rw [← ϱ.states_length_eq_actions_length_plus_one]
   exact ϱ.states_length_pos
-
-def firstAction (req: 0 < ϱ.actions.length) : ts.Act := ϱ.actions[0]'(req)
-
-def secondState (req: 0 < ϱ.actions.length) : ts.S := ϱ.states[1]'(by simpa [states_length_eq_actions_length_plus_one] using req)
 
 def tail (req: 0 < ϱ.actions.length) : ts.FiniteExecutionFragment :=
   mk' ϱ.states.tail ϱ.actions.tail (by
@@ -185,208 +187,73 @@ def tail (req: 0 < ϱ.actions.length) : ts.FiniteExecutionFragment :=
       rewrite [Nat.lt_iff_add_one_le] at req
       simp [req] )
 
+def action0 (req: 0 < ϱ.actions.length) : ts.Act := ϱ.actions[0]'(req)
 
---theorem stepL_eta (req: 0 < ϱ.actions.length) : (stepL' (ϱ.tail req) (ϱ.f) )
+--def state1 (req: 0 < ϱ.actions.length) : ts.S := ϱ.states[1]'(by simpa [states_length_eq_actions_length_plus_one] using req)
 
+/-
+theorem state1_eq_tail_state0 (req: 0 < ϱ.actions.length)
+  : ϱ.state1 req = (ϱ.tail req).state0 := by
+  dsimp [FiniteExecutionFragment.state0, FiniteExecutionFragment.state1, FiniteExecutionFragment.tail]
+  simp
+-/
 
-
-
-
-
-
-
-
-theorem states_ne_nil : ϱ.states ≠ [] := List.length_pos_iff.mp ϱ.states_length_pos
-
-
-
-
-
-theorem states_length_sub_one_lt_self : ϱ.states.length - 1 < ϱ.states.length := Nat.sub_succ_lt_self _ 0 ϱ.states_length_pos
-
-def lastState : ts.S := ϱ.states[ϱ.states.length - 1]'(ϱ.states_length_sub_one_lt_self)
+theorem state0_action0_tail_state0 (req: 0 < ϱ.actions.length)
+  : ϱ.state0 ─⌞(ϱ.action0 req)⌟→{ts} (ϱ.tail req).state0 := by
+  have lm1 := ϱ.is_valid.states_actions_valid 0 req
+  dsimp at lm1
+  dsimp [FiniteExecutionFragment.state0, FiniteExecutionFragment.action0, FiniteExecutionFragment.tail]
+  simp; exact lm1
 
 
-open Cslib.LTS in
-theorem isFiniteExecutionFragment_iff_execution
-  : ts.IsFiniteExecutionFragment ϱ.raw ↔ ts.lts.Execution ϱ.firstState ϱ.actions ϱ.lastState ϱ.states := by
-  dsimp only [Execution]
-  constructor
-  · rintro ⟨length_eq, states_actions_valid⟩
-    exists length_eq
-  · rintro ⟨length_eq, _, _, states_actions_valid⟩
-    exact IsFiniteExecutionFragment.mk length_eq states_actions_valid
+theorem stepL_eta (req: 0 < ϱ.actions.length)
+  : (stepL (ϱ.tail req) (ϱ.state0) (ϱ.action0 req) (ϱ.state0_action0_tail_state0 req)) = ϱ := by
+  dsimp [FiniteExecutionFragment.stepL, FiniteExecutionFragment.tail]
+  conv => rhs; rw [← ϱ.mk'_eta]
+  congr
+  · dsimp [FiniteExecutionFragment.state0]
+    simp [List.getElem_zero_eq_head]
+  · dsimp [FiniteExecutionFragment.action0]
+    simp [List.getElem_zero_eq_head]
+
+@[defeq, simp]
+theorem stepL_tail {tail state0 action0 req}
+  : (@FiniteExecutionFragment.stepL ts tail state0 action0 req).tail stepL_actions_length_pos = tail := by
+  dsimp [FiniteExecutionFragment.stepL, FiniteExecutionFragment.tail, mk'_eta]
+
+@[defeq, simp]
+theorem stepL_state0 {tail state0 action0 req}
+  : (@FiniteExecutionFragment.stepL ts tail state0 action0 req).state0 = state0 := by
+  dsimp [FiniteExecutionFragment.stepL, FiniteExecutionFragment.state0]
+
+@[defeq, simp]
+theorem stepL_action0 {tail state0 action0 req}
+  : (@FiniteExecutionFragment.stepL ts tail state0 action0 req).action0 stepL_actions_length_pos = action0 := by
+  dsimp [FiniteExecutionFragment.stepL, FiniteExecutionFragment.action0]
 
 
-theorem firstState_eq_head : ϱ.firstState = ϱ.states.head ϱ.states_ne_nil := by
-  dsimp only [FiniteExecutionFragment.firstState]
-  rw [List.head_eq_getElem]
-
-
-theorem lastState_eq_getLast : ϱ.lastState = ϱ.states.getLast ϱ.states_ne_nil := by
-  dsimp only [FiniteExecutionFragment.lastState]
-  rw [List.getLast_eq_getElem]
-
-def length : Nat := ϱ.actions.length
-
-@[defeq] theorem length_eq_actions_length : ϱ.length = ϱ.actions.length := rfl
-
-theorem length_add_one_eq_states_length : ϱ.length + 1 = ϱ.states.length := by
-  dsimp [length_eq_actions_length, FiniteExecutionFragment.states, FiniteExecutionFragment.actions]
-  rw [ϱ.is_valid.length_eq]
-
-
-
-
-
-theorem length_eq_zero_iff_actions_eq_nil : (ϱ.length = 0) ↔ (ϱ.actions = []) :=
-  calc
-    _ ↔ _ := by dsimp only [ϱ.length_eq_actions_length]; rfl
-    _ ↔ _ := by simp only [List.length_eq_zero_iff]
-
-
-
-theorem length_eq_zero_iff_states_eq_singleton : (ϱ.length = 0) ↔ (ϱ.states = [ϱ.firstState]) := by
-  refine Iff.trans (Nat.add_one_inj.symm) ?_
-  rw [ϱ.length_add_one_eq_states_length]
-  dsimp [FiniteExecutionFragment.firstState]
-  refine Iff.trans (List.length_eq_one_iff) ?_
-  constructor
-  · rintro ⟨s, lm1⟩; simp only [lm1, List.getElem_cons_zero]
-  · intro lm1; exact Exists.intro _ lm1
-
-theorem length_eq_zero_imp_firstState_eq_lastState (h: ϱ.length = 0)
-  : ϱ.firstState = ϱ.lastState := by
-  dsimp [FiniteExecutionFragment.firstState, FiniteExecutionFragment.lastState]
-  simp [← ϱ.length_add_one_eq_states_length, h]
-
-
-theorem length_eq_zero_iff_refl_eq : (ϱ.length = 0) ↔ (∃s, ϱ = @FiniteExecutionFragment.refl ts s) := by
-  dsimp only [FiniteExecutionFragment.refl]
-  constructor
-  · intro lm1
-    have lm2 := ϱ.length_eq_zero_iff_actions_eq_nil.mp lm1
-    have lm3 := ϱ.length_eq_zero_iff_states_eq_singleton.mp lm1
-    exists ϱ.firstState
-    conv =>
-      rhs; arg 1
-      conv => arg 1; rw [← lm3]
-      conv => arg 2; rw [← lm2]
-    rfl
-  · rintro ⟨s, lm1⟩
-    rw [ϱ.length_eq_zero_iff_actions_eq_nil]
-    subst lm1
-    dsimp only [FiniteExecutionFragment.actions]
-
-
-protected def stepL (s: ts.S) (act: ts.Act) (req: s ─⌞act⌟→{ts} ϱ.firstState) : FiniteExecutionFragment ts where
-  raw := .mk (s :: ϱ.states) (act :: ϱ.actions)
-  is_valid := by
-    constructor
-    · dsimp
-      intro i lm1
-      induction i with
-      | zero =>
-        dsimp
-        simpa only [FiniteExecutionFragment.firstState] using req
-      | succ i _ =>
-        dsimp
-        refine ϱ.is_valid.states_actions_valid i ?_
-    · dsimp
-      rw [← ϱ.length_add_one_eq_states_length, ϱ.length_eq_actions_length]
-
-
-theorem stepL_length_pos {ϱ: ts.FiniteExecutionFragment} {s act req}
-  : 0 < (ϱ.stepL s act req).length := by
-  dsimp [FiniteExecutionFragment.stepL, length_eq_actions_length, FiniteExecutionFragment.actions]
-  exact Nat.add_one_pos _
-
-
-structure StepLEntry (ts : TransitionSystem) where
-  ϱ: ts.FiniteExecutionFragment
-  s: ts.S
-  act: ts.Act
-  req: s ─⌞act⌟→{ts} ϱ.firstState
-
-protected def StepLEntry.stepL (sle: StepLEntry ts) : FiniteExecutionFragment ts :=
-  sle.ϱ.stepL sle.s sle.act sle.req
-
-
-def stepLInv (ϱ': ts.FiniteExecutionFragment) (req: 0 < ϱ'.length) : StepLEntry ts where
-  ϱ := {
-    raw := {
-      states := ϱ'.states.tail
-      actions := ϱ'.actions.tail
-    }
-    is_valid := by
-      constructor
-      · simp only [List.length_tail, List.getElem_tail]
-        intro i lm1
-        refine ϱ'.is_valid.states_actions_valid (i+1) ?_
-      · simp only [List.length_tail]
-        rw [← ϱ'.length_add_one_eq_states_length, ← ϱ'.length_eq_actions_length]
-        omega
-  }
-  s := ϱ'.firstState
-  act := ϱ'.actions.head (List.length_pos_iff.mp req)
-  req := by
-    dsimp [FiniteExecutionFragment.firstState]
-    rw [List.head_eq_getElem]
-    conv =>
-      arg 4; dsimp [FiniteExecutionFragment.states]; simp only [List.getElem_tail]
-    refine ϱ'.is_valid.states_actions_valid 0 ?_
-
-
-theorem stepInv_stepL_leftInverse (h: 0 < ϱ.length) : (ϱ.stepLInv h).stepL = ϱ := by
-  dsimp [
-    StepLEntry.stepL, FiniteExecutionFragment.stepL, FiniteExecutionFragment.stepLInv,
-    FiniteExecutionFragment.states, FiniteExecutionFragment.actions
-  ]
-  simp only [firstState_eq_head, FiniteExecutionFragment.states, List.cons_head_tail]
-
-
-theorem length_pos_iff_stepL_eq
-  : (0 < ϱ.length) ↔ (∃(sle: StepLEntry ts), ϱ = sle.stepL) := by
-  constructor
-  · intro lm1
-    exists (ϱ.stepLInv lm1)
-    rw [ϱ.stepInv_stepL_leftInverse]
-  · rintro ⟨sle, lm1⟩
-    subst lm1
-    dsimp [StepLEntry.stepL]
-    exact stepL_length_pos
-
-
-@[elab_as_elim, induction_eliminator]
-protected def ind
-  {motive : ts.FiniteExecutionFragment → Sort _}
-  (refl: (s: ts.S) → motive <| FiniteExecutionFragment.refl ts s )
-  (stepL: (ϱ : ts.FiniteExecutionFragment) → (s: ts.S) → (act: ts.Act) → (req: s ─⌞act⌟→{ts} ϱ.firstState) → motive <| ϱ.stepL s act req)
+@[elab_as_elim]
+def indReflStepL
+  {motive: ts.FiniteExecutionFragment → Sort _}
+  (refl: (state0: ts.S) → motive (FiniteExecutionFragment.refl state0))
+  (stepL: (tail : ts.FiniteExecutionFragment) → (state0 : ts.S) → (action0 : ts.Act) → (req: state0 ─⌞action0⌟→{ts} tail.state0) → motive (FiniteExecutionFragment.stepL tail state0 action0 req))
   (t: ts.FiniteExecutionFragment)
   : motive t :=
-  if h1: t.length = 0 then
-    refl t.firstState |> cast (by
-      congr
-      obtain ⟨s, lm1⟩ := t.length_eq_zero_iff_refl_eq.mp h1
-      subst lm1
-      rfl )
+  if h: t.actions.length = 0 then
+    refl t.state0 |> Eq.subst (t.refl_eta h)
   else
-    let sle : StepLEntry ts := t.stepLInv (Nat.ne_zero_iff_zero_lt.mp h1)
-    stepL sle.ϱ sle.s sle.act sle.req |> cast (by
-      congr
-      subst sle
-      obtain ⟨sle, lm1⟩ := t.length_pos_iff_stepL_eq.mp (Nat.ne_zero_iff_zero_lt.mp h1)
-      subst lm1
-      rfl )
+    have lm1 := Nat.pos_of_ne_zero h
+    stepL (t.tail lm1) t.state0 (t.action0 lm1) (t.state0_action0_tail_state0 lm1) |> Eq.subst (t.stepL_eta lm1)
 
-@[elab_as_elim, cases_eliminator]
-protected def indOn
-  {motive : ts.FiniteExecutionFragment → Sort _}
-  (t: ts.FiniteExecutionFragment)
-  (refl: (s: ts.S) → motive <| FiniteExecutionFragment.refl ts s )
-  (stepL: (ϱ : ts.FiniteExecutionFragment) → (s: ts.S) → (act: ts.Act) → (req: s ─⌞act⌟→{ts} ϱ.firstState) → motive <| ϱ.stepL s act req)
-  : motive t :=
-  @FiniteExecutionFragment.ind ts motive refl stepL t
+@[defeq, simp]
+theorem indReflStepL_refl {motive refl stepL t} {req: t.actions.length = 0}
+  : @indReflStepL ts motive refl stepL t = ((refl t.state0) |> Eq.subst (t.refl_eta req)) :=
+  rfl
+
+@[defeq, simp]
+theorem indReflStepL_stepL {motive refl stepL t} {req: 0 < t.actions.length}
+  : @indReflStepL ts motive refl stepL t = (stepL (t.tail req) t.state0 (t.action0 req) (t.state0_action0_tail_state0 req) |> Eq.subst (t.stepL_eta req)) :=
+  rfl
 
 end FiniteExecutionFragment
 
