@@ -58,6 +58,16 @@ theorem not_isInfinite_eq_isFinite
   : (!seq.isInfinite) = seq.isFinite := by
   cases seq <;> simp
 
+@[simp]
+theorem isFinite_eq_false_iff
+  : seq.isFinite = .false ↔ seq.isInfinite = .true := by
+  cases seq <;> simp
+
+@[simp]
+theorem isInfinite_eq_false_iff
+  : seq.isInfinite = .false ↔ seq.isFinite = .true := by
+  cases seq <;> simp
+
 
 def toList! : Sequence α → List α
   | .finite xs => xs
