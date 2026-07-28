@@ -658,15 +658,18 @@ structure InfiniteExecutionFragmentRaw (ts: TransitionSystem) where
   states : ωSequence ts.S
   actions : ωSequence ts.Act
 
-structure IsInfiniteExecutionFragment (raw: ts.InfiniteExecutionFragmentRaw) : Prop where
-  ofPred :: toPred : ((i: Nat) → (raw.states i) ─⌞(raw.actions i)⌟→{ts} (raw.states (i + 1)))
+def IsInfiniteExecutionFragment (raw: ts.InfiniteExecutionFragmentRaw) : Prop := ((i: Nat) → (raw.states i) ─⌞(raw.actions i)⌟→{ts} (raw.states (i + 1)))
+
+@[defeq]
+theorem isInfiniteExecutionFragment_def (raw: ts.InfiniteExecutionFragmentRaw)
+  : IsInfiniteExecutionFragment raw = ((i: Nat) → (raw.states i) ─⌞(raw.actions i)⌟→{ts} (raw.states (i + 1))) :=
+  rfl
 
 
-theorem isInfiniteExecutionFragment_iff_omegaExecution (raw: ts.InfiniteExecutionFragmentRaw)
-  : ts.IsInfiniteExecutionFragment raw ↔ ts.lts.OmegaExecution raw.states raw.actions := by
-  constructor
-  · rintro ⟨toPred⟩; exact toPred
-  · intro lm1; exact .ofPred lm1
+@[defeq]
+theorem isInfiniteExecutionFragment_eq_omegaExecution (raw: ts.InfiniteExecutionFragmentRaw)
+  : ts.IsInfiniteExecutionFragment raw = ts.lts.OmegaExecution raw.states raw.actions :=
+  rfl
 
 
 structure InfiniteExecutionFragment (ts: TransitionSystem) where
@@ -728,13 +731,13 @@ def ofSequence
   | .infinite xs1, .infinite xs2 => .infinite ⟨xs1, xs2⟩
 
 @[simp]
-theorem ofSequence_states_eq {states: Sequence ts.S} {actions req}
+theorem ofSequence_states {states: Sequence ts.S} {actions req}
   : (ofSequence states actions req).states = states := by
   dsimp [ofSequence]
   cases states <;> cases actions <;> simp at req <;> simp
 
 @[simp]
-theorem ofSequence_actions_eq {states: Sequence ts.S} {actions req}
+theorem ofSequence_actions {states: Sequence ts.S} {actions req}
   : (ofSequence states actions req).actions = actions := by
   dsimp [ofSequence]
   cases states <;> cases actions <;> simp at req <;> simp
@@ -776,6 +779,13 @@ theorem isFinite_finite {ϱ: ts.FiniteExecutionFragmentRaw} : isFinite (.finite 
 @[simp, grind =]
 theorem isFinite_infinite {ρ: ts.InfiniteExecutionFragmentRaw} : isFinite (.infinite ρ) = .false := rfl
 
+def getFinite (raw: ts.ExecutionFragmentRaw) (req: raw.isFinite) : ts.FiniteExecutionFragmentRaw :=
+  match raw with
+  | .finite xs => xs
+  | .infinite _ => absurd req (by simp)
+
+@[defeq, simp]
+theorem finite_getFinite {ϱ} : (@ExecutionFragmentRaw.finite ts ϱ).getFinite isFinite_finite = ϱ := rfl
 
 
 def isInfinite : ts.ExecutionFragmentRaw → Bool
@@ -788,6 +798,14 @@ theorem isInfinite_finite {ϱ: ts.FiniteExecutionFragmentRaw} : isInfinite (.fin
 @[simp, grind =]
 theorem isInfinite_infinite {ρ: ts.InfiniteExecutionFragmentRaw} : isInfinite (.infinite ρ) = .true := rfl
 
+def getInfinite (raw: ts.ExecutionFragmentRaw) (req: raw.isInfinite) : ts.InfiniteExecutionFragmentRaw :=
+  match raw with
+  | .finite _ => absurd req (by simp)
+  | .infinite xs => xs
+
+@[defeq, simp]
+theorem infinite_getInfinite {ρ} : (@ExecutionFragmentRaw.infinite ts ρ).getInfinite isInfinite_infinite = ρ := rfl
+
 
 @[simp, grind =]
 theorem not_isFinite_eq_isInfinite
@@ -798,6 +816,11 @@ theorem not_isFinite_eq_isInfinite
 theorem not_isInfinite_eq_isFinite
   : (!raw.isInfinite) = raw.isFinite := by
   cases raw <;> simp
+
+
+theorem isFinite_eq_states_isFinite : raw.isFinite = raw.states.isFinite := by
+  cases raw <;> simp
+
 
 theorem IsPrefix.lt_aux {n1 n2: Nat} {en: ENat} (h1: n1 < n2) (h2: Nat.cast n2 < en) : Nat.cast n1 < en :=
   calc
@@ -849,10 +872,94 @@ theorem isPostfix_imp_isFinite {pf} (h: raw.IsPostfix pf) : raw.isFinite := by
   · simp
   · simp at h
 
+structure ArePrefixAndPostfix (raw: ts.ExecutionFragmentRaw) (pref: ts.FiniteExecutionFragmentRaw) (postf: ts.FiniteExecutionFragmentRaw) : Prop where
+  is_prefix: raw.IsPrefix pref
+  is_postfix: raw.IsPostfix postf
+  states_not_overlap: pref.states.length + postf.states.length ≤ raw.states.length?.toNat
+  actions_not_overlap: pref.actions.length + postf.actions.length ≤ raw.actions.length?.toNat
+
+@[simp]
+theorem infinite_not_arePrefixAndPostfix {ρ pref postf} : ¬(@ExecutionFragmentRaw.infinite ts ρ).ArePrefixAndPostfix pref postf := by
+  intro lm1
+  have lm2 := lm1.is_postfix
+  simp at lm2
+
+theorem arePrefixAndPostfix_imp_isFinite {pref postf} (h: raw.ArePrefixAndPostfix pref postf) : raw.isFinite := h.is_postfix |> isPostfix_imp_isFinite
+
+
 end ExecutionFragmentRaw
 
+/-
+inductive ExecutionFragmentRaw (ts: TransitionSystem) where
+  | finite (ϱ: ts.FiniteExecutionFragmentRaw)
+  | infinite (ρ: ts.InfiniteExecutionFragmentRaw)
+-/
+
+section Definition
+
+variable {ts: TransitionSystem}
 
 
+inductive IsExecutionFragment (raw: ts.ExecutionFragmentRaw) : Prop where
+  | finite (req1: raw.isFinite) (req2: IsFiniteExecutionFragment (raw.getFinite req1))
+  | infinite (req1: raw.isInfinite) (req2: IsInfiniteExecutionFragment (raw.getInfinite req1))
+
+structure ExecutionFragment (ts: TransitionSystem) where
+  raw: ts.ExecutionFragmentRaw
+  is_valid: ts.IsExecutionFragment raw
+
+
+end Definition
+
+
+namespace ExecutionFragment
+
+variable {ts: TransitionSystem} (ef: ts.ExecutionFragment)
+
+def states : Sequence ts.S := ef.raw.states
+
+def actions : Sequence ts.Act := ef.raw.actions
+
+theorem states_isFinite_eq_actions_isFinite : ef.states.isFinite = ef.actions.isFinite := ExecutionFragmentRaw.states_isFinite_eq_actions_isFinite _
+
+theorem is_executionFragment : IsExecutionFragment (.ofSequence ef.states ef.actions ef.states_isFinite_eq_actions_isFinite) := by
+  dsimp [ExecutionFragment.states, ExecutionFragment.actions]
+  rw [ef.raw.ofSequence_eta]
+  exact ef.is_valid
+
+def mk'
+  (states : Sequence ts.S) (actions : Sequence ts.Act)
+  (req1: states.isFinite = actions.isFinite)
+  (req2: IsExecutionFragment (.ofSequence states actions req1) )
+  : ts.ExecutionFragment :=
+  ⟨ExecutionFragmentRaw.ofSequence states actions req1, req2⟩
+
+theorem mk'_eta
+  : (mk' ef.states ef.actions ef.states_isFinite_eq_actions_isFinite ef.is_executionFragment) = ef := by
+  dsimp [mk']
+  dsimp [ExecutionFragment.states, ExecutionFragment.actions]
+  simp only [ef.raw.ofSequence_eta]
+
+
+/-
+    by_cases lm1: states.isFinite
+    · refine @IsExecutionFragment.finite ts _ ?req1 ?req2
+      · rw [ExecutionFragmentRaw.isFinite_eq_states_isFinite]
+        simpa using lm1
+      · dsimp [ExecutionFragmentRaw.ofSequence]
+-/
+
+/-
+    cases states <;> cases actions <;> simp at req
+    · refine IsExecutionFragment.finite ?_ ?_
+      · dsimp [ExecutionFragmentRaw.ofSequence]
+      · dsimp [ExecutionFragmentRaw.ofSequence]
+-/
+
+
+
+
+end ExecutionFragment
 
 
 /-!
