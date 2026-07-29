@@ -165,10 +165,104 @@ theorem getElem_eq_app
   · simp; rfl
 
 
+def head (seq: Sequence α) (req: 0 < seq.length?) : α :=
+  match seq with
+  | .finite xs => xs.head (by simpa [List.ne_nil_iff_length_pos] using req)
+  | .infinite xs => xs.head
+
+def tail (seq: Sequence α) : Sequence α :=
+  match seq with
+  | .finite xs => xs.tail |> .finite
+  | .infinite xs => xs.tail |> .infinite
 
 
+def nil : Sequence α := .finite []
+
+@[defeq, simp]
+theorem nil_length?_eq_zero : (nil : Sequence α).length? = 0 := rfl
+
+@[defeq, simp]
+theorem nil_tail_eq_nil : (nil : Sequence α).tail = nil := rfl
+
+theorem nil_eta (req: seq.length? = 0) : nil = seq := by
+  cases seq <;> simp at req
+  · subst req; rfl
+
+@[defeq, simp]
+theorem nil_isFinite : (nil : Sequence α).isFinite = .true := rfl
 
 
+def cons (head: α) (tail: Sequence α) : Sequence α :=
+  match tail with
+  | .finite xs => xs.cons head |> .finite
+  | .infinite xs => xs.cons head |> .infinite
+
+@[simp]
+theorem cons_length?_pos {a as} : 0 < (@cons α a as).length? := by
+  cases as <;> dsimp [cons] <;> simp
+
+@[simp]
+theorem cons_head {a as} : (@cons α a as).head cons_length?_pos = a := by
+  cases as <;> rfl
+
+@[simp]
+theorem cons_tail {a as} : (@cons α a as).tail = as := by
+  cases as <;> rfl
+
+@[simp]
+theorem cons_isFinite {a as} : (@cons α a as).isFinite = as.isFinite := by
+  cases as <;> dsimp [cons]
+
+@[defeq]
+theorem cons_finite {a as} : (@cons α a (.finite as)) = (.finite (a :: as)) := rfl
+
+@[simp]
+theorem cons_isInfinite {a as} : (@cons α a as).isInfinite = as.isInfinite := by
+  apply Bool.not_inj
+  simp
+
+open scoped ωSequence in
+@[defeq]
+theorem cons_infinite {a as} : (@cons α a (.infinite as)) = (.infinite (a ::ω as)) := rfl
+
+theorem cons_eta (req: 0 < seq.length?)
+  : cons (seq.head req) seq.tail = seq := by
+  dsimp [head, tail]
+  split <;> split <;> (rename_i lm1; simp at lm1) <;>
+  (subst lm1; dsimp [cons]; congr; simp)
+
+theorem length?_ne_zero_iff_pos
+  : (seq.length? ≠ 0) ↔ (0 < seq.length?) := by
+  simp
+
+@[elab_as_elim]
+def indNilCons
+  {motive: Sequence α → Sort _}
+  (nil: motive Sequence.nil)
+  (cons: (head: α) → (tail: Sequence α) → motive (Sequence.cons head tail))
+  (t: Sequence α)
+  : motive t :=
+  if lm1: t.length? = 0 then
+    nil |> Eq.subst (nil_eta lm1)
+  else
+    have lm2 := length?_ne_zero_iff_pos.mp lm1
+    cons (t.head lm2) t.tail |> Eq.subst (cons_eta lm2)
+
+section
+
+variable {motive nil cons t}
+
+@[defeq, simp]
+theorem indNilCons_nil (req: t.length? = 0)
+  : (@indNilCons α motive nil cons t) = (nil |> Eq.subst (nil_eta req)) :=
+  rfl
+
+@[defeq, simp]
+theorem indNilCons_cons (req: 0 < t.length?)
+  : (@indNilCons α motive nil cons t) = (cons (t.head req) t.tail |> Eq.subst (cons_eta req)) :=
+  rfl
+
+end
 
 end Sequence
 
