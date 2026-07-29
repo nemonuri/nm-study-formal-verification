@@ -658,7 +658,7 @@ structure InfiniteExecutionFragmentRaw (ts: TransitionSystem) where
   states : ωSequence ts.S
   actions : ωSequence ts.Act
 
-def IsInfiniteExecutionFragment (raw: ts.InfiniteExecutionFragmentRaw) : Prop := ((i: Nat) → (raw.states i) ─⌞(raw.actions i)⌟→{ts} (raw.states (i + 1)))
+def IsInfiniteExecutionFragment (raw: ts.InfiniteExecutionFragmentRaw) : Prop := (i: Nat) → (raw.states i) ─⌞(raw.actions i)⌟→{ts} (raw.states (i + 1))
 
 @[defeq]
 theorem isInfiniteExecutionFragment_def (raw: ts.InfiniteExecutionFragmentRaw)
@@ -688,12 +688,91 @@ end Definition
 namespace InfiniteExecutionFragment
 
 open Cslib
+open scoped ωSequence
 
 variable {ts: TransitionSystem} (ρ: ts.InfiniteExecutionFragment)
 
 def states : ωSequence ts.S := ρ.raw.states
 
 def actions : ωSequence ts.Act := ρ.raw.actions
+
+theorem is_infiniteExecutionFragment : ts.IsInfiniteExecutionFragment ⟨ρ.states, ρ.actions⟩ := ρ.is_valid
+
+def mk' (states: ωSequence ts.S) (actions: ωSequence ts.Act) (req: ts.IsInfiniteExecutionFragment ⟨states, actions⟩) : ts.InfiniteExecutionFragment :=
+  ⟨⟨states, actions⟩, req⟩
+
+@[defeq, simp]
+theorem mk'_states {states actions req} : (@mk' ts states actions req).states = states := rfl
+
+@[defeq, simp]
+theorem mk'_actions {states actions req} : (@mk' ts states actions req).actions = actions := rfl
+
+@[defeq, simp]
+theorem mk'_eta : mk' ρ.states ρ.actions ρ.is_infiniteExecutionFragment = ρ := rfl
+
+@[elab_as_elim]
+def indMk'
+  {motive: ts.InfiniteExecutionFragment → Sort _}
+  (mk': (states: ωSequence ts.S) → (actions: ωSequence ts.Act) →
+        (req: ts.IsInfiniteExecutionFragment ⟨states, actions⟩) →
+        motive (InfiniteExecutionFragment.mk' states actions req))
+  (t: ts.InfiniteExecutionFragment)
+  : motive t :=
+  mk' t.states t.actions t.is_infiniteExecutionFragment |> Eq.subst t.mk'_eta
+
+def state0 := ρ.states 0
+
+def action0 := ρ.actions 0
+
+def tail : ts.InfiniteExecutionFragment :=
+  mk' ρ.states.tail ρ.actions.tail (by
+    dsimp [isInfiniteExecutionFragment_def]
+    intro i
+    exact (ρ.is_valid |> (isInfiniteExecutionFragment_def ρ.raw).mp) (i+1) )
+
+def stepL (state0: ts.S) (action0: ts.Act) (req: state0 ─⌞action0⌟→{ts} ρ.state0) : ts.InfiniteExecutionFragment :=
+  mk' (state0 ::ω ρ.states) (action0 ::ω ρ.actions) (by
+    dsimp [isInfiniteExecutionFragment_def]
+    intro i
+    induction i with
+    | zero => exact req
+    | succ i ih =>
+      simp
+      exact ((isInfiniteExecutionFragment_def _).mp ρ.is_valid) i )
+
+@[defeq, simp]
+theorem stepL_tail {tail state0 action0 req} : (@stepL ts tail state0 action0 req).tail = tail := rfl
+
+@[defeq, simp]
+theorem stepL_state0 {tail state0 action0 req} : (@stepL ts tail state0 action0 req).state0 = state0 := rfl
+
+@[defeq, simp]
+theorem stepL_action0 {tail state0 action0 req} : (@stepL ts tail state0 action0 req).action0 = action0 := rfl
+
+theorem tail_canStepL : ρ.state0 ─⌞ρ.action0⌟→{ts} ρ.tail.state0 := by
+  dsimp
+  have lm1 := ρ.is_valid 0
+  refine Iff.mp ?_ lm1
+  rw [← propext_iff]
+  congr
+
+theorem stepL_eta : (stepL ρ.tail ρ.state0 ρ.action0 ρ.tail_canStepL) = ρ := by
+  dsimp [stepL]
+  conv => rhs; rw [← ρ.mk'_eta]
+  congr
+  · dsimp [state0, tail]; simp only [ωSequence.eta]
+  · dsimp [action0, tail]; simp only [ωSequence.eta]
+
+@[elab_as_elim]
+def indStepL
+  {motive: ts.InfiniteExecutionFragment → Sort _}
+  (stepL: (tail: ts.InfiniteExecutionFragment) → (state0: ts.S) → (action0: ts.Act) →
+          (req: state0 ─⌞action0⌟→{ts} tail.state0) →
+          motive (InfiniteExecutionFragment.stepL tail state0 action0 req))
+  (t: ts.InfiniteExecutionFragment)
+  : motive t :=
+  stepL t.tail t.state0 t.action0 t.tail_canStepL |> Eq.subst t.stepL_eta
+
 
 
 end InfiniteExecutionFragment
@@ -1117,6 +1196,15 @@ def indFiniteInfinite
     have lm2 := t.isFinite_eq_false_iff.mp (Bool.of_not_eq_true lm1)
     infinite (t.getInfinite lm2) |> Eq.subst (t.ofInfinite_eta lm2)
 
+@[defeq, simp]
+theorem isFinite_indFiniteInfinite (req: ef.isFinite) {motive finite infinite}
+  : @indFiniteInfinite ts motive finite infinite ef = (finite (ef.getFinite req) |> Eq.subst (ef.ofFinite_eta req)) :=
+  rfl
+
+@[defeq, simp]
+theorem isInfinite_indFiniteInfinite (req: ef.isInfinite) {motive finite infinite}
+  : @indFiniteInfinite ts motive finite infinite ef = (infinite (ef.getInfinite req) |> Eq.subst (ef.ofInfinite_eta req)) :=
+  rfl
 
 theorem states_length?_eq_actions_length?_plus_one : ef.states.length? = ef.actions.length? + 1 := by
   cases ef using indFiniteInfinite with
@@ -1126,8 +1214,37 @@ theorem states_length?_eq_actions_length?_plus_one : ef.states.length? = ef.acti
   | infinite ρ =>
     simp
 
-#print states_length?_eq_actions_length?_plus_one
+@[simp]
+theorem states_length?_pos : 0 < ef.states.length? := by
+  cases ef using indFiniteInfinite <;> simp
 
+def state0 := ef.states[0]'(states_length?_pos _)
+
+section
+
+variable {ef : ts.ExecutionFragment}
+
+theorem isFinite_iff_isFinite : (ef.isFinite = .true) ↔ ((ef.states.isFinite = .true) ∧ (ef.actions.isFinite = .true)) := by
+  cases ef using indFiniteInfinite <;> simp
+
+theorem isInfinite_iff_isInfinite : (ef.isInfinite = .true) ↔ ((ef.states.isInfinite = .true) ∧ (ef.actions.isInfinite = .true)) := by
+  cases ef using indFiniteInfinite <;> simp
+
+@[simp]
+theorem isFinite_imp_states_isFinite (req: ef.isFinite = .true) : ef.states.isFinite = .true := isFinite_iff_isFinite.mp req |>.1
+
+@[simp]
+theorem isFinite_imp_actions_isFinite (req: ef.isFinite = .true) : ef.actions.isFinite = .true := isFinite_iff_isFinite.mp req |>.2
+
+@[simp]
+theorem isFinite_imp_states_isInfinite (req: ef.isInfinite = .true) : ef.states.isInfinite = .true := isInfinite_iff_isInfinite.mp req |>.1
+
+@[simp]
+theorem isFinite_imp_actions_isInfinite (req: ef.isInfinite = .true) : ef.actions.isInfinite = .true := isInfinite_iff_isInfinite.mp req |>.2
+
+end
+
+--def refl
 
 end ExecutionFragment
 
