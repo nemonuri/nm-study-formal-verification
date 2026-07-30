@@ -1038,20 +1038,14 @@ theorem arePrefixAndPostfix_imp_isFinite {pref postf} (h: raw.ArePrefixAndPostfi
 
 end ExecutionFragmentRaw
 
-/-
-inductive ExecutionFragmentRaw (ts: TransitionSystem) where
-  | finite (ϱ: ts.FiniteExecutionFragmentRaw)
-  | infinite (ρ: ts.InfiniteExecutionFragmentRaw)
--/
-
 section Definition
 
 variable {ts: TransitionSystem}
 
 
-inductive IsExecutionFragment (raw: ts.ExecutionFragmentRaw) : Prop where
-  | finite (req1: raw.isFinite) (req2: IsFiniteExecutionFragment (raw.getFinite req1))
-  | infinite (req1: raw.isInfinite) (req2: IsInfiniteExecutionFragment (raw.getInfinite req1))
+inductive IsExecutionFragment : ts.ExecutionFragmentRaw → Prop where
+  | finite (raw: ts.FiniteExecutionFragmentRaw) (req: ts.IsFiniteExecutionFragment raw) : IsExecutionFragment (.finite raw)
+  | infinite (raw: ts.InfiniteExecutionFragmentRaw) (req: ts.IsInfiniteExecutionFragment raw) : IsExecutionFragment (.infinite raw)
 
 structure ExecutionFragment (ts: TransitionSystem) where
   raw: ts.ExecutionFragmentRaw
@@ -1130,12 +1124,7 @@ theorem isInfinite_eq_false_iff : ef.isInfinite = .false ↔ ef.isFinite = .true
 
 
 def ofFinite (ϱ: ts.FiniteExecutionFragment) : ts.ExecutionFragment :=
-  ⟨.finite ϱ.raw, (by
-    open ExecutionFragmentRaw in
-    refine IsExecutionFragment.finite ?_ ?_
-    · dsimp only [isFinite_finite]
-    · dsimp only [finite_getFinite]
-      exact ϱ.is_valid )⟩
+  ⟨.finite ϱ.raw, .finite ϱ.raw ϱ.is_valid⟩
 
 @[defeq, simp]
 theorem ofFinite_isFinite {ϱ} : (@ofFinite ts ϱ).isFinite = .true := by
@@ -1145,13 +1134,13 @@ theorem ofFinite_isFinite {ϱ} : (@ofFinite ts ϱ).isFinite = .true := by
 theorem ofFinite_isInfinite {ϱ} : (@ofFinite ts ϱ).isInfinite = .false := by
   apply Bool.not_inj; simp
 
+
 def getFinite (req: ef.isFinite) : ts.FiniteExecutionFragment :=
   ⟨ef.raw.getFinite req, (by
-    cases ef.is_valid
-    · assumption
-    · refine absurd req ?_
-      simp [isFinite]
-      assumption )⟩
+    rcases ef with ⟨raw, is_valid⟩
+    cases raw
+    · dsimp; cases is_valid; assumption
+    · simp [ExecutionFragment.isFinite] at req )⟩
 
 @[defeq, simp]
 theorem ofFinite_getFinite {ϱ} : (@ofFinite ts ϱ).getFinite ofFinite_isFinite = ϱ := rfl
@@ -1172,18 +1161,13 @@ theorem ofFinite_actions {ϱ} : (@ofFinite ts ϱ).actions = (.finite ϱ.actions)
 @[defeq]
 theorem ofFinite_eq_mk' {ϱ}
   : Eq (@ofFinite ts ϱ)
-       (ExecutionFragment.mk' (.finite ϱ.states) (.finite ϱ.actions) rfl (.finite ofFinite_isFinite ϱ.is_valid))
+       (ExecutionFragment.mk' (.finite ϱ.states) (.finite ϱ.actions) rfl (.finite ϱ.raw ϱ.is_valid))
   := rfl
 
 
 
 def ofInfinite (ρ: ts.InfiniteExecutionFragment) : ts.ExecutionFragment :=
-  ⟨.infinite ρ.raw, (by
-    open ExecutionFragmentRaw in
-    refine IsExecutionFragment.infinite ?_ ?_
-    · dsimp only [isInfinite_infinite]
-    · dsimp only [infinite_getInfinite]
-      exact ρ.is_valid )⟩
+  ⟨.infinite ρ.raw, .infinite ρ.raw ρ.is_valid⟩
 
 @[defeq, simp]
 theorem ofInfinite_isInfinite {ρ} : (@ofInfinite ts ρ).isInfinite = .true := by
@@ -1195,11 +1179,11 @@ theorem ofInfinite_isFinite {ρ} : (@ofInfinite ts ρ).isFinite = .false := by
 
 def getInfinite (req: ef.isInfinite) : ts.InfiniteExecutionFragment :=
   ⟨ef.raw.getInfinite req, (by
-    cases ef.is_valid
-    · refine absurd req ?_
-      simp [isInfinite]
-      assumption
-    · assumption )⟩
+    rcases ef with ⟨raw, is_valid⟩
+    cases raw
+    · simp [ExecutionFragment.isInfinite] at req
+    · dsimp; cases is_valid; assumption
+    )⟩
 
 @[defeq, simp]
 theorem ofInfinite_getInfinite {ρ} : (@ofInfinite ts ρ).getInfinite ofInfinite_isInfinite = ρ := rfl
@@ -1220,7 +1204,7 @@ theorem ofInfinite_actions {ρ} : (@ofInfinite ts ρ).actions = (.infinite ρ.ac
 @[defeq]
 theorem ofInfinite_eq_mk' {ρ}
   : Eq (@ofInfinite ts ρ)
-       (ExecutionFragment.mk' (.infinite ρ.states) (.infinite ρ.actions) rfl (.infinite ofInfinite_isInfinite ρ.is_valid))
+       (ExecutionFragment.mk' (.infinite ρ.states) (.infinite ρ.actions) rfl (.infinite ρ.raw ρ.is_valid))
   := rfl
 
 
@@ -1330,20 +1314,12 @@ theorem tail_preserves_states_isFinite_eq_actions_isFinite
 
 theorem tail_preserves_isExecutionFragment (req: 0 < ef.actions.length?)
   : IsExecutionFragment (.ofSequence ef.states.tail ef.actions.tail ef.tail_preserves_states_isFinite_eq_actions_isFinite) := by
-  cases ef using indFiniteInfinite with
-  | finite ϱ =>
-    dsimp
-    refine IsExecutionFragment.finite ?_ ?_
-    · simp [Sequence.tail_finite]
-    · simp [Sequence.tail_finite]
-      simp at req
-      exact ϱ.tail_preserves_isFiniteExecutionFragment req
-  | infinite ρ =>
-    dsimp
-    refine IsExecutionFragment.infinite ?_ ?_
-    · simp [Sequence.tail_infinite]
-    · simp [Sequence.tail_infinite]
-      exact ρ.tail_preserves_isInfiniteExecutionFragment
+  cases ef using indFiniteInfinite
+  · refine IsExecutionFragment.finite _ ?_
+    refine FiniteExecutionFragment.tail_preserves_isFiniteExecutionFragment _ ?_
+    simpa using req
+  · refine IsExecutionFragment.infinite _ ?_
+    refine InfiniteExecutionFragment.tail_preserves_isInfiniteExecutionFragment _
 
 
 theorem ofFinite_actions_length_pos_iff {ϱ}
@@ -1383,21 +1359,14 @@ theorem stepL_preserves_states_isFinite_eq_actions_isFinite
 theorem stepL_preserves_isExecutionFragment
   {state0: ts.S} {action0: ts.Act} (req: state0 ─⌞action0⌟→{ts} ef.state0)
   : IsExecutionFragment (.ofSequence (ef.states.cons state0) (ef.actions.cons action0) ef.stepL_preserves_states_isFinite_eq_actions_isFinite) := by
-    cases ef using indFiniteInfinite with
-    | finite ϱ =>
-      dsimp
-      refine IsExecutionFragment.finite ?_ ?_
-      · simp [Sequence.cons_finite]
-      · simp [Sequence.cons_finite]
-        dsimp at req
-        exact ϱ.stepL_preserves_isFiniteExecutionFragment req
-    | infinite ρ =>
-      dsimp
-      refine IsExecutionFragment.infinite ?_ ?_
-      · simp [Sequence.cons_infinite]
-      · simp [Sequence.cons_infinite]
-        dsimp at req
-        exact ρ.stepL_preserves_isInfiniteExecutionFragment req
+    cases ef using indFiniteInfinite --with
+    · refine IsExecutionFragment.finite _ ?_
+      refine FiniteExecutionFragment.stepL_preserves_isFiniteExecutionFragment _ ?_
+      simpa using req
+    · refine IsExecutionFragment.infinite _ ?_
+      refine InfiniteExecutionFragment.stepL_preserves_isInfiniteExecutionFragment _ ?_
+      simpa using req
+
 
 def stepL (state0: ts.S) (action0: ts.Act) (req: state0 ─⌞action0⌟→{ts} ef.state0) : ts.ExecutionFragment :=
   .mk' (ef.states.cons state0) (ef.actions.cons action0)
