@@ -264,6 +264,19 @@ theorem indNilCons_cons (req: 0 < t.length?)
 
 end
 
+theorem tail_isFinite : seq.tail.isFinite = seq.isFinite := by
+  cases seq <;> dsimp [tail]
+
+@[defeq]
+theorem tail_finite {as} : (@finite α as).tail = (@finite α as.tail) := rfl
+
+theorem tail_isInfinite : seq.tail.isInfinite = seq.isInfinite := by
+  apply Bool.not_inj
+  simp [tail_isFinite]
+
+@[defeq]
+theorem tail_infinite {as} : (@infinite α as).tail = (@infinite α as.tail) := rfl
+
 end Sequence
 
 end Nemonuri
