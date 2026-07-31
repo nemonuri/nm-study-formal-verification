@@ -1424,9 +1424,20 @@ theorem stepL_eta (req: 0 < ef.actions.length?)
       refine Eq.subst ?_ (ωSequence.eta _)
       rfl
 
-
-
-
+@[elab_as_elim]
+def indReflStepL
+  {motive: ts.ExecutionFragment → Sort _}
+  (refl: (state0: ts.S) → motive (ExecutionFragment.refl state0))
+  (stepL: (tail: ts.ExecutionFragment) → (state0: ts.S) → (action0: ts.Act) →
+          (req: state0 ─⌞action0⌟→{ts} tail.state0) →
+          motive (ExecutionFragment.stepL tail state0 action0 req))
+  (t: ts.ExecutionFragment)
+  : motive t :=
+  if lm1: t.actions.length? = 0 then
+    refl t.state0 |> Eq.subst (t.refl_eta lm1)
+  else
+    have lm2 := Sequence.length?_ne_zero_iff_pos.mp lm1
+    stepL (t.tail lm2) (t.state0) (t.action0 lm2) (t.tail_canStepL lm2) |> Eq.subst (t.stepL_eta lm2)
 
 
 
