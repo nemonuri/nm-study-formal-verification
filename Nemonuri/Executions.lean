@@ -178,6 +178,7 @@ theorem stepL_actions_length_pos {ϱ s act req} : 0 < (@FiniteExecutionFragment.
   rw [← ϱ.states_length_eq_actions_length_plus_one]
   exact ϱ.states_length_pos
 
+
 theorem tail_preserves_isFiniteExecutionFragment (req: 0 < ϱ.actions.length)
   : ts.IsFiniteExecutionFragment ⟨ϱ.states.tail, ϱ.actions.tail⟩ := by
     constructor
@@ -190,6 +191,13 @@ theorem tail_preserves_isFiniteExecutionFragment (req: 0 < ϱ.actions.length)
 
 def tail (req: 0 < ϱ.actions.length) : ts.FiniteExecutionFragment :=
   mk' ϱ.states.tail ϱ.actions.tail (ϱ.tail_preserves_isFiniteExecutionFragment req)
+
+@[defeq, simp]
+theorem tail_states {req} : (ϱ.tail req).states = ϱ.states.tail := by dsimp [tail]
+
+@[defeq, simp]
+theorem tail_actions {req} : (ϱ.tail req).actions = ϱ.actions.tail := by dsimp [tail]
+
 
 def action0 (req: 0 < ϱ.actions.length) : ts.Act := ϱ.actions[0]'(req)
 
@@ -745,6 +753,13 @@ theorem tail_preserves_isInfiniteExecutionFragment : ts.IsInfiniteExecutionFragm
 
 def tail : ts.InfiniteExecutionFragment :=
   mk' ρ.states.tail ρ.actions.tail ρ.tail_preserves_isInfiniteExecutionFragment
+
+@[defeq, simp]
+theorem tail_states : ρ.tail.states = ρ.states.tail := by dsimp [tail]
+
+@[defeq, simp]
+theorem tail_actions : ρ.tail.actions = ρ.actions.tail := by dsimp [tail]
+
 
 theorem stepL_preserves_isInfiniteExecutionFragment {state0: ts.S} {action0: ts.Act} (req: state0 ─⌞action0⌟→{ts} ρ.state0)
   : ts.IsInfiniteExecutionFragment ⟨state0 ::ω ρ.states, action0 ::ω ρ.actions⟩ := by
@@ -1385,47 +1400,29 @@ theorem tail_canStepL (req: 0 < ef.actions.length?)
   | infinite ρ =>
     refine ρ.tail_canStepL
 
+
 open Cslib in
 theorem stepL_eta (req: 0 < ef.actions.length?)
   : (stepL (ef.tail req) (ef.state0) (ef.action0 req) (ef.tail_canStepL req)) = ef := by
-  cases ef using indFiniteInfinite with
-  | finite ϱ =>
-    revert req; simp; intro req
+  cases ef using indFiniteInfinite
+  · revert req; simp; intro req
     dsimp [stepL]
     simp [Sequence.cons_finite]
     conv => rhs; rw [ofFinite_eq_mk']
     congr
-    · refine Eq.trans ?lm2 (List.cons_head_tail ?lm1)
-      case lm1 => simp [List.ne_nil_iff_length_pos]
-      case lm2 =>
-        congr
-        dsimp [FiniteExecutionFragment.state0]
-        simp only [List.head_eq_getElem]
-    · refine Eq.trans ?lm2 (List.cons_head_tail ?lm1)
-      case lm1 => simpa [Nat.pos_iff_ne_zero] using req
-      case lm2 =>
-        congr
-        dsimp [ExecutionFragment.action0]
-        simp
-        simp only [List.head_eq_getElem]
-  | infinite ρ =>
-    simp
-    dsimp [stepL]
+    · dsimp [FiniteExecutionFragment.state0]
+      simp [List.getElem_zero_eq_head]
+    · dsimp [ExecutionFragment.action0]
+      simp [Sequence.getElem_eq_list, List.getElem_zero_eq_head]
+  · dsimp [stepL]
     simp [Sequence.cons_infinite]
     conv => rhs; rw [ofInfinite_eq_mk']
     congr
-    · refine Eq.trans ?_ (ωSequence.cons_head_tail _)
-      congr
-    · refine Eq.trans ?_ (ωSequence.cons_head_tail _)
-      congr
-
-
-
-
-
-        --refine Iff.mp ?_ req
-
-      --have lm1 := ϱ.actions_length_eq_states_length_sub_one ▸ req |> tsub_pos_iff_lt.mp
+    · dsimp [InfiniteExecutionFragment.state0]
+      simp only [ωSequence.eta]
+    · dsimp [ExecutionFragment.action0]
+      refine Eq.subst ?_ (ωSequence.eta _)
+      rfl
 
 
 
