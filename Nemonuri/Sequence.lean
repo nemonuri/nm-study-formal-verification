@@ -277,6 +277,10 @@ theorem tail_isInfinite : seq.tail.isInfinite = seq.isInfinite := by
 @[defeq]
 theorem tail_infinite {as} : (@infinite α as).tail = (@infinite α as.tail) := rfl
 
+
+def getLast (req1: 0 < seq.length?) (req2: seq.isFinite) : α := (seq.toList req2).getLast (by simp [req2] at req1; exact List.length_pos_iff.mp req1)
+
+
 end Sequence
 
 end Nemonuri

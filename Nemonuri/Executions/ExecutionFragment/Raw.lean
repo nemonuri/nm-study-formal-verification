@@ -179,6 +179,9 @@ theorem ofSequence_infinite_getInfinite {sts ats}
   : (@ofSequence ts (.infinite sts) (.infinite ats) rfl).getInfinite ofSequence_infinite_isInFinite = ⟨sts, ats⟩ := by
   dsimp [ofSequence]
 
+
+--def stateLast (req: 0 < raw.states.length?) : ts.S :=
+
 end ExecutionFragmentRaw
 
 
