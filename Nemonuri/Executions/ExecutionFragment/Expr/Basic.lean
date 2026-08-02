@@ -102,7 +102,15 @@ theorem mem_imp_isExpr ef ex (h: @Mem ts ef ex) : IsExpr ex := by
   | infinite1 ef pre _ =>
     exact .infinite1 pre.raw pre.is_valid
 
+
+theorem mem_finite1_imp_eq {fef1 fef2} (h: @Mem ts (.finite fef1) (.finite1 fef2))
+  : (fef1 = fef2) := by
+  cases h; rfl
+
+
 def EvalToSet (ex: ExprRaw ts) : Set ts.ExecutionFragmentRaw := {ef | Mem ef ex}
+
+
 
 end ExprRaw
 
