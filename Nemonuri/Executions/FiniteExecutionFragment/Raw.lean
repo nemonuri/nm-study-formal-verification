@@ -11,6 +11,8 @@ structure FiniteExecutionFragmentRaw (ts: TransitionSystem) where
   states: List ts.S
   actions: List ts.Act
 
+
+
 end Nemonuri.TransitionSystem
 
 end

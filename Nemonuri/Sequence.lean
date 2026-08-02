@@ -281,6 +281,19 @@ theorem tail_infinite {as} : (@infinite α as).tail = (@infinite α as.tail) := 
 def getLast (req1: 0 < seq.length?) (req2: seq.isFinite) : α := (seq.toList req2).getLast (by simp [req2] at req1; exact List.length_pos_iff.mp req1)
 
 
+inductive IsPrefix (as1: List α) : Sequence α → Prop where
+  | finite (as2: List α) (req: as1.IsPrefix as2) : IsPrefix as1 (.finite as2)
+  | infinite (as2: ωSequence α) (req: (as2.take as1.length) = as1) : IsPrefix as1 (.infinite as2)
+
+inductive IsSuffix (as1: List α) : Sequence α → Prop where
+  | finite (as2: List α) (req: as1.IsSuffix as2) : IsSuffix as1 (.finite as2)
+
+
+@[simp]
+theorem infinite_not_isSuffix {as1 as2} : ¬(@IsSuffix α as1 (.infinite as2)) := nofun
+
+
+
 end Sequence
 
 end Nemonuri

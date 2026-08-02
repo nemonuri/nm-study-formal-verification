@@ -180,7 +180,14 @@ theorem ofSequence_infinite_getInfinite {sts ats}
   dsimp [ofSequence]
 
 
---def stateLast (req: 0 < raw.states.length?) : ts.S :=
+
+structure IsPrefix (ef1: ts.FiniteExecutionFragmentRaw) (ef2: ts.ExecutionFragmentRaw) : Prop where
+  states: ef2.states.IsPrefix ef1.states
+  actions: ef2.actions.IsPrefix ef1.actions
+
+structure IsSuffix (ef1: ts.FiniteExecutionFragmentRaw) (ef2: ts.ExecutionFragmentRaw) : Prop where
+  states: ef2.states.IsSuffix ef1.states
+  actions: ef2.actions.IsSuffix ef1.actions
 
 end ExecutionFragmentRaw
 

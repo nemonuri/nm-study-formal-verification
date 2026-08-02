@@ -220,6 +220,21 @@ theorem indReflStepL_stepL {motive refl stepL t} {req: 0 < t.actions.length}
 end FiniteExecutionFragment
 
 
+namespace FiniteExecutionFragmentRaw
+
+variable {ts: TransitionSystem}
+
+structure IsPrefix (ef1: ts.FiniteExecutionFragmentRaw) (ef2: ts.FiniteExecutionFragmentRaw) : Prop where
+  states: List.IsPrefix ef1.states ef2.states
+  actions: List.IsPrefix ef1.actions ef2.actions
+
+structure IsSuffix (ef1: ts.FiniteExecutionFragmentRaw) (ef2: ts.FiniteExecutionFragmentRaw) : Prop where
+  states: List.IsSuffix ef1.states ef2.states
+  actions: List.IsSuffix ef1.actions ef2.actions
+
+end FiniteExecutionFragmentRaw
+
+
 end Nemonuri.TransitionSystem
 
 end

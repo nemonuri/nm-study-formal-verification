@@ -1,6 +1,7 @@
 module
 
 public import Nemonuri.Executions.InfiniteExecutionFragment.Raw
+public import Nemonuri.Executions.FiniteExecutionFragment.Raw
 
 @[expose] public section
 
@@ -136,6 +137,18 @@ def indStepL
 
 
 end InfiniteExecutionFragment
+
+
+namespace InfiniteExecutionFragmentRaw
+
+variable {ts: TransitionSystem}
+
+structure IsPrefix (ef1: ts.FiniteExecutionFragmentRaw) (ef2: ts.InfiniteExecutionFragmentRaw) : Prop where
+  states: Sequence.IsPrefix ef1.states (.infinite ef2.states)
+  actions: Sequence.IsPrefix ef1.actions (.infinite ef2.actions)
+
+end InfiniteExecutionFragmentRaw
+
 
 
 end Nemonuri.TransitionSystem

@@ -13,6 +13,7 @@ structure InfiniteExecutionFragmentRaw (ts: TransitionSystem) where
   states : ωSequence ts.S
   actions : ωSequence ts.Act
 
+
 end Nemonuri.TransitionSystem
 
 end
