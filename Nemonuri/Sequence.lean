@@ -5,6 +5,13 @@ public import Cslib.Foundations.Data.OmegaSequence.Init
 
 @[expose] public section
 
+protected def List.repeat {α: Type _} (as: List α) (req: as ≠ []) (i: Nat) : α :=
+  let i0 : Nat := i % as.length
+  as[i0]'(by subst i0; refine Nat.mod_lt i ?_; exact List.length_pos_of_ne_nil req)
+
+protected def Cslib.ωSequence.ofListRepeat {α: Type _} (as: List α) (req: as ≠ []) : Cslib.ωSequence α := ⟨as.repeat req⟩
+
+
 namespace Nemonuri
 
 open Cslib
@@ -293,9 +300,13 @@ inductive IsSuffix (as1: List α) : Sequence α → Prop where
 theorem infinite_not_isSuffix {as1 as2} : ¬(@IsSuffix α as1 (.infinite as2)) := nofun
 
 
+def ofListRepeat (l: List α) (req: l ≠ []) : Sequence α := .infinite (ωSequence.ofListRepeat l req)
+
 
 end Sequence
 
 end Nemonuri
+
+
 
 end
