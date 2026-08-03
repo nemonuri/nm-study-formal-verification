@@ -39,6 +39,18 @@ def IsInitial (ef: ts.ExecutionFragment) : Prop := ef.state0 ∈ ts.I
 
 end ExecutionFragment
 
+
+namespace ExecutionFragmentRaw
+
+variable {ts: TransitionSystem} (raw: ts.ExecutionFragmentRaw)
+
+def IsMaximal : Prop := ∃req, @ExecutionFragment.IsMaximal ts ⟨raw, req⟩
+
+def IsInitial : Prop := ∃req, @ExecutionFragment.IsInitial ts ⟨raw, req⟩
+
+end ExecutionFragmentRaw
+
+
 end Nemonuri.TransitionSystem
 
 end

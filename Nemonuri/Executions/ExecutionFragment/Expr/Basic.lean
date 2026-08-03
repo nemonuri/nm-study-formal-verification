@@ -2,36 +2,11 @@ module
 
 public import Nemonuri.Executions.ExecutionFragment.Expr.Raw
 public import Nemonuri.Executions.ExecutionFragment.Basic
---public import Nemonuri.Executions.ExecutionFragment.PrefixPostfix
+public import Nemonuri.Executions.FiniteExecutionFragment.Prefix
 
 @[expose] public section
 
 namespace Nemonuri.TransitionSystem
-
-namespace FiniteExecutionFragmentRaw
-
-variable {ts: TransitionSystem}
-
-inductive IsPrefixFragment : ts.FiniteExecutionFragmentRaw → Prop where
-  | intro (states: List ts.S) (actions: List ts.Act) (stateLast: ts.S)
-          (req: ts.IsFiniteExecutionFragment ⟨states ++ [stateLast], actions⟩)
-          : IsPrefixFragment ⟨states ++ [stateLast], actions⟩
-
-inductive IsSuffixFragment : ts.FiniteExecutionFragmentRaw → Prop where
-  | intro (states: List ts.S) (actions: List ts.Act) (state0: ts.S)
-          (req: ts.IsFiniteExecutionFragment ⟨state0 :: states, actions⟩)
-          : IsSuffixFragment ⟨state0 :: states, actions⟩
-
-
-structure PrefixFragment (ts: TransitionSystem) where
-  raw: ts.FiniteExecutionFragmentRaw
-  is_valid: IsPrefixFragment raw
-
-structure SuffixFragment (ts: TransitionSystem) where
-  raw: ts.FiniteExecutionFragmentRaw
-  is_valid: IsSuffixFragment raw
-
-end FiniteExecutionFragmentRaw
 
 namespace ExecutionFragment
 
@@ -45,10 +20,34 @@ inductive IsExpr {ts: TransitionSystem} : ExprRaw ts → Prop where
   | infinite1 (pre: ts.FiniteExecutionFragmentRaw) (req: pre.IsPrefixFragment)
             : IsExpr (.infinite1 pre)
 
+namespace IsExpr
+
+variable {ts: TransitionSystem}
+
+/-
+noncomputable def toLabel {ex} : (@IsExpr ts ex) → ExprRaw.Label
+  | .finite1 .. => .finite1
+  | .finite2 .. => .finite2
+  | .infinite1 .. => .infinite1
+-/
+
+/-
+def toLabel : ExprRaw ts → ExprRaw.Label
+  | .finite1 .. => .finite1
+  | .finite2 .. => .finite2
+  | .infinite1 .. => .infinite1
+-/
+
+--def toSeqLabel ()
+
+
+end IsExpr
+
 
 structure Expr (ts: TransitionSystem) where
   raw: ExprRaw ts
   is_valid: IsExpr raw
+
 
 
 namespace ExprRaw
@@ -93,6 +92,19 @@ theorem mem_imp_isExecutionFragment ef ex (h: @Mem ts ef ex) : ts.IsExecutionFra
     refine .infinite _ ?_
     exact ef.is_valid
 
+
+theorem mem_not_finite_infinite
+  {ef: ts.ExecutionFragmentRaw} {ex: ExprRaw ts} (h1: ef.toLabel = .finite) (h2: ex.toSeqLabel = .infinite)
+  : ¬(Mem ef ex) := by
+  intro cont
+  cases cont
+  · simp at h2
+  · simp at h2
+  · simp at h1
+
+
+
+
 theorem mem_imp_isExpr ef ex (h: @Mem ts ef ex) : IsExpr ex := by
   cases h with
   | finite1 ef =>
@@ -109,6 +121,11 @@ theorem mem_finite1_imp_eq {fef1 fef2} (h: @Mem ts (.finite fef1) (.finite1 fef2
 
 
 def EvalToSet (ex: ExprRaw ts) : Set ts.ExecutionFragmentRaw := {ef | Mem ef ex}
+
+theorem EvalToSet.mem_imp_isExecutionFragment
+  (ef: ExecutionFragmentRaw ts) (ex: ExprRaw ts) (h: ef ∈ ex.EvalToSet)
+  : ts.IsExecutionFragment ef :=
+  ExprRaw.mem_imp_isExecutionFragment ef ex h
 
 
 

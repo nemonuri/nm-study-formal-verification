@@ -17,6 +17,18 @@ namespace ExecutionFragmentRaw
 variable {ts: TransitionSystem} {raw: ts.ExecutionFragmentRaw}
 
 
+def toLabel : ts.ExecutionFragmentRaw → Sequence.Label
+  | .finite _ => .finite
+  | .infinite _ => .infinite
+
+@[defeq, simp]
+theorem finite_toLabel {ϱ} : (@ExecutionFragmentRaw.finite ts ϱ).toLabel = .finite := rfl
+
+@[defeq, simp]
+theorem infinite_toLabel {ρ} : (@ExecutionFragmentRaw.infinite ts ρ).toLabel = .infinite := rfl
+
+instance : HasLabel Sequence.Label ts.ExecutionFragmentRaw := ⟨toLabel⟩
+
 def states : ts.ExecutionFragmentRaw → Sequence ts.S
   | .finite ϱ => .finite ϱ.states
   | .infinite ρ => .infinite ρ.states

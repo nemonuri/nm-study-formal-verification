@@ -2,6 +2,8 @@ module
 
 public import Mathlib.Data.ENat.Basic
 public import Cslib.Foundations.Data.OmegaSequence.Init
+public import Nemonuri.HasLabel
+public import Mathlib.Tactic.DeriveFintype
 
 @[expose] public section
 
@@ -301,6 +303,38 @@ theorem infinite_not_isSuffix {as1 as2} : ¬(@IsSuffix α as1 (.infinite as2)) :
 
 
 def ofListRepeat (l: List α) (req: l ≠ []) : Sequence α := .infinite (ωSequence.ofListRepeat l req)
+
+inductive Label where
+  | finite
+  | infinite
+  deriving DecidableEq, Repr
+
+def toLabel : Sequence α → Label
+  | .finite _ => .finite
+  | .infinite _ => .infinite
+
+
+namespace Label
+
+deriving instance Fintype for Label
+
+instance : HasLabel Label (Sequence α) := ⟨toLabel⟩
+
+attribute [local simp] HasLabel.Preserves
+
+theorem tail_preserves_label : HasLabel.Preserves Label (@Sequence.tail α) := by
+  dsimp; intro x; cases x <;> rfl
+
+theorem cons_preserves_label {a} : HasLabel.Preserves Label (@Sequence.cons α a) := by
+  dsimp; intro x; cases x <;> rfl
+
+@[defeq, simp]
+theorem finite_toLabel {as} : (@Sequence.finite α as).toLabel = .finite := rfl
+
+@[defeq, simp]
+theorem infinite_toLabel {as} : (@Sequence.infinite α as).toLabel = .infinite := rfl
+
+end Label
 
 
 end Sequence
