@@ -29,6 +29,8 @@ def stepL (tail: ExprRaw ts) (s: ts.S) (a: ts.Act) : ExprRaw ts :=
   | .finite2 pre post => .finite2 (pre.stepL s a) post
   | .infinite1 pre => .infinite1 (pre.stepL s a)
 
+instance : Coe ts.S (ExprRaw ts) := ⟨singleState⟩
+
 end ExprRaw
 
 

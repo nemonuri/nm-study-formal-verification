@@ -2,7 +2,7 @@ module
 
 
 public import Nemonuri.Examples.BeverageVendingMachine
-public import Nemonuri.Executions
+public import Nemonuri.Executions.ExecutionFragment.Expr
 
 /-!
 
@@ -19,8 +19,16 @@ namespace Examples.Executions
 
 open Nemonuri TransitionSystem
 open Cslib ωSequence
+open ExecutionFragment.Expr
 
---def ρ₁ : ExecutionFragment ts := .infinite .
+
+def ρ₁ := 𝐸𝑥𝑒𝑐{ts}⸨ &(.pay) ─⌞.insert_coin⌟→ &(.select) ─⌞.τ⌟→ &(.soda) ─⌞.get_soda⌟→ &(.pay)
+                    ─⌞.insert_coin⌟→ &(.select) ─⌞.τ⌟→ &(.soda) ─⌞.get_soda⌟→ ... ⸩
+
+theorem ρ₁_nonempty : ρ₁.Nonempty := by
+  rw [Set.nonempty_def]
+  dsimp [ρ₁]
+
 
 
 
