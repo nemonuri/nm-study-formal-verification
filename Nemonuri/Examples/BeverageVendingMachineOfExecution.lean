@@ -56,10 +56,8 @@ theorem ρ₁_initial (x: ρ₁) : (x: ts.ExecutionFragmentRaw).IsInitial := by
       rfl
   · have lm3 req := @lm1.pre_is_prefix.states_getElem_eq ts _ _ 0 req
     refine Eq.trans (lm3 ?_ |> Eq.symm) ?_
-    · cbv
-    · cbv
-
-
+    · simp
+    · simp
 
 
 

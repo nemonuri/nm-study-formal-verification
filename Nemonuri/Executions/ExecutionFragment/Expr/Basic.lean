@@ -1,6 +1,7 @@
 module
 
 public import Nemonuri.Executions.ExecutionFragment.Expr.Raw
+public import Nemonuri.Executions.ExecutionFragment.Expr.Pre
 public import Nemonuri.Executions.ExecutionFragment.Basic
 public import Nemonuri.Executions.FiniteExecutionFragment.Prefix
 
