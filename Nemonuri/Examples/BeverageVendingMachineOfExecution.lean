@@ -39,6 +39,22 @@ theorem ρ₁_initial (x: ρ₁) : (x: ts.ExecutionFragmentRaw).IsInitial := by
   simp only [Subtype.forall]
   intro x lm1
   dsimp [ρ₁] at lm1
+  simp only [ExprRaw.EvalToSet.mem_iff_mem] at lm1
+  refine lm1.isInitial_iff.mpr ?_
+  rcases x with ϱ | ρ
+  · refine absurd lm1 ?_
+    refine ExprRaw.Mem.not_finite_infinite ?_ ?_
+    · dsimp
+    · conv => lhs; change (@HasLabel.toLabel Sequence.Label _ _ (ExprRaw ts) _ _)
+      simp only [ExprRaw.stepL_eq_stepL', ExprRaw.stepL'_preserves_seqLabel, HasLabel.Preserves.cancel]
+      rfl
+  · have lm2 req := @lm1.pre_is_prefix.states_getElem_eq _ _ _ 0 req |> Eq.symm
+    simpa using lm2
+
+
+/-
+
+  dsimp [ρ₁] at lm1
   have lm2 := ExprRaw.EvalToSet.mem_imp_isExecutionFragment _ _ lm1
   dsimp [ExecutionFragmentRaw.IsInitial]
   exists lm2
@@ -58,7 +74,7 @@ theorem ρ₁_initial (x: ρ₁) : (x: ts.ExecutionFragmentRaw).IsInitial := by
     refine Eq.trans (lm3 ?_ |> Eq.symm) ?_
     · simp
     · simp
-
+-/
 
 
       --have lm3 s a := HasLabel.LabelHom.coe_mk _ (@ExprRaw.stepL'_preserves_seqLabel ts s a)

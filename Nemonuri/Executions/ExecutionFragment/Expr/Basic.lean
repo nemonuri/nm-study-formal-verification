@@ -3,6 +3,7 @@ module
 public import Nemonuri.Executions.ExecutionFragment.Expr.Raw
 public import Nemonuri.Executions.ExecutionFragment.Expr.Pre
 public import Nemonuri.Executions.ExecutionFragment.Basic
+public import Nemonuri.Executions.ExecutionFragment.Maximal
 public import Nemonuri.Executions.FiniteExecutionFragment.Prefix
 
 @[expose] public section
@@ -167,23 +168,37 @@ def toExecutionFragment (req: Mem ef ex) : ts.ExecutionFragment := ⟨ef, req.is
 def toExpr (req: Mem ef ex) : Expr ts := ⟨ex, req.is_expr⟩
 
 
---theorem
+theorem states_length?_pos (h: Mem ef ex) : 0 < ef.states.length? := h.toExecutionFragment.states_length?_pos
 
+
+theorem isInitial_iff (h: Mem ef ex)
+  : ef.IsInitial ↔ (ef.states[0]'(h.states_length?_pos) ∈ ts.I) := by
+  constructor
+  · rintro ⟨lm1, lm2⟩
+    dsimp [ExecutionFragment.IsInitial] at lm2
+    exact lm2
+  · intro lm1
+    dsimp [ExecutionFragmentRaw.IsInitial]
+    exists h.is_executionFragment
 
 end Mem
 
 
 
-
-
 def EvalToSet (ex: ExprRaw ts) : Set ts.ExecutionFragmentRaw := {ef | Mem ef ex}
 
-theorem EvalToSet.mem_imp_isExecutionFragment
-  (ef: ExecutionFragmentRaw ts) (ex: ExprRaw ts) (h: ef ∈ ex.EvalToSet)
+namespace EvalToSet
+
+variable {ef: ExecutionFragmentRaw ts} {ex: ExprRaw ts}
+
+theorem mem_imp_isExecutionFragment (h: ef ∈ ex.EvalToSet)
   : ts.IsExecutionFragment ef :=
   ExprRaw.Mem.is_executionFragment h
 
+theorem mem_iff_mem : (ef ∈ ex.EvalToSet) ↔ Mem ef ex := by
+  dsimp [EvalToSet]; rfl
 
+end EvalToSet
 
 end ExprRaw
 
