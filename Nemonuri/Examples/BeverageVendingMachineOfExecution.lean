@@ -31,10 +31,8 @@ def ρ₂ := 𝐸𝑥𝑒𝑐{ts}⸨ &(.select)─⌞.τ⌟→ &(.soda)─⌞.ge
 def ϱ := 𝐸𝑥𝑒𝑐{ts}⸨ &(.pay) ─⌞.insert_coin⌟→ &(.select)─⌞.τ⌟→ &(.soda)─⌞.get_soda⌟→ &(.pay)
                     ─⌞.insert_coin⌟→ &(.select)─⌞.τ⌟→ State.soda ⸩
 
-/-! Execution fragments `ρ₁` and `ϱ` are initial, but `ρ₂` is not. -/
 
-#print ExprRaw.Mem.infinite1
-#print HasLabel.toLabel
+
 
 theorem ρ₁_initial (x: ρ₁) : x.val.IsInitial := by
   revert x
@@ -50,13 +48,17 @@ theorem ρ₁_initial (x: ρ₁) : x.val.IsInitial := by
   dsimp [ExprRaw.EvalToSet] at lm1
   cases x
   · refine absurd lm1 ?_
-    refine ExprRaw.mem_not_finite_infinite ?_ ?_
+    refine ExprRaw.Mem.not_finite_infinite ?_ ?_
     · dsimp
     · simp only [ExprRaw.stepL_eq_stepL']
       conv => lhs; change (HasLabel.toLabel (_: ExprRaw ts): Sequence.Label)
       simp only [ExprRaw.stepL'_preserves_seqLabel, ← HasLabel.Preserves.apply]
       rfl
-  · sorry
+  · have lm3 req := @lm1.pre_is_prefix.states_getElem_eq ts _ _ 0 req
+    refine Eq.trans (lm3 ?_ |> Eq.symm) ?_
+    · cbv
+    · cbv
+
 
 
 

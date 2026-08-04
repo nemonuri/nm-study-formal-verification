@@ -125,7 +125,46 @@ theorem stepL'_preserves_label {s a} : HasLabel.Preserves Label (@stepL' ts s a)
 theorem stepL'_preserves_seqLabel {s a} : HasLabel.Preserves Sequence.Label (@stepL' ts s a) := @stepL_preserves_seqLabel ts s a
 
 
---def pre :
+def pre : ExprRaw ts → ts.FiniteExecutionFragmentRaw
+  | .finite1 total => total
+  | .finite2 pre _ => pre
+  | .infinite1 pre => pre
+
+section Pre
+
+@[defeq, simp]
+theorem finite1_pre {x} : (@ExprRaw.finite1 ts x).pre = x := rfl
+
+@[defeq, simp]
+theorem finite2_pre {x1 x2} : (@ExprRaw.finite2 ts x1 x2).pre = x1 := rfl
+
+@[defeq, simp]
+theorem infinite1_pre {x} : (@ExprRaw.infinite1 ts x).pre = x := rfl
+
+end Pre
+
+
+def post (ex: ExprRaw ts) (req: ex.toSeqLabel = .finite) : ts.FiniteExecutionFragmentRaw :=
+  match ex with
+  | .finite1 total => total
+  | .finite2 _ post => post
+  | .infinite1 .. => absurd req (by simp)
+
+section Post
+
+@[defeq, simp]
+theorem finite1_post {x} : (@ExprRaw.finite1 ts x).post finite1_toSeqLabel = x := rfl
+
+@[defeq, simp]
+theorem finite2_post {x1 x2} : (@ExprRaw.finite2 ts x1 x2).post finite2_toSeqLabel = x2 := rfl
+
+end Post
+
+
+theorem stepL_pre_eq_pre_stepL {tail s a} : (@stepL ts tail s a).pre = (tail.pre.stepL s a) := by
+  cases tail <;> rfl
+
+
 
 section
 

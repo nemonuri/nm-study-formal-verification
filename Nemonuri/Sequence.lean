@@ -294,12 +294,86 @@ inductive IsPrefix (as1: List α) : Sequence α → Prop where
   | finite (as2: List α) (req: as1.IsPrefix as2) : IsPrefix as1 (.finite as2)
   | infinite (as2: ωSequence α) (req: (as2.take as1.length) = as1) : IsPrefix as1 (.infinite as2)
 
+namespace IsPrefix
+
+theorem refl (as: List α) : IsPrefix as (.finite as) := by
+  refine IsPrefix.finite _ ?_
+  exact List.prefix_rfl
+
+theorem lt_length?_of_lt_length {as1 as2} (h: @IsPrefix α as1 as2) {i: Nat} (req: i < as1.length)
+  : (Nat.cast i) < as2.length? := by
+  rcases h with ⟨as2, lm1⟩ | _
+  · simp
+    obtain ⟨as3, lm2⟩ := List.prefix_iff_exists_eq_append.mp lm1
+    subst lm2
+    simp only [List.length_append]
+    calc
+      i < _ := req
+      _ ≤ _ := Nat.le_add_right _ _
+  · simp
+
+theorem getElem_eq {as1 as2} (h: @IsPrefix α as1 as2) {i: Nat} (req: i < as1.length)
+  : as1[i]'(req) = as2[i]'(h.lt_length?_of_lt_length req) := by
+  rcases h with ⟨as2, lm1⟩ | ⟨as2, lm1⟩
+  · refine List.IsPrefix.getElem lm1 ?_
+  · simp
+    revert req
+    rw [← lm1]
+    exact ωSequence.take_get _ _ _
+
+end IsPrefix
+
 inductive IsSuffix (as1: List α) : Sequence α → Prop where
   | finite (as2: List α) (req: as1.IsSuffix as2) : IsSuffix as1 (.finite as2)
 
+namespace IsSuffix
 
 @[simp]
-theorem infinite_not_isSuffix {as1 as2} : ¬(@IsSuffix α as1 (.infinite as2)) := nofun
+theorem not_of_infinite {as1 as2} : ¬(@IsSuffix α as1 (.infinite as2)) := nofun
+
+theorem is_finite {as1 as2} (h: @IsSuffix α as1 as2) : as2.isFinite := by
+  cases as2
+  · simp
+  · simp at h
+
+theorem refl (as: List α) : IsSuffix as (.finite as) := by
+  refine IsSuffix.finite _ ?_
+  exact List.suffix_rfl
+
+theorem lt_length?_of_lt_length {as1 as2} (h: @IsSuffix α as1 as2) {i: Nat} (req: i < as1.length)
+  : (Nat.cast i) < as2.length? := by
+  rcases h with ⟨as2, lm1⟩
+  simp
+  obtain ⟨as3, lm2⟩ := List.suffix_iff_exists_eq_append.mp lm1
+  subst lm2
+  simp only [List.length_append]
+  calc
+    i < _ := req
+    _ ≤ _ := Nat.le_add_left _ _
+
+theorem getElem_req_of_lt_length {as1 as2} (h: @IsSuffix α as1 as2) {i: Nat} (req: i < as1.length)
+  : ((as2.length h.is_finite) - as1.length + i) < as2.length? := by
+  have lm2 := h.lt_length?_of_lt_length req
+  rcases h with ⟨as2, lm1⟩
+  simp at lm2 ⊢
+  rw [← ENat.coe_sub]
+  rw [← ENat.coe_add]
+  refine ENat.coe_lt_coe.mpr ?_
+  have lm3 := List.IsSuffix.length_le lm1
+  omega
+
+
+theorem getElem_eq {as1 as2} (h: @IsSuffix α as1 as2) {i: Nat} (req: i < as1.length)
+  : as1[i]'(req) = as2[(as2.length h.is_finite) - as1.length + i]'(h.getElem_req_of_lt_length req) := by
+  rcases h with ⟨as2, lm1⟩
+  simp
+  refine List.IsSuffix.getElem lm1 ?_
+
+
+
+end IsSuffix
+
+
 
 
 def ofListRepeat (l: List α) (req: l ≠ []) : Sequence α := .infinite (ωSequence.ofListRepeat l req)
@@ -335,6 +409,7 @@ theorem finite_toLabel {as} : (@Sequence.finite α as).toLabel = .finite := rfl
 theorem infinite_toLabel {as} : (@Sequence.infinite α as).toLabel = .infinite := rfl
 
 end Label
+
 
 
 end Sequence

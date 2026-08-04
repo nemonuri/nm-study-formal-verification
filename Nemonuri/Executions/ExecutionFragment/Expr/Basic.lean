@@ -80,7 +80,11 @@ inductive Mem : ts.ExecutionFragmentRaw → ExprRaw ts → Prop where
               (req: ExecutionFragmentRaw.IsPrefix pre.raw (.infinite ef.raw))
               : Mem (.infinite ef.raw) (.infinite1 pre.raw)
 
-theorem mem_imp_isExecutionFragment ef ex (h: @Mem ts ef ex) : ts.IsExecutionFragment ef := by
+namespace Mem
+
+variable {ef: ts.ExecutionFragmentRaw} {ex: ExprRaw ts}
+
+theorem is_executionFragment (h: Mem ef ex) : ts.IsExecutionFragment ef := by
   cases h with
   | finite1 ef =>
     refine .finite _ ?_
@@ -93,19 +97,26 @@ theorem mem_imp_isExecutionFragment ef ex (h: @Mem ts ef ex) : ts.IsExecutionFra
     exact ef.is_valid
 
 
-theorem mem_not_finite_infinite
-  {ef: ts.ExecutionFragmentRaw} {ex: ExprRaw ts} (h1: ef.toLabel = .finite) (h2: ex.toSeqLabel = .infinite)
+theorem label_eq (h: Mem ef ex)
+  : ef.toLabel = ex.toSeqLabel := by
+  cases h <;> dsimp
+
+theorem not_finite_infinite
+  (h1: ef.toLabel = .finite) (h2: ex.toSeqLabel = .infinite)
   : ¬(Mem ef ex) := by
   intro cont
-  cases cont
-  · simp at h2
-  · simp at h2
-  · simp at h1
+  have lm1 := cont.label_eq
+  simp [h1, h2] at lm1
+
+theorem not_infinite_finite
+  (h1: ef.toLabel = .infinite) (h2: ex.toSeqLabel = .finite)
+  : ¬(Mem ef ex) := by
+  intro cont
+  have lm1 := cont.label_eq
+  simp [h1, h2] at lm1
 
 
-
-
-theorem mem_imp_isExpr ef ex (h: @Mem ts ef ex) : IsExpr ex := by
+theorem is_expr (h: @Mem ts ef ex) : IsExpr ex := by
   cases h with
   | finite1 ef =>
     exact .finite1 ef.raw ef.is_valid
@@ -115,9 +126,53 @@ theorem mem_imp_isExpr ef ex (h: @Mem ts ef ex) : IsExpr ex := by
     exact .infinite1 pre.raw pre.is_valid
 
 
-theorem mem_finite1_imp_eq {fef1 fef2} (h: @Mem ts (.finite fef1) (.finite1 fef2))
+theorem pre_is_prefix (h: Mem ef ex) : ExecutionFragmentRaw.IsPrefix ex.pre ef := by
+  cases h <;> dsimp
+  · constructor <;> exact Sequence.IsPrefix.refl _
+  · assumption
+  · assumption
+
+/-
+theorem pre_lt_states_length_imp_lt_states_length? (h: Mem ef ex) (i: Nat) (req: i < ex.pre.states.length)
+  : (i < ef.states.length?) := by
+  cases ef
+  · simp
+    · cases ex <;> dsimp at req
+-/
+  --cases ex
+  --· dsimp at req
+  --cases ex
+  --· dsimp
+
+/-
+theorem pre_getElem_eq (h: Mem ef ex) (i: Nat) (req: i < ex.pre.states.length)
+  : ex.pre.states[i]'(req) = ef.states[i]'()
+-/
+
+theorem post_is_suffix (h: Mem ef ex) (req: ef.toLabel = .finite) : ExecutionFragmentRaw.IsSuffix (ex.post (h.label_eq ▸ req)) ef := by
+  cases h
+  · dsimp; constructor <;> exact Sequence.IsSuffix.refl _
+  · dsimp; assumption
+  · simp at req
+
+
+theorem finite1_imp_eq {fef1 fef2} (h: @Mem ts (.finite fef1) (.finite1 fef2))
   : (fef1 = fef2) := by
   cases h; rfl
+
+
+def toExecutionFragment (req: Mem ef ex) : ts.ExecutionFragment := ⟨ef, req.is_executionFragment⟩
+
+def toExpr (req: Mem ef ex) : Expr ts := ⟨ex, req.is_expr⟩
+
+
+--theorem
+
+
+end Mem
+
+
+
 
 
 def EvalToSet (ex: ExprRaw ts) : Set ts.ExecutionFragmentRaw := {ef | Mem ef ex}
@@ -125,7 +180,7 @@ def EvalToSet (ex: ExprRaw ts) : Set ts.ExecutionFragmentRaw := {ef | Mem ef ex}
 theorem EvalToSet.mem_imp_isExecutionFragment
   (ef: ExecutionFragmentRaw ts) (ex: ExprRaw ts) (h: ef ∈ ex.EvalToSet)
   : ts.IsExecutionFragment ef :=
-  ExprRaw.mem_imp_isExecutionFragment ef ex h
+  ExprRaw.Mem.is_executionFragment h
 
 
 

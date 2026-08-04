@@ -197,6 +197,33 @@ structure IsPrefix (ef1: ts.FiniteExecutionFragmentRaw) (ef2: ts.ExecutionFragme
   states: ef2.states.IsPrefix ef1.states
   actions: ef2.actions.IsPrefix ef1.actions
 
+namespace IsPrefix
+
+variable {fef: ts.FiniteExecutionFragmentRaw} {ef: ts.ExecutionFragmentRaw} --(h: @IsPrefix ts fef ef) (n: Nat)
+
+theorem lt_states_length?_of_lt_states_length (h: IsPrefix fef ef) {i: Nat} (req: i < fef.states.length) : i < ef.states.length? := by
+  rcases h with ⟨lm1, _⟩
+  refine lm1.lt_length?_of_lt_length ?_
+  exact req
+
+theorem states_getElem_eq (h: IsPrefix fef ef) {i: Nat} (req: i < fef.states.length)
+  : fef.states[i]'(req) = ef.states[i]'(h.states.lt_length?_of_lt_length req) :=
+  h.states.getElem_eq req
+
+
+theorem lt_actions_length?_of_lt_actions_length (h: IsPrefix fef ef) {i: Nat} (req: i < fef.actions.length) : i < ef.actions.length? := by
+  rcases h with ⟨_, lm1⟩
+  refine lm1.lt_length?_of_lt_length ?_
+  exact req
+
+theorem actions_getElem_eq (h: IsPrefix fef ef) {i: Nat} (req: i < fef.actions.length)
+  : fef.actions[i]'(req) = ef.actions[i]'(h.actions.lt_length?_of_lt_length req) :=
+  h.actions.getElem_eq req
+
+end IsPrefix
+
+
+
 structure IsSuffix (ef1: ts.FiniteExecutionFragmentRaw) (ef2: ts.ExecutionFragmentRaw) : Prop where
   states: ef2.states.IsSuffix ef1.states
   actions: ef2.actions.IsSuffix ef1.actions
