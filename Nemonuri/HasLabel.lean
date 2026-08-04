@@ -39,7 +39,7 @@ namespace Preserves
 
 theorem mk (f: T1 → T2) (req: ∀(x: T1), (toLabel x : Label) = (toLabel (f x))) : Preserves Label f := req
 
-theorem apply (f: T1 → T2) (h: Preserves Label f) (x: T1) : (toLabel x : Label) = (toLabel (f x)) := @h x
+theorem cancel (f: T1 → T2) (h: Preserves Label f) (x: T1) : (toLabel (f x)) = (toLabel x : Label) := @h x |>.symm
 
 theorem comp {fl: T2 → T3} {fr: T1 → T2} (h1: Preserves Label fl) (h2: Preserves Label fr) : Preserves Label (fl ∘ fr) := by
   revert h1 h2; dsimp [Preserves]

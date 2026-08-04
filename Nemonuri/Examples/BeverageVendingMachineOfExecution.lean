@@ -34,7 +34,7 @@ def ϱ := 𝐸𝑥𝑒𝑐{ts}⸨ &(.pay) ─⌞.insert_coin⌟→ &(.select)─
 
 
 
-theorem ρ₁_initial (x: ρ₁) : x.val.IsInitial := by
+theorem ρ₁_initial (x: ρ₁) : (x: ts.ExecutionFragmentRaw).IsInitial := by
   revert x
   simp only [Subtype.forall]
   intro x lm1
@@ -52,7 +52,7 @@ theorem ρ₁_initial (x: ρ₁) : x.val.IsInitial := by
     · dsimp
     · simp only [ExprRaw.stepL_eq_stepL']
       conv => lhs; change (HasLabel.toLabel (_: ExprRaw ts): Sequence.Label)
-      simp only [ExprRaw.stepL'_preserves_seqLabel, ← HasLabel.Preserves.apply]
+      simp only [ExprRaw.stepL'_preserves_seqLabel, HasLabel.Preserves.cancel]
       rfl
   · have lm3 req := @lm1.pre_is_prefix.states_getElem_eq ts _ _ 0 req
     refine Eq.trans (lm3 ?_ |> Eq.symm) ?_
