@@ -1,10 +1,13 @@
 module
 
-public import Nemonuri.Executions.ExecutionFragment.Expr.Basic
+public import Nemonuri.Executions.ExecutionFragment.Basic
+public import Nemonuri.Executions.ExecutionFragment.Syntax
+public import Nemonuri.Executions.ExecutionFragment.Maximal
+public import Nemonuri.Executions.InfiniteExecutionFragment
 
 @[expose] public section
 
-namespace Nemonuri.TransitionSystem.ExecutionFragment.ExprRaw
+namespace Nemonuri.TransitionSystem.ExecutionFragment.SyntaxRaw
 
 variable {ts: TransitionSystem}
 
@@ -12,30 +15,30 @@ variable {ts: TransitionSystem}
 open FiniteExecutionFragmentRaw
 
 
-inductive Mem : ExprRaw ts → ts.ExecutionFragmentRaw → Prop where
-  | finite1 (ef: ts.FiniteExecutionFragment)
-            : Mem (.finite1 ef.raw) (.finite ef.raw)
-  | finite2 (ef: ts.FiniteExecutionFragment) (pre: PrefixFragment ts) (post: SuffixFragment ts)
+inductive Mem : SyntaxRaw ts → ts.ExecutionFragmentRaw → Prop where
+  | unique (ef: ts.FiniteExecutionFragment)
+            : Mem (.unique ef.raw) (.finite ef.raw)
+  | finites (ef: ts.FiniteExecutionFragment) (pre: PrefixFragment ts) (post: SuffixFragment ts)
             (req1: ExecutionFragmentRaw.IsPrefix pre.raw (.finite ef.raw))
             (req2: ExecutionFragmentRaw.IsSuffix post.raw (.finite ef.raw))
-            : Mem (.finite2 pre.raw post.raw) (.finite ef.raw)
-  | infinite1 (ef: ts.InfiniteExecutionFragment) (pre: PrefixFragment ts)
+            : Mem (.finites pre.raw post.raw) (.finite ef.raw)
+  | infinites (ef: ts.InfiniteExecutionFragment) (pre: PrefixFragment ts)
               (req: ExecutionFragmentRaw.IsPrefix pre.raw (.infinite ef.raw))
-              : Mem (.infinite1 pre.raw) (.infinite ef.raw)
+              : Mem (.infinites pre.raw) (.infinite ef.raw)
 
 namespace Mem
 
-variable {coll: ExprRaw ts} {elem: ts.ExecutionFragmentRaw}
+variable {coll: SyntaxRaw ts} {elem: ts.ExecutionFragmentRaw}
 
 theorem is_executionFragment (h: Mem coll elem) : ts.IsExecutionFragment elem := by
   cases h with
-  | finite1 ef =>
+  | unique ef =>
     refine .finite _ ?_
     exact ef.is_valid
-  | finite2 ef _ _ _ _ =>
+  | finites ef _ _ _ _ =>
     refine .finite _ ?_
     exact ef.is_valid
-  | infinite1 ef pre req =>
+  | infinites ef pre req =>
     refine .infinite _ ?_
     exact ef.is_valid
 
@@ -59,14 +62,14 @@ theorem not_infinite_finite
   simp [h1, h2] at lm1
 
 
-theorem is_expr (h: @Mem ts coll elem) : IsExpr coll := by
+theorem is_syntax (h: @Mem ts coll elem) : IsSyntax coll := by
   cases h with
-  | finite1 ef =>
-    exact .finite1 ef.raw ef.is_valid
-  | finite2 ef pre post _ _ =>
-    exact .finite2 pre.raw post.raw pre.is_valid post.is_valid
-  | infinite1 ef pre _ =>
-    exact .infinite1 pre.raw pre.is_valid
+  | unique ef =>
+    exact .unique ef.raw ef.is_valid
+  | finites ef pre post _ _ =>
+    exact .finites pre.raw post.raw pre.is_valid post.is_valid
+  | infinites ef pre _ =>
+    exact .infinites pre.raw pre.is_valid
 
 
 
@@ -119,7 +122,7 @@ theorem unique_of_toLabel_finite1 (h: Mem ef ex) (req: ex.toLabel = .finite1) (e
 
 def toExecutionFragment (req: Mem coll elem) : ts.ExecutionFragment := ⟨elem, req.is_executionFragment⟩
 
-def toExpr (req: Mem coll elem) : Expr ts := ⟨coll, req.is_expr⟩
+def toSyntax (req: Mem coll elem) : Syntax ts := ⟨coll, req.is_syntax⟩
 
 
 theorem states_length?_pos (h: Mem coll elem) : 0 < elem.states.length? := h.toExecutionFragment.states_length?_pos
@@ -144,6 +147,6 @@ end Mem
 
 
 
-end Nemonuri.TransitionSystem.ExecutionFragment.ExprRaw
+end Nemonuri.TransitionSystem.ExecutionFragment.SyntaxRaw
 
 end
