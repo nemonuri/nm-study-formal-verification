@@ -13,6 +13,9 @@ class HasLabel (Label: Type _) [DecidableEq Label] [Fintype Label] (T: Type _)  
 
 namespace HasLabel
 
+abbrev toLabel' (Label: Type _) [DecidableEq Label] [Fintype Label] (T: Type _) [HasLabel Label T] (t: T) : Label :=
+  @HasLabel.toLabel Label _ _ T _ t
+
 section Definition
 
 variable (Label: Type _) [DecidableEq Label] [Fintype Label] {T1: Type _} [HasLabel Label T1] {T2: Type _} [HasLabel Label T2]

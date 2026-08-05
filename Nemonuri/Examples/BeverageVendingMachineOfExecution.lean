@@ -33,15 +33,15 @@ def ϱ := 𝐸𝑥𝑒𝑐{ts}⸨ &(.pay) ─⌞.insert_coin⌟→ &(.select)─
                     ─⌞.insert_coin⌟→ &(.select)─⌞.τ⌟→ State.soda ⸩
 
 
-/-! Execution fragments `ρ₁` and `ϱ` are initial, but `ρ₂` is not. -/
-
 section Proof1
 
-open ExprRaw
+/-! Execution fragments `ρ₁` and `ϱ` are initial, but `ρ₂` is not. -/
+
+attribute [local simp] ExprRaw.EvalToSet.mem_iff_mem
 
 theorem ρ₁_initial (x: ρ₁) : (x: ts.ExecutionFragmentRaw).IsInitial := by
   revert x
-  simp [ρ₁, EvalToSet.mem_iff_mem]
+  simp [ρ₁]
   intro x lm1
   simp [lm1.isInitial_iff]
   have lm2 := lm1.pre_is_prefix.states_getElem_eq' 0
@@ -50,7 +50,7 @@ theorem ρ₁_initial (x: ρ₁) : (x: ts.ExecutionFragmentRaw).IsInitial := by
 
 theorem ϱ_initial (x: ϱ) : (x: ts.ExecutionFragmentRaw).IsInitial := by
   revert x
-  simp [ϱ, EvalToSet.mem_iff_mem]
+  simp [ϱ]
   intro x lm1
   simp [lm1.isInitial_iff]
   have lm2 := lm1.pre_is_prefix.states_getElem_eq' 0
@@ -58,8 +58,7 @@ theorem ϱ_initial (x: ϱ) : (x: ts.ExecutionFragmentRaw).IsInitial := by
 
 theorem not_ρ₂_initial (x: ρ₂) : ¬(x: ts.ExecutionFragmentRaw).IsInitial := by
   revert x; simp only [Subtype.forall]; intro x lm1
-  dsimp [ρ₂] at lm1
-  simp only [ExprRaw.EvalToSet.mem_iff_mem] at lm1
+  simp [ρ₂] at lm1
   refine lm1.isInitial_iff.not.mpr ?_
   have lm2 := lm1.pre_is_prefix.states_getElem_eq' 0
   simp at lm2
@@ -68,6 +67,30 @@ theorem not_ρ₂_initial (x: ρ₂) : ¬(x: ts.ExecutionFragmentRaw).IsInitial 
   simp at lm3
 
 end Proof1
+
+
+section Proof2
+
+/-! `ϱ` is not maximal as it does not end in a terminal state.  -/
+
+attribute [local simp] ExprRaw.EvalToSet.mem_iff_mem
+
+
+theorem ϱ_not_maximal (x: ϱ) : ¬(x: ts.ExecutionFragmentRaw).IsMaximal := by
+  revert x; simp [ϱ]; intro x lm1
+  rintro ⟨lm2, lm3⟩
+  rcases lm3 with ⟨⟨xs, lm3⟩, lm4⟩ | _
+  · dsimp [IsTerminal, SetOfDirectSuccessor, SetOfDirectSuccessorAt, FiniteExecutionFragment.states] at lm4
+    simp at lm1 lm2
+    have :=
+    --simp at lm3
+    --have lm4 := lm1.un
+
+
+
+
+
+end Proof2
 
 
 
