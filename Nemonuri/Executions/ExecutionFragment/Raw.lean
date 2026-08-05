@@ -210,6 +210,10 @@ theorem states_getElem_eq (h: IsPrefix fef ef) {i: Nat} (req: i < fef.states.len
   : fef.states[i]'(req) = ef.states[i]'(h.states.lt_length?_of_lt_length req) :=
   h.states.getElem_eq req
 
+theorem states_getElem_eq' (h: IsPrefix fef ef) (i: Nat) (req: i < fef.states.length)
+  : fef.states[i]'(req) = ef.states[i]'(h.states.lt_length?_of_lt_length req) :=
+  @h.states_getElem_eq _ _ _ i req
+
 
 theorem lt_actions_length?_of_lt_actions_length (h: IsPrefix fef ef) {i: Nat} (req: i < fef.actions.length) : i < ef.actions.length? := by
   rcases h with ⟨_, lm1⟩

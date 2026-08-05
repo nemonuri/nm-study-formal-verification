@@ -23,6 +23,7 @@ open Cslib ωSequence
 open ExecutionFragment Expr
 
 
+
 def ρ₁ := 𝐸𝑥𝑒𝑐{ts}⸨ &(.pay) ─⌞.insert_coin⌟→ &(.select) ─⌞.τ⌟→ &(.soda) ─⌞.get_soda⌟→ &(.pay)
                     ─⌞.insert_coin⌟→ &(.select) ─⌞.τ⌟→ &(.soda) ─⌞.get_soda⌟→ ... ⸩
 
@@ -34,52 +35,39 @@ def ϱ := 𝐸𝑥𝑒𝑐{ts}⸨ &(.pay) ─⌞.insert_coin⌟→ &(.select)─
 
 /-! Execution fragments `ρ₁` and `ϱ` are initial, but `ρ₂` is not. -/
 
+section Proof1
+
+open ExprRaw
+
 theorem ρ₁_initial (x: ρ₁) : (x: ts.ExecutionFragmentRaw).IsInitial := by
   revert x
-  simp only [Subtype.forall]
+  simp [ρ₁, EvalToSet.mem_iff_mem]
   intro x lm1
-  dsimp [ρ₁] at lm1
-  simp only [ExprRaw.EvalToSet.mem_iff_mem] at lm1
-  refine lm1.isInitial_iff.mpr ?_
-  rcases x with ϱ | ρ
-  · refine absurd lm1 ?_
-    refine ExprRaw.Mem.not_finite_infinite ?_ ?_
-    · dsimp
-    · conv => lhs; change (@HasLabel.toLabel Sequence.Label _ _ (ExprRaw ts) _ _)
-      simp only [ExprRaw.stepL_eq_stepL', ExprRaw.stepL'_preserves_seqLabel, HasLabel.Preserves.cancel]
-      rfl
-  · have lm2 req := @lm1.pre_is_prefix.states_getElem_eq _ _ _ 0 req |> Eq.symm
-    simpa using lm2
+  simp [lm1.isInitial_iff]
+  have lm2 := lm1.pre_is_prefix.states_getElem_eq' 0
+  simp at lm2; exact lm2.symm
 
 
 theorem ϱ_initial (x: ϱ) : (x: ts.ExecutionFragmentRaw).IsInitial := by
-  revert x; simp only [Subtype.forall]; intro x lm1
-  dsimp [ϱ] at lm1;
-  simp only [ExprRaw.EvalToSet.mem_iff_mem] at lm1
-  refine lm1.isInitial_iff.mpr ?_
-  rcases x with ϱ | ρ
-  · have lm2 req := @lm1.pre_is_prefix.states_getElem_eq _ _ _ 0 req |> Eq.symm
-    simpa using lm2
-  · refine absurd lm1 ?_
-    refine ExprRaw.Mem.not_infinite_finite ?_ ?_
-    · dsimp
-    · conv => lhs; change (@HasLabel.toLabel Sequence.Label _ _ (ExprRaw ts) _ _)
-      simp only [ExprRaw.stepL_eq_stepL', ExprRaw.stepL'_preserves_seqLabel, HasLabel.Preserves.cancel]
-      rfl
+  revert x
+  simp [ϱ, EvalToSet.mem_iff_mem]
+  intro x lm1
+  simp [lm1.isInitial_iff]
+  have lm2 := lm1.pre_is_prefix.states_getElem_eq' 0
+  simp at lm2; exact lm2.symm
 
 theorem not_ρ₂_initial (x: ρ₂) : ¬(x: ts.ExecutionFragmentRaw).IsInitial := by
   revert x; simp only [Subtype.forall]; intro x lm1
   dsimp [ρ₂] at lm1
   simp only [ExprRaw.EvalToSet.mem_iff_mem] at lm1
   refine lm1.isInitial_iff.not.mpr ?_
-  have lm2 req := @lm1.pre_is_prefix.states_getElem_eq _ _ _ 0 req
+  have lm2 := lm1.pre_is_prefix.states_getElem_eq' 0
   simp at lm2
   intro cont; simp at cont
   have lm3 := Eq.trans lm2 cont
   simp at lm3
 
-
-
+end Proof1
 
 
 
