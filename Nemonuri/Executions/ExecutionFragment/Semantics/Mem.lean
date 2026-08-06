@@ -144,6 +144,20 @@ theorem isInitial_iff (h: Mem coll elem)
 theorem isMaximal_iff (h: Mem ef ex)
   : ef.IsMaximal ↔ (ef.states[ef.states.len])
 -/
+theorem isMaximal_of_left_infinite (h: Mem coll elem) (req: coll.toSeqLabel = .infinite) : elem.IsMaximal := by
+  cases coll <;> try simp at req
+  dsimp [ExecutionFragmentRaw.IsMaximal]
+  refine Exists.intro ?_ ?_
+  · have lm1 := h.is_executionFragment
+    rcases lm1 with _ | ⟨raw, lm2⟩
+    · cases h
+    · exact .infinite raw lm2
+  · rcases elem with raw | raw
+    · cases h
+    · refine .infinite (.mk raw ?_)
+      rcases h with _ | _ | ⟨ef, _⟩
+      exact ef.is_valid
+
 
 end Mem
 

@@ -106,7 +106,22 @@ theorem ϱ_not_maximal (x: ϱ) : ¬(x: ts.ExecutionFragmentRaw).IsMaximal := by
       simp [stepLFlip_preserves_seqLabel, HasLabel.Preserves.cancel]
 
 
-#print ϱ_not_maximal
+/-!  Assuming that `ρ₁` and `ρ₂` are infinite, they are maximal. -/
+
+theorem ρ₁_maximal (x: ρ₁) : (x: ts.ExecutionFragmentRaw).IsMaximal := by
+  revert x; simp [ρ₁]; intro x lm1
+  refine lm1.isMaximal_of_left_infinite ?_
+  simp only [toSeqLabel_eq_toLabelAt, stepL_eq_stepLFlip]
+  simp [stepLFlip_preserves_seqLabel, HasLabel.Preserves.cancel]
+
+
+theorem ρ₂_maximal (x: ρ₂) : (x: ts.ExecutionFragmentRaw).IsMaximal := by
+  revert x; simp [ρ₂]; intro x lm1
+  refine lm1.isMaximal_of_left_infinite ?_
+  simp only [toSeqLabel_eq_toLabelAt, stepL_eq_stepLFlip]
+  simp [stepLFlip_preserves_seqLabel, HasLabel.Preserves.cancel]
+
+--#print ρ₂_maximal
 
 end Proof2
 
