@@ -30,18 +30,15 @@ section StepL
 variable {tail: SyntaxRaw ts} {s: ts.S} {a: ts.Act}
 
 theorem stepL_whole_eq_whole_stepL_aux (req: tail.toLabel = .unique) : (tail.stepL s a).toLabel = .unique := by
-  conv => lhs; change (HasLabel.toLabel' Label (SyntaxRaw ts) _)
-  simp only [HasLabel.toLabel'_toLabel, stepL_preserves_label.cancel]
-  exact req
-
+  cases tail <;> try simp at req
+  · dsimp [stepL]
 
 theorem stepL_whole_eq_whole_stepL (req: tail.toLabel = .unique)
   : (SyntaxRaw.stepL tail s a).whole (stepL_whole_eq_whole_stepL_aux req) = (tail.whole req).stepL s a := by
-  cases tail
+  cases tail <;> try simp at req
   · rfl
-  · simp at req
-  · simp at req
 
+/-
 @[simp]
 theorem stepL_whole_states_eq_whole_stepL_states (req: tail.toLabel = .unique)
   : ((SyntaxRaw.stepL tail s a).whole (stepL_whole_eq_whole_stepL_aux req)).states = ((tail.whole req).stepL s a).states :=
@@ -51,6 +48,7 @@ theorem stepL_whole_states_eq_whole_stepL_states (req: tail.toLabel = .unique)
 theorem stepL_whole_actions_eq_whole_stepL_actions (req: tail.toLabel = .unique)
   : ((SyntaxRaw.stepL tail s a).whole (stepL_whole_eq_whole_stepL_aux req)).actions = ((tail.whole req).stepL s a).actions :=
   congrArg FiniteExecutionFragmentRaw.actions (stepL_whole_eq_whole_stepL req)
+-/
 
 end StepL
 

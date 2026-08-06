@@ -92,11 +92,12 @@ def consEllipsis : SyntaxRaw ts → SyntaxRaw ts
   | unique total => finites (⟨[],[]⟩) total
   | x => x
 
+/-
 theorem consEllipsis_preserves_seqLabel : HasLabel.Preserves Sequence.Label (@consEllipsis ts) := by
   apply Preserves.mk _ ?_
   intro x
   cases x <;> rfl
-
+-/
 
 def stepL (tail: SyntaxRaw ts) (s: ts.S) (a: ts.Act) : SyntaxRaw ts :=
   match tail with
@@ -104,26 +105,9 @@ def stepL (tail: SyntaxRaw ts) (s: ts.S) (a: ts.Act) : SyntaxRaw ts :=
   | finites pre post => finites (pre.stepL s a) post
   | infinites pre => infinites (pre.stepL s a)
 
-theorem stepL_preserves_label {s a} : HasLabel.Preserves Label (@stepL ts · s a) := by
-  apply Preserves.mk _ ?_
-  intro x
-  cases x <;> rfl
+/-
 
-theorem stepL_preserves_seqLabel {s a} : HasLabel.Preserves Sequence.Label (@stepL ts · s a) := by
-  apply Preserves.mk _ ?_
-  intro x
-  cases x <;> rfl
-
-
-def stepL' (s: ts.S) (a: ts.Act) (tail: SyntaxRaw ts) : SyntaxRaw ts := tail.stepL s a
-
-@[defeq]
-theorem stepL_eq_stepL' {tail s a} : (@stepL ts tail s a) = (@stepL' ts s a tail) := rfl
-
-theorem stepL'_preserves_label {s a} : HasLabel.Preserves Label (@stepL' ts s a) := @stepL_preserves_label ts s a
-
-theorem stepL'_preserves_seqLabel {s a} : HasLabel.Preserves Sequence.Label (@stepL' ts s a) := @stepL_preserves_seqLabel ts s a
-
+-/
 
 
 def post (ex: SyntaxRaw ts) (req: ex.toSeqLabel = .finite) : ts.FiniteExecutionFragmentRaw :=

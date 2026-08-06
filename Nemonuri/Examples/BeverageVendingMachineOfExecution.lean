@@ -95,29 +95,18 @@ theorem ϱ_not_maximal (x: ϱ) : ¬(x: ts.ExecutionFragmentRaw).IsMaximal := by
     case h1 => exact (FiniteExecutionFragment.mk xs lm3).states_length_pos |> List.ne_nil_of_length_pos
     rw [List.getLast_eq_iff_getLast?_eq_some]
     refine Eq.trans ((UniqueMem.of_mem_left_whole lm1 ?_).states_eq.symm |> congrArg (List.getLast?)) ?_
-    · conv =>
-        lhs
-        change (HasLabel.toLabel' Label (SyntaxRaw ts) _)
-        dsimp
-        simp [stepL_eq_stepL', stepL'_preserves_label, HasLabel.Preserves.cancel]
-      rfl
-    · cbv
+    · simp only [toLabel_eq_toLabelAt, stepL_eq_stepLFlip]
+      simp [stepLFlip_preserves_label, HasLabel.Preserves.cancel]
+    · simp only [stepL_eq_stepLFlip]
+      simp [stepLFlip_preserves_label, HasLabel.Preserves.cancel]
   · revert lm1
     refine Mem.not_infinite_finite ?_ ?_
     · dsimp
-    · conv =>
-        lhs
-        change (HasLabel.toLabel' Sequence.Label (SyntaxRaw ts) _)
-        dsimp
-        simp [stepL_eq_stepL', stepL'_preserves_seqLabel, HasLabel.Preserves.cancel]
-      rfl
+    · simp only [toSeqLabel_eq_toLabelAt, stepL_eq_stepLFlip]
+      simp [stepLFlip_preserves_seqLabel, HasLabel.Preserves.cancel]
 
 
 #print ϱ_not_maximal
-
-
-
-
 
 end Proof2
 

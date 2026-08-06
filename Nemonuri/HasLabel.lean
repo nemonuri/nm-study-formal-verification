@@ -13,11 +13,11 @@ class HasLabel (Label: Type _) [DecidableEq Label] [Fintype Label] (T: Type _)  
 
 namespace HasLabel
 
-abbrev toLabel' (Label: Type _) [DecidableEq Label] [Fintype Label] (T: Type _) [HasLabel Label T] (t: T) : Label :=
+abbrev toLabelAt (Label: Type _) [DecidableEq Label] [Fintype Label] (T: Type _) [HasLabel Label T] (t: T) : Label :=
   @HasLabel.toLabel Label _ _ T _ t
 
 @[defeq, simp]
-theorem toLabel'_toLabel : @toLabel' = @toLabel := rfl
+theorem toLabelAt_toLabel : @toLabelAt = @toLabel := rfl
 
 section Definition
 
@@ -45,7 +45,18 @@ namespace Preserves
 
 theorem mk (f: T1 → T2) (req: ∀(x: T1), (toLabel x : Label) = (toLabel (f x))) : Preserves Label f := req
 
-theorem cancel (f: T1 → T2) (h: Preserves Label f) (x: T1) : (toLabel (f x)) = (toLabel x : Label) := @h x |>.symm
+theorem cancelAt (f: T1 → T2) (h: Preserves Label f) (x: T1) : (toLabel (f x)) = (toLabel x : Label) := @h x |>.symm
+
+theorem cancel {f: T1 → T2} (h: Preserves Label f) {x: T1} : (toLabel (f x)) = (toLabel x : Label) := h.cancelAt f x
+
+theorem cancel_eq_iff {f: T1 → T2} (h: Preserves Label f) {x: T1} {l: Label}
+  : (toLabel (f x) = l) ↔ (toLabel x = l) := by
+  rw [h.cancel]
+
+theorem cancelAt_toLabelAt (f: T1 → T2) (h: Preserves Label f) (x: T1) : toLabelAt Label T2 (f x) = toLabelAt Label T1 x := h.cancel
+
+theorem cancel_toLabelAt {f: T1 → T2} (h: Preserves Label f) {x: T1} : toLabelAt Label T2 (f x) = toLabelAt Label T1 x := h.cancelAt_toLabelAt f x
+
 
 theorem comp {fl: T2 → T3} {fr: T1 → T2} (h1: Preserves Label fl) (h2: Preserves Label fr) : Preserves Label (fl ∘ fr) := by
   revert h1 h2; dsimp [Preserves]
