@@ -146,17 +146,17 @@ theorem isMaximal_iff (h: Mem ef ex)
 -/
 theorem isMaximal_of_left_infinite (h: Mem coll elem) (req: coll.toSeqLabel = .infinite) : elem.IsMaximal := by
   cases coll <;> try simp at req
+  have lm1 := h.label_eq
+  have lm2 := h.is_executionFragment
   dsimp [ExecutionFragmentRaw.IsMaximal]
   refine Exists.intro ?_ ?_
-  · have lm1 := h.is_executionFragment
-    rcases lm1 with _ | ⟨raw, lm2⟩
-    · cases h
-    · exact .infinite raw lm2
-  · rcases elem with raw | raw
-    · cases h
+  · exact lm2
+  · rcases elem with _ | raw
+    · simp at lm1
     · refine .infinite (.mk raw ?_)
-      rcases h with _ | _ | ⟨ef, _⟩
-      exact ef.is_valid
+      cases lm2
+      assumption
+
 
 
 end Mem
