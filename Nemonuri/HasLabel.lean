@@ -16,6 +16,9 @@ namespace HasLabel
 abbrev toLabel' (Label: Type _) [DecidableEq Label] [Fintype Label] (T: Type _) [HasLabel Label T] (t: T) : Label :=
   @HasLabel.toLabel Label _ _ T _ t
 
+@[defeq, simp]
+theorem toLabel'_toLabel : @toLabel' = @toLabel := rfl
+
 section Definition
 
 variable (Label: Type _) [DecidableEq Label] [Fintype Label] {T1: Type _} [HasLabel Label T1] {T2: Type _} [HasLabel Label T2]

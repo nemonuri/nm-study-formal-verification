@@ -71,9 +71,11 @@ theorem is_syntax (h: @Mem ts coll elem) : IsSyntax coll := by
   | infinites ef pre _ =>
     exact .infinites pre.raw pre.is_valid
 
+theorem congr_iff {coll2 elem2} (h: Mem coll elem) (req1: coll = coll2) (req2: elem = elem2) : Mem coll2 elem2 :=
+  req1 ▸ (req2 ▸ h)
 
 
-theorem pre_is_prefix (h: Mem coll elem) : ExecutionFragmentRaw.IsPrefix coll.pre elem := by
+theorem preOrWhole_is_prefix (h: Mem coll elem) : ExecutionFragmentRaw.IsPrefix coll.preOrWhole elem := by
   cases h <;> dsimp
   · constructor <;> exact Sequence.IsPrefix.refl _
   · assumption
