@@ -1,7 +1,7 @@
 module
 
-public import Nemonuri.Executions.FiniteExecutionFragment.Raw
-public import Nemonuri.Executions.InfiniteExecutionFragment.Raw
+public import Nemonuri.Executions.FiniteExecutionFragment.Raws
+public import Nemonuri.Executions.InfiniteExecutionFragment.Raws
 
 @[expose] public section
 
@@ -14,12 +14,13 @@ inductive ExecutionFragmentRaw (ts: TransitionSystem) where
 
 namespace ExecutionFragmentRaw
 
-variable {ts: TransitionSystem} {raw: ts.ExecutionFragmentRaw}
+variable {ts: TransitionSystem} {ef: ts.ExecutionFragmentRaw}
 
 
 def toLabel : ts.ExecutionFragmentRaw → Sequence.Label
   | .finite _ => .finite
   | .infinite _ => .infinite
+
 
 @[defeq, simp]
 theorem finite_toLabel {ϱ} : (@ExecutionFragmentRaw.finite ts ϱ).toLabel = .finite := rfl
@@ -51,14 +52,63 @@ theorem finite_actions {ϱ} : (@ExecutionFragmentRaw.finite ts ϱ).actions = (.f
 theorem infinite_actions {ρ} : (@ExecutionFragmentRaw.infinite ts ρ).actions = (.infinite ρ.actions) := rfl
 
 
+section ToLabel
+
+--@[simp]
+theorem toLabel_eq_states_toLabel : ef.toLabel = ef.states.toLabel := by
+  cases ef <;> simp
+
+--@[simp]
+theorem toLabel_eq_actions_toLabel : ef.toLabel = ef.actions.toLabel := by
+  cases ef <;> simp
+
+theorem states_toLabel_eq_actions_toLabel : ef.states.toLabel = ef.actions.toLabel := ef.toLabel_eq_states_toLabel.symm.trans ef.toLabel_eq_actions_toLabel
+
+end ToLabel
+
+
+
+def toExecutionLabel : ts.ExecutionFragmentRaw → ExecutionLabel
+  | .finite ef => ef.toExecutionLabel
+  | .infinite _ => .mk .nonempty .nonempty
+
+section ToExecutionLabel
+
+variable {ef: ts.ExecutionFragmentRaw}
+
+@[defeq, simp]
+theorem finite_toExecutionLabel {fef} : (@ExecutionFragmentRaw.finite ts fef).toExecutionLabel = fef.toExecutionLabel := rfl
+
+@[defeq, simp]
+theorem infinite_toExecutionLabel {ief} : (@ExecutionFragmentRaw.infinite ts ief).toExecutionLabel = .mk .nonempty .nonempty := rfl
+
+@[simp]
+theorem toExecutionLabel_states_eq_states_toEmptyLabel : ef.toExecutionLabel.states = ef.states.toEmptyLabel := by
+  rcases ef with fef | ief
+  · have lm1 := fef.toExecutionLabel_states_eq_states_ofList
+    dsimp
+    rw [lm1, EmptyLabel.ofList_eq_ofNat]
+  · dsimp
+
+@[simp]
+theorem toExecutionLabel_actions_eq_actions_toEmptyLabel : ef.toExecutionLabel.actions = ef.actions.toEmptyLabel := by
+  rcases ef with fef | ief
+  · have lm1 := fef.toExecutionLabel_actions_eq_actions_ofList
+    dsimp
+    rw [lm1, EmptyLabel.ofList_eq_ofNat]
+  · dsimp
+
+end ToExecutionLabel
+
+/-
 theorem states_isFinite_eq_actions_isFinite (raw: ts.ExecutionFragmentRaw) : raw.states.isFinite = raw.actions.isFinite := by
   dsimp [states, actions]
   cases raw <;> simp
-
+-/
 
 
 def ofSequence
-  (states: Sequence ts.S) (actions: Sequence ts.Act) (req: states.isFinite = actions.isFinite) : ts.ExecutionFragmentRaw :=
+  (states: Sequence ts.S) (actions: Sequence ts.Act) (req: states.toLabel = actions.toLabel) : ts.ExecutionFragmentRaw :=
   match states, actions with
   | .finite xs1, .finite xs2 => .finite ⟨xs1, xs2⟩
   | .infinite xs1, .infinite xs2 => .infinite ⟨xs1, xs2⟩
@@ -77,18 +127,18 @@ theorem ofSequence_actions {states: Sequence ts.S} {actions req}
 
 
 theorem ofSequence_eta
-  : (ofSequence raw.states raw.actions raw.states_isFinite_eq_actions_isFinite) = raw := by
+  : (ofSequence ef.states ef.actions ef.states_toLabel_eq_actions_toLabel) = ef := by
   dsimp [ExecutionFragmentRaw.ofSequence, states, actions]
-  cases raw <;> simp
+  cases ef <;> simp
 
 
 @[elab_as_elim]
 def indOfSequence
   {motive: ts.ExecutionFragmentRaw → Sort _}
-  (ofSequence: (states: Sequence ts.S) → (actions: Sequence ts.Act) → (req: states.isFinite = actions.isFinite) → motive (ExecutionFragmentRaw.ofSequence states actions req))
+  (ofSequence: (states: Sequence ts.S) → (actions: Sequence ts.Act) → (req: states.toLabel = actions.toLabel) → motive (ExecutionFragmentRaw.ofSequence states actions req))
   (t: ts.ExecutionFragmentRaw)
   : motive t :=
-  ofSequence t.states t.actions t.states_isFinite_eq_actions_isFinite |> Eq.subst ofSequence_eta
+  ofSequence t.states t.actions t.states_toLabel_eq_actions_toLabel |> Eq.subst ofSequence_eta
 
 theorem ofSequence_ext_iff {raw1 raw2: ts.ExecutionFragmentRaw}
   : (raw1.states = raw2.states) ∧ (raw1.actions = raw2.actions) ↔ raw1 = raw2 := by
@@ -101,7 +151,7 @@ theorem ofSequence_ext_iff {raw1 raw2: ts.ExecutionFragmentRaw}
   · intro lm1; subst lm1; simp
 
 
-
+/-
 def isFinite : ts.ExecutionFragmentRaw → Bool
   | .finite _ => .true
   | .infinite _ => .false
@@ -111,16 +161,17 @@ theorem isFinite_finite {ϱ: ts.FiniteExecutionFragmentRaw} : isFinite (.finite 
 
 @[simp, grind =]
 theorem isFinite_infinite {ρ: ts.InfiniteExecutionFragmentRaw} : isFinite (.infinite ρ) = .false := rfl
+-/
 
-def getFinite (raw: ts.ExecutionFragmentRaw) (req: raw.isFinite) : ts.FiniteExecutionFragmentRaw :=
-  match raw with
+def toFinite (ef: ts.ExecutionFragmentRaw) (req: ef.toLabel = .finite) : ts.FiniteExecutionFragmentRaw :=
+  match ef with
   | .finite xs => xs
   | .infinite _ => absurd req (by simp)
 
 @[defeq, simp]
-theorem finite_getFinite {ϱ} : (@ExecutionFragmentRaw.finite ts ϱ).getFinite isFinite_finite = ϱ := rfl
+theorem finite_toFinite {ϱ} : (@ExecutionFragmentRaw.finite ts ϱ).toFinite finite_toLabel = ϱ := rfl
 
-
+/-
 def isInfinite : ts.ExecutionFragmentRaw → Bool
   | .finite _ => .false
   | .infinite _ => .true
@@ -130,16 +181,17 @@ theorem isInfinite_finite {ϱ: ts.FiniteExecutionFragmentRaw} : isInfinite (.fin
 
 @[simp, grind =]
 theorem isInfinite_infinite {ρ: ts.InfiniteExecutionFragmentRaw} : isInfinite (.infinite ρ) = .true := rfl
+-/
 
-def getInfinite (raw: ts.ExecutionFragmentRaw) (req: raw.isInfinite) : ts.InfiniteExecutionFragmentRaw :=
-  match raw with
+def toInfinite (ef: ts.ExecutionFragmentRaw) (req: ef.toLabel = .infinite) : ts.InfiniteExecutionFragmentRaw :=
+  match ef with
   | .finite _ => absurd req (by simp)
   | .infinite xs => xs
 
 @[defeq, simp]
-theorem infinite_getInfinite {ρ} : (@ExecutionFragmentRaw.infinite ts ρ).getInfinite isInfinite_infinite = ρ := rfl
+theorem infinite_toInfinite {ρ} : (@ExecutionFragmentRaw.infinite ts ρ).toInfinite infinite_toLabel = ρ := rfl
 
-
+/-
 @[simp, grind =]
 theorem not_isFinite_eq_isInfinite
   : (!raw.isFinite) = raw.isInfinite := by
@@ -160,35 +212,27 @@ theorem isInfinite_eq_false_iff
   : raw.isInfinite = .false ↔ raw.isFinite = .true := by
   cases raw <;> simp
 
-
-
 theorem isFinite_eq_states_isFinite : raw.isFinite = raw.states.isFinite := by
   cases raw <;> simp
+-/
 
 @[defeq, simp]
-theorem ofSequence_finite_isFinite {sts ats} : (@ofSequence ts (.finite sts) (.finite ats) rfl).isFinite = .true := by
+theorem ofSequence_finite_toLabel {sts ats} : (@ofSequence ts (.finite sts) (.finite ats) rfl).toLabel = .finite := by
   dsimp [ofSequence]
 
 @[defeq, simp]
-theorem ofSequence_finite_isInFinite {sts ats} : (@ofSequence ts (.finite sts) (.finite ats) rfl).isInfinite = .false := by
+theorem ofSequence_infinite_toLabel {sts ats} : (@ofSequence ts (.infinite sts) (.infinite ats) rfl).toLabel = .infinite := by
+  dsimp [ofSequence]
+
+
+@[defeq, simp]
+theorem ofSequence_finite_toFinite {sts ats}
+  : (@ofSequence ts (.finite sts) (.finite ats) rfl).toFinite ofSequence_finite_toLabel = ⟨sts, ats⟩ := by
   dsimp [ofSequence]
 
 @[defeq, simp]
-theorem ofSequence_infinite_isInFinite {sts ats} : (@ofSequence ts (.infinite sts) (.infinite ats) rfl).isInfinite = .true := by
-  dsimp [ofSequence]
-
-@[defeq, simp]
-theorem ofSequence_infinite_isFinite {sts ats} : (@ofSequence ts (.infinite sts) (.infinite ats) rfl).isFinite = .false := by
-  dsimp [ofSequence]
-
-@[defeq, simp]
-theorem ofSequence_finite_getFinite {sts ats}
-  : (@ofSequence ts (.finite sts) (.finite ats) rfl).getFinite ofSequence_finite_isFinite = ⟨sts, ats⟩ := by
-  dsimp [ofSequence]
-
-@[defeq, simp]
-theorem ofSequence_infinite_getInfinite {sts ats}
-  : (@ofSequence ts (.infinite sts) (.infinite ats) rfl).getInfinite ofSequence_infinite_isInFinite = ⟨sts, ats⟩ := by
+theorem ofSequence_infinite_toInfinite {sts ats}
+  : (@ofSequence ts (.infinite sts) (.infinite ats) rfl).toInfinite ofSequence_infinite_toLabel = ⟨sts, ats⟩ := by
   dsimp [ofSequence]
 
 

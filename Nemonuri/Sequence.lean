@@ -23,11 +23,18 @@ inductive EmptyLabel where
 
 namespace EmptyLabel
 
+
 @[defeq]
 theorem ofNat_zero : EmptyLabel.ofNat 0 = .empty := rfl
 
 @[defeq]
 theorem ofNat_succ {n} : EmptyLabel.ofNat (.succ n) = .nonempty := rfl
+
+theorem ofNat_empty_iff_eq_zero {n} : (EmptyLabel.ofNat n = .empty) ↔ (n = 0) := by
+  cases n
+  · simp [ofNat_zero]
+  · simp [ofNat_succ]
+
 
 def ofENat (en: ENat) : EmptyLabel := ENat.recTopCoe (EmptyLabel.nonempty) (fun n => EmptyLabel.ofNat n) en
 
@@ -49,6 +56,34 @@ scoped instance : HasLabel EmptyLabel Nat := ⟨ofNat⟩
 scoped instance : HasLabel EmptyLabel ENat := ⟨ofENat⟩
 
 attribute [scoped simp] ofNat_zero ofNat_succ ofENat_natCast ofENat_zero ofENat_succ ofENat_top
+
+
+section List
+
+variable {α: Type _} {a: α} {as: List α}
+
+def ofList (as: List α) : EmptyLabel := match as with | .nil => .empty | .cons _ _ => .nonempty
+
+@[defeq]
+theorem ofList_nil : (ofList ([]: List α)) = .empty := rfl
+
+@[defeq]
+theorem ofList_cons : (ofList (a::as)) = .nonempty := rfl
+
+scoped instance : HasLabel EmptyLabel (List α) := ⟨ofList⟩
+
+attribute [scoped simp] ofList_nil ofList_cons
+
+theorem ofList_eq_empty_iff_eq_nil : ((ofList as) = .empty) ↔ (as = []) := by
+  cases as <;> simp
+
+theorem ofList_eq_nonempty_iff_ne_nil : ((ofList as) = .nonempty) ↔ (as ≠ []) := by
+  cases as <;> simp
+
+theorem ofList_eq_ofNat : (ofList as) = (ofNat as.length) := by
+  cases as <;> simp
+
+end List
 
 end EmptyLabel
 

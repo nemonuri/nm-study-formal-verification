@@ -1,7 +1,7 @@
 module
 
-public import Nemonuri.Executions.InfiniteExecutionFragment.Raw
-public import Nemonuri.Executions.FiniteExecutionFragment.Raw
+public import Nemonuri.Executions.InfiniteExecutionFragment.Raws
+public import Nemonuri.Executions.FiniteExecutionFragment.Raws
 
 @[expose] public section
 

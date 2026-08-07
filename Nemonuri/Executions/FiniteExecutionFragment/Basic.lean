@@ -1,6 +1,6 @@
 module
 
-public import Nemonuri.Executions.FiniteExecutionFragment.Raw
+public import Nemonuri.Executions.FiniteExecutionFragment.Raws
 
 @[expose] public section
 
@@ -18,6 +18,22 @@ structure IsFiniteExecutionFragment {ts: TransitionSystem} (raw: ts.FiniteExecut
 --  firstState_eq : raw.states[0] = raw.firstState
 --  lastState_eq : raw.states[raw.states.length - 1] = raw.lastState
   states_actions_valid (i: Nat) (h: i < raw.actions.length) : raw.states[i] ─⌞(raw.actions[i])⌟→{ts} raw.states[i+1]
+
+namespace IsFiniteExecutionFragment
+
+variable {ts: TransitionSystem} {raw: ts.FiniteExecutionFragmentRaw}
+
+open scoped EmptyLabel in
+theorem states_nonempty (h: ts.IsFiniteExecutionFragment raw) : EmptyLabel.ofList raw.states = .nonempty := by
+  have lm1 := h.length_eq
+  cases lm2: raw.states
+  · simp [lm2] at lm1
+  · dsimp
+
+theorem states_ne_nil (h: ts.IsFiniteExecutionFragment raw) : raw.states ≠ [] :=
+  EmptyLabel.ofList_eq_nonempty_iff_ne_nil.mp h.states_nonempty
+
+end IsFiniteExecutionFragment
 
 structure FiniteExecutionFragment (ts: TransitionSystem) where
   raw: ts.FiniteExecutionFragmentRaw
