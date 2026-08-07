@@ -130,6 +130,8 @@ def toSyntax (req: Mem coll elem) : Syntax ts := ⟨coll, req.is_syntax⟩
 theorem states_length?_pos (h: Mem coll elem) : 0 < elem.states.length? := h.toExecutionFragment.states_length?_pos
 
 
+
+
 theorem isInitial_iff (h: Mem coll elem)
   : elem.IsInitial ↔ (elem.states[0]'(h.states_length?_pos) ∈ ts.I) := by
   constructor

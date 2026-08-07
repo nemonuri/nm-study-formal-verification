@@ -8,22 +8,25 @@ public import Nemonuri.Executions.InfiniteExecutionFragment.Basic
 
 namespace Nemonuri.TransitionSystem
 
-section Definition
 
-variable {ts: TransitionSystem}
-
-
-inductive IsExecutionFragment : ts.ExecutionFragmentRaw → Prop where
+inductive IsExecutionFragment {ts: TransitionSystem} : ts.ExecutionFragmentRaw → Prop where
   | finite (raw: ts.FiniteExecutionFragmentRaw) (req: ts.IsFiniteExecutionFragment raw) : IsExecutionFragment (.finite raw)
   | infinite (raw: ts.InfiniteExecutionFragmentRaw) (req: ts.IsInfiniteExecutionFragment raw) : IsExecutionFragment (.infinite raw)
+
+namespace IsExecutionFragment
+
+variable {ts: TransitionSystem} {ef: ts.ExecutionFragmentRaw}
+
+theorem to_isFiniteExecutionFragment (h: ts.IsExecutionFragment ef) (req: ef.toLabel = .finite) :
+
+
+end IsExecutionFragment
+
+
 
 structure ExecutionFragment (ts: TransitionSystem) where
   raw: ts.ExecutionFragmentRaw
   is_valid: ts.IsExecutionFragment raw
-
-
-end Definition
-
 
 namespace ExecutionFragment
 
