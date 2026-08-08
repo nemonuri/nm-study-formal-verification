@@ -252,7 +252,7 @@ theorem state1_eq_tail_state0 (req: 0 < ϱ.actions.length)
   simp
 -/
 
-theorem state0_action0_tail_state0 (req: ϱ.toActionsEmptyLabel.toEmptyLabel = .nonempty)
+theorem tr_state0_action0_tail_state0 (req: ϱ.toActionsEmptyLabel.toEmptyLabel = .nonempty)
   : ϱ.state0 ─⌞(ϱ.action0 req)⌟→{ts} (ϱ.tail req).state0 := by
   refine ϱ.is_valid.states_actions_valid 0 ?h1 |> Iff.mp ?_
   case h1 =>
@@ -265,7 +265,13 @@ theorem state0_action0_tail_state0 (req: ϱ.toActionsEmptyLabel.toEmptyLabel = .
 
 
 theorem stepL_eta (req: ϱ.toActionsEmptyLabel.toEmptyLabel = .nonempty)
-  : (stepL (ϱ.tail req) (ϱ.state0) (ϱ.action0 req) (ϱ.state0_action0_tail_state0 req)) = ϱ := by
+  : (stepL (ϱ.tail req) (ϱ.state0) (ϱ.action0 req) (ϱ.tr_state0_action0_tail_state0 req)) = ϱ := by
+  refine FiniteExecutionFragment.ext ?_
+  dsimp [stepL, tail, state0, action0]
+  refine FiniteExecutionFragmentRaw.tail_stepL ?_ ?_
+
+
+/-
   dsimp [FiniteExecutionFragment.stepL]
   congr
   dsimp [FiniteExecutionFragment.tail]
@@ -275,6 +281,7 @@ theorem stepL_eta (req: ϱ.toActionsEmptyLabel.toEmptyLabel = .nonempty)
     simp [List.getElem_zero_eq_head]
   · dsimp [FiniteExecutionFragment.action0, FiniteExecutionFragment.actions]
     simp [List.getElem_zero_eq_head]
+-/
 
 section StepL
 
@@ -313,7 +320,7 @@ def indSingleStateStepL
   : motive t :=
   match lm1: t.toActionsEmptyLabel.toEmptyLabel with
   | .empty => singleState t.state0 |> Eq.subst (t.singleState_eta lm1)
-  | .nonempty => stepL (t.tail lm1) (t.state0) (t.action0 lm1) (t.state0_action0_tail_state0 lm1) |> Eq.subst (t.stepL_eta lm1)
+  | .nonempty => stepL (t.tail lm1) (t.state0) (t.action0 lm1) (t.tr_state0_action0_tail_state0 lm1) |> Eq.subst (t.stepL_eta lm1)
 /-
   if h: t.actions.length = 0 then
     refl t.state0 |> Eq.subst (t.singleState_eta h)
@@ -329,7 +336,7 @@ theorem indSingleStateStepL_singleState {motive singleState stepL t} (req: t.toA
 
 @[defeq, simp]
 theorem indSingleStateStepL_stepL {motive singleState stepL t} (req: t.toActionsEmptyLabel.toEmptyLabel = .nonempty)
-  : @indSingleStateStepL ts motive singleState stepL t = (stepL (t.tail req) t.state0 (t.action0 req) (t.state0_action0_tail_state0 req) |> Eq.subst (t.stepL_eta req)) :=
+  : @indSingleStateStepL ts motive singleState stepL t = (stepL (t.tail req) t.state0 (t.action0 req) (t.tr_state0_action0_tail_state0 req) |> Eq.subst (t.stepL_eta req)) :=
   rfl
 
 

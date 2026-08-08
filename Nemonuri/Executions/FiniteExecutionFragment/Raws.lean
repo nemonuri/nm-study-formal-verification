@@ -140,6 +140,14 @@ theorem stepL_tail : (ef.stepL s0 a0).tail = ef := by
   cases ef
   rfl
 
+theorem tail_stepL
+  --(req1: ef.toStatesEmptyLabel.toEmptyLabel = .nonempty)
+  --(req2: ef.toActionsEmptyLabel.toEmptyLabel = .nonempty)
+  (req1: 0 < ef.states.length) (req2: 0 < ef.actions.length)
+  : ef.tail.stepL (ef.states[0]'(req1)) (ef.actions[0]'(req2)) = ef := by
+  dsimp [stepL, tail]
+  congr <;> simp [List.getElem_zero_eq_head]
+
 end Tail
 
 end FiniteExecutionFragmentRaw
