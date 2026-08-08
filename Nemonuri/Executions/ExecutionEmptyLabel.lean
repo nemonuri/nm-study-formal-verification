@@ -60,6 +60,10 @@ theorem states_toEmptyLabel {l} : (ExecutionEmptyLabel.states l).toEmptyLabel = 
 @[defeq, simp]
 theorem actions_toEmptyLabel {l} : (ExecutionEmptyLabel.actions l).toEmptyLabel = l := rfl
 
+theorem toEmptyLabel_injective {seqKind: ExecutionSequenceKind} : Function.Injective (@toEmptyLabel seqKind) := by
+  intro l1 l2 lm1
+  cases seqKind <;> cases l1 <;> cases l2 <;> (simp at lm1; rw [lm1])
+
 
 end ExecutionEmptyLabel
 

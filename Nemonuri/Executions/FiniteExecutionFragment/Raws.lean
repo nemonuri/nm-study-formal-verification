@@ -121,10 +121,10 @@ theorem stepL_states : (tl.stepL s0 a0).states = s0 :: tl.states := rfl
 theorem stepL_actions : (tl.stepL s0 a0).actions = a0 :: tl.actions := rfl
 
 @[defeq, simp]
-theorem stepL_toStatesEmptyLabel : (tl.stepL s0 a0).toStatesEmptyLabel = .states .nonempty := rfl
+theorem stepL_toStatesEmptyLabel : (tl.stepL s0 a0).toStatesEmptyLabel.toEmptyLabel = .nonempty := rfl
 
 @[defeq, simp]
-theorem stepL_toActionsEmptyLabel : (tl.stepL s0 a0).toActionsEmptyLabel = .actions .nonempty := rfl
+theorem stepL_toActionsEmptyLabel : (tl.stepL s0 a0).toActionsEmptyLabel.toEmptyLabel = .nonempty := rfl
 
 end StepL
 

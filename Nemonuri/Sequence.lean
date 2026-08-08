@@ -77,8 +77,18 @@ attribute [scoped simp] ofList_nil ofList_cons
 theorem ofList_eq_empty_iff_eq_nil : ((ofList as) = .empty) ↔ (as = []) := by
   cases as <;> simp
 
+theorem ofList_eq_empty_iff_length_eq_zero : ((ofList as) = .empty) ↔ (as.length = 0) :=
+  calc
+    _ ↔ _ := ofList_eq_empty_iff_eq_nil
+    _ ↔ _ := List.eq_nil_iff_length_eq_zero
+
 theorem ofList_eq_nonempty_iff_ne_nil : ((ofList as) = .nonempty) ↔ (as ≠ []) := by
   cases as <;> simp
+
+theorem ofList_eq_nonempty_iff_length_pos : ((ofList as) = .nonempty) ↔ (0 < as.length) :=
+  calc
+    _ ↔ _ := ofList_eq_nonempty_iff_ne_nil
+    _ ↔ _ := List.ne_nil_iff_length_pos
 
 theorem ofList_eq_ofNat : (ofList as) = (ofNat as.length) := by
   cases as <;> simp
