@@ -38,6 +38,7 @@ def toEmptyLabel : ExecutionLabel → EmptyLabel
 end ExecutionLabel
 -/
 
+@[ext]
 structure FiniteExecutionFragmentRaw (ts: TransitionSystem) where
   states: List ts.S
   actions: List ts.Act

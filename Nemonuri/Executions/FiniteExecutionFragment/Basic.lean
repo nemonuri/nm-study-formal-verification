@@ -23,6 +23,10 @@ namespace IsFiniteExecutionFragment
 
 variable {ts: TransitionSystem} {raw: ts.FiniteExecutionFragmentRaw}
 
+@[simp]
+theorem of_singleState {s: ts.S} : IsFiniteExecutionFragment (.singleState s) := by
+  constructor <;> simp
+
 open scoped EmptyLabel in
 theorem states_nonempty (h: ts.IsFiniteExecutionFragment raw) : EmptyLabel.ofList raw.states = .nonempty := by
   have lm1 := h.length_eq
@@ -32,6 +36,22 @@ theorem states_nonempty (h: ts.IsFiniteExecutionFragment raw) : EmptyLabel.ofLis
 
 theorem states_ne_nil (h: ts.IsFiniteExecutionFragment raw) : raw.states ≠ [] :=
   EmptyLabel.ofList_eq_nonempty_iff_ne_nil.mp h.states_nonempty
+
+theorem stepL
+  {state0: ts.S} {action0: ts.Act}
+  (h: ts.IsFiniteExecutionFragment raw) (req: state0 ─⌞action0⌟→{ts} raw.states[0]'(h.states_ne_nil |> List.length_pos_of_ne_nil))
+  : ts.IsFiniteExecutionFragment (raw.stepL state0 action0) := by
+  constructor
+  · intro i
+    simp
+    rcases i with _ | n
+    · simpa using req
+    · simp
+      exact h.states_actions_valid n
+  · simp
+    exact h.length_eq
+
+
 
 end IsFiniteExecutionFragment
 
@@ -48,6 +68,19 @@ variable {ts: TransitionSystem} (ϱ: ts.FiniteExecutionFragment)
 def states : List ts.S := ϱ.raw.states
 
 def actions : List ts.Act := ϱ.raw.actions
+
+def toSeqLabel : Sequence.Label := ϱ.raw.toSeqLabel
+
+def toStatesEmptyLabel : ExecutionEmptyLabel .states := ϱ.raw.toStatesEmptyLabel
+
+def toActionsEmptyLabel : ExecutionEmptyLabel .actions := ϱ.raw.toActionsEmptyLabel
+
+@[defeq, simp]
+theorem toStatesEmptyLabel_eq_ofList {ef: ts.FiniteExecutionFragment} : ef.toStatesEmptyLabel = .states (.ofList ef.states) := rfl
+
+@[defeq, simp]
+theorem toActionsEmptyLabel_eq_ofList {ef: ts.FiniteExecutionFragment} : ef.toActionsEmptyLabel = .actions (.ofList ef.actions) := rfl
+
 
 def mk' (states: List ts.S) (actions: List ts.Act) (req: ts.IsFiniteExecutionFragment ⟨states, actions⟩) : ts.FiniteExecutionFragment :=
   ⟨⟨states, actions⟩, req⟩
@@ -81,46 +114,65 @@ theorem mk'_ext_iff {ϱ1 ϱ2: ts.FiniteExecutionFragment}
 
 --def refl' (s: ts.S) : ts.FiniteExecutionFragment := mk' [s] [] (by constructor <;> simp)
 
+
 theorem states_length_eq_actions_length_plus_one : ϱ.states.length = ϱ.actions.length + 1 := by
   dsimp [FiniteExecutionFragment.states, FiniteExecutionFragment.actions]
   exact ϱ.is_valid.length_eq
 
+
 @[simp]
-theorem states_length_pos : 0 < ϱ.states.length :=
+theorem states_length_pos : 0 < ϱ.states.length := ϱ.is_valid.states_ne_nil |> List.length_pos_of_ne_nil
+/-
   calc ϱ.states.length
     _ = _ := ϱ.states_length_eq_actions_length_plus_one
     _ > ϱ.actions.length := Nat.lt_add_one _
     _ ≥ 0 := Nat.zero_le _
+-/
 
+/-
 theorem actions_length_eq_states_length_sub_one : ϱ.actions.length = ϱ.states.length - 1 := by
   simp only [states_length_eq_actions_length_plus_one, Nat.add_sub_cancel]
+-/
 
+def singleState (state0: ts.S) : ts.FiniteExecutionFragment := .mk (.singleState state0) .of_singleState
 
-def refl (state0: ts.S) : ts.FiniteExecutionFragment := mk' [state0] [] (by constructor <;> simp)
+--theorem singleState_
 
+/-
 theorem refl_actions_length_eq_zero {state0} : (@FiniteExecutionFragment.refl ts state0).actions.length = 0 := by
   dsimp [FiniteExecutionFragment.refl]
+-/
 
 def state0 : ts.S := ϱ.states[0]'(ϱ.states_length_pos)
 
 
-theorem refl_eta (req: ϱ.actions.length = 0) : (refl ϱ.state0) = ϱ := by
-  dsimp [FiniteExecutionFragment.refl]
-  conv => rhs; rw [← ϱ.mk'_eta]
+theorem singleState_eta (req: ϱ.toActionsEmptyLabel.toEmptyLabel = .empty) : (.singleState ϱ.state0) = ϱ := by
+  have lm1 := ϱ.states_length_eq_actions_length_plus_one
+  simp [EmptyLabel.ofList_eq_empty_iff_eq_nil] at req
+  simp [req] at lm1
+  dsimp [FiniteExecutionFragment.singleState]
   congr
-  · replace req := congrArg (· + 1) req;
-    rewrite [← ϱ.states_length_eq_actions_length_plus_one] at req
-    obtain ⟨_, lm1⟩ := List.length_eq_one_iff.mp req
-    dsimp [state0]
-    simp [lm1]
-  · simpa using req
+  refine FiniteExecutionFragmentRaw.ext ?_ ?_
+  · dsimp
+    dsimp [FiniteExecutionFragment.state0]
+    rewrite [List.length_eq_one_iff] at lm1
+    obtain ⟨s0, lm1⟩ := lm1
+    simp [lm1]; rw [← lm1]; rfl
+  · dsimp
+    exact req.symm
+
+
 
 @[defeq, simp]
-theorem refl_state0 {state0} : (@FiniteExecutionFragment.refl ts state0).state0 = state0 := by
-  dsimp [FiniteExecutionFragment.refl, FiniteExecutionFragment.state0]
+theorem singleState_state0 {state0} : (@FiniteExecutionFragment.singleState ts state0).state0 = state0 := by
+  dsimp [FiniteExecutionFragment.state0]
+  dsimp [FiniteExecutionFragment.singleState]
+  congr
+
 
 theorem stepL_preserves_isFiniteExecutionFragment {state0: ts.S} {action0: ts.Act} (req: state0 ─⌞action0⌟→{ts} ϱ.state0)
-  : ts.IsFiniteExecutionFragment ⟨state0 :: ϱ.states, action0 :: ϱ.actions⟩ := by
+  : ts.IsFiniteExecutionFragment (ϱ.raw.stepL state0 action0) := by
+  /-
     constructor
     · dsimp
       intro i lm1
@@ -134,6 +186,7 @@ theorem stepL_preserves_isFiniteExecutionFragment {state0: ts.S} {action0: ts.Ac
         refine ϱ.is_valid.states_actions_valid i ?_
     · dsimp
       rw [ϱ.states_length_eq_actions_length_plus_one]
+  -/
 
 def stepL (state0: ts.S) (action0: ts.Act) (req: state0 ─⌞action0⌟→{ts} ϱ.state0) : FiniteExecutionFragment ts :=
   mk' (state0 :: ϱ.states) (action0 :: ϱ.actions) (ϱ.stepL_preserves_isFiniteExecutionFragment req)
