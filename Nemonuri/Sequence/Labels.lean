@@ -15,6 +15,14 @@ inductive EmptyLabel where
 
 namespace EmptyLabel
 
+theorem ne_empty_iff_eq_nonempty {l: EmptyLabel}
+  : (l ≠ .empty) ↔ (l = .nonempty) := by
+  cases l <;> simp
+
+theorem ne_nonempty_iff_eq_empty {l: EmptyLabel}
+  : (l ≠ .nonempty) ↔ (l = .empty) := by
+  cases l <;> simp
+
 @[defeq]
 theorem ofNat_zero : EmptyLabel.ofNat 0 = .empty := rfl
 
@@ -112,6 +120,14 @@ inductive FiniteLabel where
 
 namespace FiniteLabel
 
+theorem ne_finite_iff_eq_infinite {l: FiniteLabel}
+  : (l ≠ .finite) ↔ (l = .infinite) := by
+  cases l <;> simp
+
+theorem ne_infinite_iff_eq_finite {l: FiniteLabel}
+  : (l ≠ .infinite) ↔ (l = .finite) := by
+  cases l <;> simp
+
 variable {en: ENat} {n: Nat}
 
 def ofENat (en: ENat) : FiniteLabel := en.recTopCoe .infinite (fun _ => .finite)
@@ -131,6 +147,9 @@ theorem ofENat_finite_iff_lt_top : (ofENat en = .finite) ↔ (en < ⊤) := by
   cases en <;> simp
 
 theorem ofENat_finite_iff_ne_top : (ofENat en = .finite) ↔ (en ≠ ⊤) := by
+  cases en <;> simp
+
+theorem ofENat_finite_iff_eq_natCast : (ofENat en = .finite) ↔ ∃(n: Nat), (en = Nat.cast n) := by
   cases en <;> simp
 
 
