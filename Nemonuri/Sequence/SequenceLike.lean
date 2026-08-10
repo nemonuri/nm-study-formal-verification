@@ -10,7 +10,7 @@ public import Nemonuri.Sequence.Labels
 
 namespace Nemonuri
 
-@[ext]
+
 structure Sequence (α: Type _) where
   getAt? : ℕ → (Option α)
   length? : ℕ∞
@@ -273,6 +273,92 @@ theorem last?_eq_some_last (req1: seq.toEmptyLabel = .nonempty) (req2: seq.toFin
   · rfl
   · rename_i lm1
     exact False.elim (lm1 req1 req2)
+
+section Ext
+
+variable {seq2: Sequence α}
+
+theorem length?_eq_of_infinites
+  (req1: seq.toFinLabel = .infinite) (req2: seq2.toFinLabel = .infinite)
+  : seq.length? = seq2.length? := by
+  rewrite [toFinLabel_eq_infinite_iff_length?_eq_top] at req1 req2
+  rw [req1, req2]
+
+theorem length?_ne_of_toFinLabel_ne (req: seq.toFinLabel ≠ seq2.toFinLabel)
+  : seq.length? ≠ seq2.length? := by
+  cases lm1: seq2.toFinLabel
+  · simp [lm1, FiniteLabel.ne_finite_iff_eq_infinite] at req
+    rewrite [toFinLabel_eq_finite_iff_length?_ne_top] at lm1
+    rewrite [toFinLabel_eq_infinite_iff_length?_eq_top] at req
+    rw [req]; symm; exact lm1
+  · simp [lm1, FiniteLabel.ne_infinite_iff_eq_finite] at req
+    rewrite [toFinLabel_eq_finite_iff_length?_ne_top] at req
+    rewrite [toFinLabel_eq_infinite_iff_length?_eq_top] at lm1
+    rw [lm1]; exact req
+
+theorem length?_eq_of_getAt?_eq_of_finites
+  (req1: seq.getAt? = seq2.getAt?) (req2: seq.toFinLabel = .finite) (req3: seq2.toFinLabel = .finite)
+  : seq.length? = seq2.length? := by
+  rewrite [funext_iff] at req1
+  simp [toFinLabel_eq_finite_iff_length?_eq_natCast] at req2 req3
+  obtain ⟨len1, lm1⟩ := req2
+  obtain ⟨len2, lm2⟩ := req3
+  have lm1_1 := @seq.length?_le_iff_getAt?_eq_none
+  have lm2_1 := @seq2.length?_le_iff_getAt?_eq_none
+  simp [lm1] at lm1_1
+  simp [lm2] at lm2_1
+  have lm1_len1 := @lm1_1 len1
+  have lm1_len2 := @lm1_1 len2
+  have lm2_len1 := @lm2_1 len1
+  have lm2_len2 := @lm2_1 len2
+  have req_len1 := req1 len1
+  have req_len2 := req1 len2
+  simp at lm1_len1 lm1_len2 lm2_len1 lm2_len2
+  rewrite [req_len2, lm2_len2] at lm1_len2
+  rewrite [← req_len1, lm1_len1] at lm2_len1
+  simp at lm1_len2 lm2_len1
+  have lm3 := Nat.eq_iff_le_and_ge.mpr (.intro lm1_len2 lm2_len1)
+  simp [lm1, lm2, lm3]
+
+theorem toFinLabel_eq_of_getAt?_eq (req: seq.getAt? = seq2.getAt?) : seq.toFinLabel = seq2.toFinLabel := by
+  rewrite [funext_iff] at req
+  cases lm1: seq2.toFinLabel
+  · rewrite [seq2.toFinLabel_eq_finite_iff_exists_getAt?_eq_none] at lm1
+    obtain ⟨n, lm1⟩ := lm1
+    specialize req n
+    rewrite [lm1] at req
+    refine seq.toFinLabel_eq_finite_iff_exists_getAt?_eq_none.mpr ?_
+    exists n
+  · rewrite [seq2.toFinLabel_eq_infinite_iff_forall_getAt?_eq_some] at lm1
+    refine seq.toFinLabel_eq_infinite_iff_forall_getAt?_eq_some.mpr ?_
+    intro n
+    specialize req n
+    obtain ⟨a1, lm1⟩ := lm1 n
+    rewrite [← req] at lm1
+    exists a1
+
+
+theorem length?_eq_of_getAt?_eq (req: seq.getAt? = seq2.getAt?) : seq.length? = seq2.length? := by
+  by_cases lm1: seq.toFinLabel = seq2.toFinLabel
+  · cases lm2: seq2.toFinLabel
+    · rewrite [lm2] at lm1
+      exact seq.length?_eq_of_getAt?_eq_of_finites req lm1 lm2
+    · rewrite [lm2] at lm1
+      exact seq.length?_eq_of_infinites lm1 lm2
+  · have lm2 := toFinLabel_eq_of_getAt?_eq req
+    exact absurd lm2 lm1
+
+
+theorem ext (req: seq.getAt? = seq2.getAt?) : seq = seq2 := by
+  have lm3 := length?_eq_of_getAt?_eq req
+  rcases seq with ⟨seq_g, seq_l, lm1⟩
+  rcases seq2 with ⟨seq2_g, seq2_l, lm2⟩
+  simp at lm3
+  congr
+
+theorem ext_iff : (seq.getAt? = seq2.getAt?) ↔ (seq = seq2) := ⟨Sequence.ext, congrArg (Sequence.getAt?)⟩
+
+end Ext
 
 structure Cons (α: Type _) where
   cons: α → Sequence α → Sequence α
