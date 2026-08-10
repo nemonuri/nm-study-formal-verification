@@ -356,9 +356,18 @@ theorem ext (req: seq.getAt? = seq2.getAt?) : seq = seq2 := by
   simp at lm3
   congr
 
+
+
 theorem ext_iff : (seq.getAt? = seq2.getAt?) ↔ (seq = seq2) := ⟨Sequence.ext, congrArg (Sequence.getAt?)⟩
 
 end Ext
+
+/-- Drop first `n` elements -/
+/-
+def drop (n : ℕ) (seq: Sequence α) : Sequence α where
+  getAt? i := seq.getAt? (i + n)
+-/
+
 
 structure Cons (α: Type _) where
   cons: α → Sequence α → Sequence α
@@ -432,84 +441,13 @@ theorem cons_head_eq
   rw [← lm1]
   exact cf.cons_head?_eq_some
 
-
-
-
-
-  --have lm1 := @cf.cons_head a seq
-  --dsimp [head, ← getElem?_eq_some_getElem_iff]
-
-
 /-
-  simp [toFinLabel_eq_infinite_iff_forall_getAt?_eq_some]
-  refine forall_congr' ?_
-  intro n
-  have lm2 := fun n' a' => @cf.cons_tail a' seq n'
-  constructor
-  · rintro ⟨ac, lm3⟩
-    induction n
-    · specialize lm2 0 ac
-    --simp [toEmptyLabel_eq_nonempty_iff_exists_getAt?_eq_some] at lm1
-    --have lm4 := @cf.cons_toEmptyLabel_eq_nonempty _ ac seq
--/
-/-
-  have lm1 := @cf.cons_toEmptyLabel_eq_nonempty _ a seq
-  simp [toEmptyLabel_eq_nonempty_iff_exists_getAt?_eq_some] at lm1
-  obtain ⟨n, ac, lm1⟩ := lm1
-  have lm2 := fun a' => @cf.cons_tail a' seq n
--/
-/-
-  constructor
-  · intro lm2
-    by_contra cont
-    cases lm3: seq.toFinLabel <;> simp [lm3] at cont
-    clear cont
-    rw [toFinLabel_eq_finite_iff_length?_eq_natCast] at lm3
+theorem cons_length_eq_length_add_one (req: seq.toFinLabel = .finite)
+  : ((cf.cons a seq).length (cf.cons_toFinLabel_eq_finite_iff_toFinLabel_eq_finite.mpr req)) = (seq.length req) + 1 := by
+  have lm1 := @cf.cons_tail a seq
 -/
 
-  --have lm2 := @cf.cons_tail a seq
-  --simp [toFinLabel_eq_infinite_iff_length?_eq_top]
 
-/-
-  have lm1 := @(cf.cons a seq).length?_le_iff_getAt?_eq_none _ 0
-  rewrite [cf.cons_head] at lm1
-  simp at lm1
--/
-  --simp [toFinLabel_eq_infinite_iff_length?_eq_top]
-
-/-
-theorem cons_toFinLabel_eq_infinite_iff_toFinLabel_eq_infinite
-  : ((cf.cons a seq).toFinLabel = .infinite) ↔ (seq.toFinLabel = .infinite) := by
-  have lm1 := @(cf.cons a seq).length?_getAt?
-  have lm2 := @seq.length?_getAt?
-  have lm3 := @cf.cons_head a seq
-  have lm4 := @cf.cons_tail a seq
-  dsimp [toFinLabel]
-  simp [FiniteLabel.ofENat_infinite_iff_eq_top]
-  constructor
-  · intro lm5
-    rw [lm5] at lm1
-    simp at lm1
--/
-
-/-
-theorem cons_toFinLabel_eq_toFinLabel : (cf.cons a seq).toFinLabel = seq.toFinLabel := by
-  have lm1 := @(cf.cons a seq).length?_getAt?
-  have lm1_1 := @seq.length?_getAt?
-  cases lm2: seq.toFinLabel
-  · revert lm2; dsimp [toFinLabel]
-    simp [FiniteLabel.ofENat_finite_iff_ne_top]
-    intro lm2 lm3
-    rw [lm3] at lm1
-    simp at lm1
--/
-  --dsimp [toFinLabel]
-
-/-
-theorem cons_length? : (cf.cons a seq).length? = seq.length? + 1 := by
-  cases lm1: (cf.cons a seq).length?
-  · cases lm2: seq.length?
--/
 
 end Cons
 
