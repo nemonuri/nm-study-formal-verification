@@ -64,6 +64,12 @@ instance : LawfulGetElem (Sequence α) ℕ α (fun seq i => i < seq.length?) whe
     · simp at lm1
       exact lm1
 
+@[defeq]
+theorem getAt?_eq_getElem? {n: ℕ} : seq.getAt? n = seq[n]? := rfl
+
+@[defeq]
+theorem getAt_eq_getElem {n: ℕ} (req: n < seq.length?) : seq.getAt n req = seq[n]'(req) := rfl
+
 
 def toEmptyLabel (seq: Sequence α) : EmptyLabel := .ofENat seq.length?
 
@@ -201,6 +207,11 @@ theorem nonempty_of_infinite (req: seq.toFinLabel = .infinite) : seq.toEmptyLabe
 def head (seq: Sequence α) (req: seq.toEmptyLabel = .nonempty) : α :=
   seq[0]'(seq.toEmptyLabel_eq_nonempty_iff_length?_pos.mp req)
 
+@[defeq]
+theorem head_eq_getElem (req: seq.toEmptyLabel = .nonempty)
+  : seq.head req = seq[0]'(seq.toEmptyLabel_eq_nonempty_iff_length?_pos.mp req) :=
+  rfl
+
 def head? (seq: Sequence α) : Option α :=
   match lm1: seq.toEmptyLabel with
   | .nonempty => .some (seq.head lm1)
@@ -211,6 +222,20 @@ theorem head?_eq_some_head (req: seq.toEmptyLabel = .nonempty) : seq.head? = .so
   split <;> rename_i heq
   · rfl
   · simp [heq] at req
+
+theorem head?_eq_getElem? : seq.head? = seq[0]? := by
+  dsimp [← getAt?_eq_getElem?]
+  dsimp [head?]
+  split <;> rename_i heq
+  · dsimp [head, ← getAt_eq_getElem]
+    symm
+    refine seq.getAt?_eq_some_getAt ?_
+  · simp [toEmptyLabel_eq_empty_iff_forall_getAt?_eq_none] at heq
+    symm
+    exact heq 0
+
+
+
 
 def length (seq: Sequence α) (req: seq.toFinLabel = .finite) : ℕ :=
   seq.length?.lift (seq.toFinLabel_eq_finite_iff_length?_lt_top.mp req)
@@ -308,6 +333,25 @@ theorem cons_toFinLabel_eq_toFinLabel
   · exact cf.cons_toFinLabel_eq_finite_iff_toFinLabel_eq_finite.mpr lm1
   · exact cf.cons_toFinLabel_eq_infinite_iff_toFinLabel_eq_infinite.mpr lm1
 
+
+theorem cons_head?_eq_some
+  : (cf.cons a seq).head? = .some a := by
+  simp [head?_eq_getElem?, ← getAt?_eq_getElem?]
+  exact cf.cons_head
+
+theorem cons_head_eq
+  : (cf.cons a seq).head cf.cons_toEmptyLabel_eq_nonempty = a := by
+  refine Option.some_inj.mp ?_
+  have lm1 := head?_eq_some_head (@cf.cons_toEmptyLabel_eq_nonempty _ a seq)
+  rw [← lm1]
+  exact cf.cons_head?_eq_some
+
+
+
+
+
+  --have lm1 := @cf.cons_head a seq
+  --dsimp [head, ← getElem?_eq_some_getElem_iff]
 
 
 /-
