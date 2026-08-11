@@ -23,68 +23,6 @@ namespace Cons
 variable {cf: Cons α} {a: α} {seq: Sequence α}
 
 
-theorem cons_toEmptyLabel_eq_nonempty : (cf.cons a seq).toEmptyLabel = .nonempty := by
-  have lm1 := @(cf.cons a seq).length?_le_iff_getAt?_eq_none _ 0
-  rw [cf.cons_head] at lm1
-  simp at lm1
-  rw [toEmptyLabel_eq_nonempty_iff_length?_ne_zero]
-  exact lm1
-
-
-theorem cons_toFinLabel_eq_infinite_iff_toFinLabel_eq_infinite
-  : ((cf.cons a seq).toFinLabel = .infinite) ↔ (seq.toFinLabel = .infinite) := by
-  have lm1 := fun n' => @cf.cons_tail a seq n'
-  constructor
-  · intro lm2
-    simp [toFinLabel_eq_infinite_iff_forall_getAt?_eq_some] at lm2 ⊢
-    intro n
-    specialize lm2 (n+1)
-    specialize lm1 n
-    obtain ⟨a1, lm2⟩ := lm2
-    exists a1
-    calc
-      _ = _ := lm1.symm
-      _ = _ := lm2
-  · simp [toFinLabel_eq_infinite_iff_forall_getAt?_eq_some]
-    intro lm2 n
-    rcases n with _ | n
-    · have lm3 := @cf.cons_toEmptyLabel_eq_nonempty _ a seq
-      simp [toEmptyLabel_eq_nonempty_iff_getAt?_0_eq_some] at lm3
-      exact lm3
-    · specialize lm1 n
-      specialize lm2 n
-      obtain ⟨a1, lm2⟩ := lm2
-      exists a1
-      calc
-        _ = _ := lm1
-        _ = _ := lm2
-
-theorem cons_toFinLabel_eq_finite_iff_toFinLabel_eq_finite
-  : ((cf.cons a seq).toFinLabel = .finite) ↔ (seq.toFinLabel = .finite) := by
-  have lm1 := @cf.cons_toFinLabel_eq_infinite_iff_toFinLabel_eq_infinite _ a seq
-  replace lm1 := Iff.not lm1
-  simp [FiniteLabel.ne_infinite_iff_eq_finite] at lm1
-  exact lm1
-
-theorem cons_toFinLabel_eq_toFinLabel
-  : (cf.cons a seq).toFinLabel = seq.toFinLabel := by
-  cases lm1: seq.toFinLabel
-  · exact cf.cons_toFinLabel_eq_finite_iff_toFinLabel_eq_finite.mpr lm1
-  · exact cf.cons_toFinLabel_eq_infinite_iff_toFinLabel_eq_infinite.mpr lm1
-
-
-theorem cons_head?_eq_some
-  : (cf.cons a seq).head? = .some a := by
-  simp [head?_eq_getElem?, ← getAt?_eq_getElem?]
-  exact cf.cons_head
-
-theorem cons_head_eq
-  : (cf.cons a seq).head cf.cons_toEmptyLabel_eq_nonempty = a := by
-  refine Option.some_inj.mp ?_
-  have lm1 := head?_eq_some_head (@cf.cons_toEmptyLabel_eq_nonempty _ a seq)
-  rw [← lm1]
-  exact cf.cons_head?_eq_some
-
 /-
 theorem cons_length_eq_length_add_one (req: seq.toFinLabel = .finite)
   : ((cf.cons a seq).length (cf.cons_toFinLabel_eq_finite_iff_toFinLabel_eq_finite.mpr req)) = (seq.length req) + 1 := by
@@ -160,6 +98,7 @@ theorem toGetAt?_eq_toSequence_getAt? : toGetAt? c = (toSequence c).getAt? := rf
 @[defeq]
 theorem toLength?_eq_toSequence_length? : toLength? c = (toSequence c).length? := rfl
 
+/-
 def toEmptyLabel (c: C) : EmptyLabel := .ofENat (toLength? c)
 
 def toFinLabel (c: C) : FiniteLabel := .ofENat (toLength? c)
@@ -169,6 +108,7 @@ theorem toEmptyLabel_eq_toSequence_toEmptyLabel : toEmptyLabel c = (toSequence c
 
 @[defeq]
 theorem toFinLabel_eq_toSequence_toFinLabel : toFinLabel c = (toSequence c).toFinLabel := rfl
+-/
 
 def toGetAt (c: C) (i: ℕ) (req: i < toLength? c) : α :=
   (toGetAt? c i).get ((@toLength?_eq_toSequence_length? C α _ c) ▸ req |> (Sequence.length?_getAt? _).mp)
@@ -176,11 +116,8 @@ def toGetAt (c: C) (i: ℕ) (req: i < toLength? c) : α :=
 @[defeq]
 theorem toGetAt_eq_toSequence_getAt : (toGetAt c) = ((toSequence c).getAt) := rfl
 
-section Instance
-
-
-
-end Instance
+instance (priority := low) ofSequence : SequenceLike (Sequence α) α :=
+  .mk Sequence.getAt? Sequence.length? (fun {seq} => Sequence.length?_getAt? seq) Sequence.ext
 
 end SequenceLike
 
