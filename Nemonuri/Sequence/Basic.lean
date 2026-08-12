@@ -238,6 +238,10 @@ theorem head?_eq_getElem? : seq.head? = seq[0]? := by
     symm
     exact heq 0
 
+theorem head?_eq_getAt?_zero : seq.head? = seq.getAt? 0 := by
+  rw [head?_eq_getElem?]
+  dsimp [GetElem?.getElem?]
+
 
 
 
