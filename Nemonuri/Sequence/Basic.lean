@@ -131,6 +131,18 @@ theorem toEmptyLabel_eq_nonempty_iff_getAt?_0_eq_some
     specialize cont 0
     simp [cont] at lm2
 
+theorem toEmptyLabel_eq_empty_iff_getAt?_0_eq_none
+  : (seq.toEmptyLabel = .empty) ↔ (seq.getAt? 0 = .none) := by
+  constructor
+  · intro lm1
+    rewrite [toEmptyLabel_eq_empty_iff_forall_getAt?_eq_none] at lm1
+    exact lm1 0
+  · intro lm1
+    have lm2 n := @seq.add_one_getAt?_none_of_getAt?_none _ n
+    refine seq.toEmptyLabel_eq_empty_iff_forall_getAt?_eq_none.mpr ?_
+    intro n
+    exact Nat.recAux lm1 lm2 n
+
 
 
 
@@ -255,8 +267,29 @@ theorem length?_eq_natCast_length (req: seq.toFinLabel = .finite) : seq.length? 
 
 @[defeq]
 theorem length_eq_length?_lift (req: seq.toFinLabel = .finite)
-  : seq.length req = seq.length?.lift (toFinLabel_eq_finite_iff_length?_lt_top.mp req) := by
+  : seq.length req = seq.length?.lift (toFinLabel_eq_finite_iff_length?_lt_top.mp req) :=
   rfl
+
+theorem length?_eq_natCast_iff_length_eq {n: ℕ}
+  : (seq.length? = (Nat.cast n)) ↔ (∃req, (seq.length req) = n) := by
+  constructor
+  · intro lm1
+    refine Exists.intro ?_ ?_
+    · rw [toFinLabel_eq_finite_iff_length?_eq_natCast]
+      exists n
+    · refine ENat.coe_inj.mp ?_
+      calc
+        _ = _ := (seq.length?_eq_natCast_length _).symm
+        _ = _ := lm1
+  · rintro ⟨lm1, lm2⟩
+    rewrite [← ENat.coe_inj] at lm2
+    calc
+      _ = _ := seq.length?_eq_natCast_length lm1
+      _ = _ := lm2
+
+theorem length?_eq_natCast_iff_length_eq_at (n: ℕ) : (seq.length? = (Nat.cast n)) ↔ (∃req, (seq.length req) = n) :=
+  @seq.length?_eq_natCast_iff_length_eq _ n
+
 
 theorem length_eq_zero_of_length?_eq_zero (req: seq.length? = 0)
   : (seq.length (seq.toEmptyLabel_eq_empty_iff_length?_eq_zero.mpr req |> finite_of_empty) = 0) := by
@@ -316,6 +349,11 @@ theorem getAt?_length_sub_one_isSome_iff_nonempty (req: seq.toFinLabel = .finite
 theorem length_eq_zero_of_empty (req: seq.toEmptyLabel = .empty) : (seq.length (finite_of_empty req)) = 0 := by
   have lm2 := seq.toEmptyLabel_eq_empty_iff_length?_eq_zero.mp req
   exact length_eq_zero_of_length?_eq_zero lm2
+
+theorem length_ne_zero_of_nonempty_finite (req1: seq.toEmptyLabel = .nonempty) (req2: seq.toFinLabel = .finite)
+  : seq.length req2 ≠ 0 := by
+  rewrite [toEmptyLabel_eq_nonempty_iff_length?_ne_zero] at req1
+  exact fun x => req1 (length?_eq_zero_of_length_eq_zero x)
 
 
 theorem length_eq_of_getAt?_isSome_and_add_one_eq_none

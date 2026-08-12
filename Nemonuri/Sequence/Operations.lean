@@ -165,14 +165,14 @@ end ConsBy
 
 structure TailBy (C: Type _) (α: Type _) [SequenceLike C α] where
   tailBy: C → C
-  tailBy_cons {seq: C} {i: ℕ} : toGetAt? (tailBy seq) (i - 1) = toGetAt? seq i
+  tailBy_cons {seq: C} {i: ℕ} : toGetAt? (tailBy seq) i = toGetAt? seq (i + 1)
 
 namespace TailBy
 
 variable {C: Type _} {α: Type _} [SequenceLike C α]
          {tb: TailBy C α} {seq: C}
 
-theorem tailBy_cons_at (seq: C) (i: ℕ) : toGetAt? (tb.tailBy seq) (i - 1) = toGetAt? seq i := @tb.tailBy_cons seq i
+theorem tailBy_cons_at (seq: C) (i: ℕ) : toGetAt? (tb.tailBy seq) i = toGetAt? seq (i + 1) := @tb.tailBy_cons seq i
 
 
 theorem tailBy_infinite_iff_infinite
@@ -184,20 +184,20 @@ theorem tailBy_infinite_iff_infinite
   simp [← Option.eq_none_iff_forall_ne_some]
   constructor
   · rintro ⟨n, lm2⟩
-    specialize lm1 (n+1)
-    simp at lm1
+    specialize lm1 n
     rewrite [lm2] at lm1
     exact Exists.intro (n+1) lm1.symm
   · rintro ⟨n, lm2⟩
     induction n with
     | zero =>
       specialize lm1 0
-      simp at lm1
-      simp [← lm1] at lm2
+      replace lm2 := add_one_getAt?_none_of_getAt?_none lm2
       exists 0
+      calc
+        _ = _ := lm1
+        _ = _ := lm2
     | succ n _ =>
-      specialize lm1 (n+1)
-      simp at lm1
+      specialize lm1 n
       simp [← lm1] at lm2
       exists n
 
@@ -213,12 +213,11 @@ theorem tailBy_toFinLabel_eq_toFinLabel_at (seq: C) : (tb.tailBy seq : Sequence 
   @tb.tailBy_toFinLabel_eq_toFinLabel _ _ _ seq
 
 
-protected theorem eq_zero_of_forall_eq_sub_one {α: Sort _} (P: ℕ → α) (req: ∀(i: ℕ), P (i - 1) = P i) (i: ℕ) : P i = P 0 := by
+protected theorem eq_zero_of_forall_eq_add_one {α: Sort _} (P: ℕ → α) (req: ∀(i: ℕ), P i = P (i + 1)) (i: ℕ) : P i = P 0 := by
   induction i with
   | zero => rfl
   | succ i ih =>
-    specialize req (i+1)
-    simp at req
+    specialize req i
     exact req.symm.trans ih
 
 
@@ -232,8 +231,8 @@ theorem tailBy_fixpoint_iff_empty (req: (seq : Sequence α).toFinLabel = .finite
     obtain ⟨n, req⟩ := req
     rw [toEmptyLabel_eq_empty_iff_forall_getAt?_eq_none]
     intro n2
-    have lm3 := TailBy.eq_zero_of_forall_eq_sub_one _ lm1 n
-    have lm4 := TailBy.eq_zero_of_forall_eq_sub_one _ lm1 n2
+    have lm3 := TailBy.eq_zero_of_forall_eq_add_one _ lm1 n
+    have lm4 := TailBy.eq_zero_of_forall_eq_add_one _ lm1 n2
     calc
       _ = _ := lm4
       _ = _ := lm3.symm
@@ -242,7 +241,7 @@ theorem tailBy_fixpoint_iff_empty (req: (seq : Sequence α).toFinLabel = .finite
     refine toSequenceAt_getAt?_ext ?_
     refine funext ?_
     intro n
-    specialize lm1 (n+1)
+    specialize lm1 n
     simp [toGetAt?_eq_toSequence_getAt?] at lm1
     rw [lm1]
     rewrite [toEmptyLabel_eq_empty_iff_forall_getAt?_eq_none] at lm2
@@ -259,7 +258,7 @@ theorem tailBy_fixpoint_iff_const_eq (req: (seq : Sequence α).toFinLabel = .inf
   constructor
   · intro lm2
     simp [lm2] at lm1
-    replace lm1 := fun i => TailBy.eq_zero_of_forall_eq_sub_one _ lm1 i
+    replace lm1 := fun i => TailBy.eq_zero_of_forall_eq_add_one _ lm1 i
     obtain ⟨a0, lm3⟩ := req 0
     exists a0
     refine funext ?_
@@ -271,8 +270,7 @@ theorem tailBy_fixpoint_iff_const_eq (req: (seq : Sequence α).toFinLabel = .inf
     refine toSequenceAt_getAt?_ext ?_
     refine funext ?_
     intro n
-    have lm3 := lm1 (n+1)
-    simp at lm3
+    have lm3 := lm1 n
     rw [lm3]; clear lm3
     simp only [funext_iff, Function.const_apply] at lm2
     calc
@@ -297,7 +295,7 @@ theorem nonempty_iff_length_eq_one (req: (tb.tailBy seq : Sequence α).toEmptyLa
       simpa [Option.isSome_iff_exists] using lm2
     · rw [toEmptyLabel_eq_empty_iff_forall_getAt?_eq_none] at req
       specialize req 0
-      specialize lm3 1
+      specialize lm3 0
       simp [toGetAt?_eq_toSequence_getAt?] at lm3
       dsimp
       calc
@@ -308,15 +306,30 @@ theorem nonempty_iff_length_eq_one (req: (tb.tailBy seq : Sequence α).toEmptyLa
     rw [toEmptyLabel_eq_nonempty_iff_length?_ne_zero, lm2]
     simp
 
+
+theorem tailBy_empty_of_length?_eq_one (req: (seq: Sequence α).length? = 1)
+  : (tb.tailBy seq : Sequence α).toEmptyLabel = .empty := by
+  have lm1 := tb.tailBy_cons_at seq
+  simp only [toGetAt?_eq_toSequence_getAt?] at lm1
+  rewrite [← ENat.coe_one] at req
+  have ⟨lm2, lm3⟩ := length?_eq_natCast_iff_length_eq.mp req
+  have lm4 := lm3 ▸ (getAt?_length_eq_none lm2)
+  specialize lm1 0
+  dsimp at lm1
+  refine toEmptyLabel_eq_empty_iff_getAt?_0_eq_none.mpr ?_
+  exact lm1.trans lm4
+
+
 theorem not_tailBy_nonempty_and_empty
   (req1: (tb.tailBy seq : Sequence α).toEmptyLabel = .nonempty) (req2: (seq : Sequence α).toEmptyLabel = .empty) : False := by
   rewrite [toEmptyLabel_eq_empty_iff_forall_getAt?_eq_none] at req2
   rewrite [toEmptyLabel_eq_nonempty_iff_exists_getAt?_eq_some] at req1
   obtain ⟨n, a, lm1⟩ := req1
   specialize req2 (n+1)
-  have lm2 := tb.tailBy_cons_at seq (n+1)
+  have lm2 := tb.tailBy_cons_at seq n
   simp [toGetAt?_eq_toSequence_getAt?] at lm2
   simp [req2, lm1] at lm2
+
 
 
 theorem tailBy_length_eq_length_sub_one (req: (seq : Sequence α).toFinLabel = .finite)
@@ -335,13 +348,32 @@ theorem tailBy_length_eq_length_sub_one (req: (seq : Sequence α).toFinLabel = .
     simp [toGetAt?_eq_toSequence_getAt?] at lm3
     refine Sequence.getAt?_eq_none_and_sub_one_isSome_iff_length_eq lm1 _ |>.mp (And.intro ?_ ?_)
     · have lm4 := getAt?_length_eq_none req
-      exact (lm3 _).trans lm4
+      refine (lm3 _).trans (Eq.trans ?_  lm4)
+      congr
+      refine Nat.sub_one_add_one ?_
+      exact length_ne_zero_of_nonempty_finite lm2 req
     · have lm4 := getAt?_length_sub_one_isSome_iff_nonempty req |>.mpr lm2
       revert lm4
       simp [Option.isSome_iff_exists]
       intro a lm4
       exists a
-      exact (lm3 _).trans lm4
+      refine (lm3 _).trans (Eq.trans ?_  lm4)
+      congr
+      refine Nat.sub_one_add_one ?_
+      intro cont
+      rcases lm5: (toSequence seq).length req with _ | len
+      · have lm6 := getAt?_length_eq_none req
+        simp [lm5] at lm4 lm6
+        simp [lm4] at lm6
+      · rewrite [lm5] at cont
+        dsimp at cont
+        subst cont
+        rewrite [lm5] at lm4
+        dsimp at lm4 lm5
+        replace lm5 := length?_eq_natCast_iff_length_eq.mpr (Exists.intro _ lm5)
+        have lm6 := tb.tailBy_empty_of_length?_eq_one lm5
+        simp [lm6] at lm1
+
 
 end TailBy
 
@@ -360,8 +392,7 @@ theorem consBy_tailBy : tb.tailBy (cb.consBy a seq) = seq := by
   have lm2 := tb.tailBy_cons_at (cb.consBy a seq)
   dsimp only [toGetAt?_eq_toSequence_getAt?] at lm1 lm2
   specialize lm1 n
-  specialize lm2 (n+1)
-  dsimp at lm2
+  specialize lm2 n
   exact lm2.trans lm1
 
 end ConsBy
@@ -392,9 +423,8 @@ theorem tailBy_consBy (req: (seq : Sequence α).toEmptyLabel = .nonempty)
     have lm7 := head?_eq_getAt?_zero.trans lm2
     rewrite [head?_eq_some_head lm1, Option.some_inj] at lm7
     simp only [lm7] at lm6 ⊢
-    specialize lm3 (n+1)
+    specialize lm3 n
     specialize lm4 n
-    dsimp at lm3
     calc
       _ = _ := lm4
       _ = _ := lm3
