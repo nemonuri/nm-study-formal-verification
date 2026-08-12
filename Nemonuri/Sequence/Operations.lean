@@ -4,21 +4,206 @@ public import Nemonuri.Sequence.SequenceLike
 
 @[expose] public section
 
+namespace Nemonuri.Sequence
+
+variable {α: Type _} {seq: Sequence α}
+
+def cons (a: α) (seq: Sequence α) : Sequence α where
+  getAt? i :=
+    match i with
+    | 0 => .some a
+    | i + 1 => seq.getAt? i
+  length? := seq.length? + 1
+  length?_getAt? := by
+    intro i
+    split
+    · simp
+    · rename_i _ i
+      have lm1 := @seq.length?_getAt? i
+      refine Iff.trans ?_ lm1
+      simp
+
+def tail (seq: Sequence α) : Sequence α where
+  getAt? i := seq.getAt? (i + 1)
+  length? := seq.length? - 1
+  length?_getAt? := by
+    intro i
+    cases lm2: seq.length?
+    · rewrite [← toFinLabel_eq_infinite_iff_length?_eq_top, toFinLabel_eq_infinite_iff_forall_getAt?_eq_some] at lm2
+      specialize lm2 (i+1)
+      rewrite [← Option.isSome_iff_exists] at lm2
+      simpa using lm2
+    · rename ℕ => len
+      cases len with
+      | zero =>
+        simp
+        have lm3 :=
+          lm2
+          |> toEmptyLabel_eq_empty_iff_length?_eq_zero.mpr
+          |> toEmptyLabel_eq_empty_iff_forall_getAt?_eq_none.mp
+        exact lm3 (i+1)
+      | succ len =>
+        conv =>
+          lhs
+          conv =>
+            arg 2
+            arg 2
+            rw [← ENat.coe_one]
+          conv =>
+            arg 2
+            rw [← ENat.coe_sub]
+          rw [ENat.coe_lt_coe]
+          dsimp only [Nat.add_one_sub_one]
+        have ⟨lm4, lm5⟩ := length?_eq_natCast_iff_length_eq.mp lm2
+        have lm6 := getAt?_length_sub_one_isSome_iff_nonempty lm4
+        simp [lm5] at lm6
+        by_cases lm7: len = i + 1
+        · simp [lm7] at lm6 ⊢
+          refine lm6.mpr ?_
+          rw [toEmptyLabel_eq_nonempty_iff_length?_ne_zero]
+          rw [lm2]
+          simp
+        · have lm8 := @lt_length_iff_getAt?_isSome _  _ lm4 (i+1)
+          refine Iff.trans ?_ lm8
+          rw [lm5]
+          simp
+
+def nil : Sequence α where
+  getAt? _ := .none
+  length? := 0
+  length?_getAt? := by
+    intro _; simp
+
+def takeRec (n: ℕ) (seq: Sequence α) : Sequence α :=
+  match n with
+  | 0 => nil
+  | n + 1 =>
+    if lm1: seq.toEmptyLabel = .empty then
+      seq
+    else
+      cons (seq.head (EmptyLabel.ne_empty_iff_eq_nonempty.mp lm1)) (takeRec n seq.tail)
+
+def take (n: ℕ) (seq: Sequence α) : Sequence α where
+  getAt? i :=
+    if lm1: i < n then
+      seq.getAt? i
+    else
+      .none
+  length? := if seq.length? < n then seq.length? else Nat.cast n
+  length?_getAt? := by
+    intro i
+    split <;> split <;> rename_i lm1 lm2
+    · exact seq.length?_getAt?
+    · simp at lm2 ⊢
+      rw [← ENat.coe_le_coe] at lm2
+      apply le_of_lt
+      calc
+       _ < _ := lm1
+       _ ≤ _ := lm2
+    · simp [lm2]
+      simp at lm1
+      refine @seq.length?_getAt? i |>.mp ?_
+      rw [← ENat.coe_lt_coe] at lm2
+      calc
+        _ < _ := lm2
+        _ ≤ _ := lm1
+    · simpa using lm2
+
+/-
+theorem takeRec_eq_take : @takeRec = @take := by
+  ext α n seq
+  induction n with
+  | zero =>
+    refine Sequence.ext ?_
+    unfold takeRec
+    dsimp [take]
+    dsimp [nil]
+  | succ n lm1 =>
+    refine Sequence.ext ?_
+    unfold takeRec
+    dsimp [take]
+    refine funext ?_
+    intro i
+    split <;> split <;> rename_i lm2 lm3
+    · rfl
+    · rewrite [toEmptyLabel_eq_empty_iff_forall_getAt?_eq_none] at lm2
+      exact lm2 i
+    · dsimp [cons]
+      split
+      · simp only [EmptyLabel.ne_empty_iff_eq_nonempty] at lm2
+        replace lm2 := seq.head?_eq_some_head lm2 |>.symm
+        rewrite [head?_eq_getAt?_zero] at lm2
+        exact lm2
+      · rename_i i
+        simp only [EmptyLabel.ne_empty_iff_eq_nonempty] at lm2
+-/
+        --rewrite [← Sequence.ext_iff, funext_iff] at lm1
+        --refine Eq.trans ?_ (lm1 _)
+/-
+    rewrite [← Sequence.ext_iff] at lm1
+    revert lm1
+    dsimp [take]
+    intro lm1
+    unfold takeRec
+    split
+-/
+    --have lm1 := Sequence.lengtheqof
+    --unfold takeRec
+    --dsimp [take]
+
+
+def append (seq1: Sequence α) (req: seq1.toFinLabel = .finite) (seq2: Sequence α) : Sequence α where
+  getAt? i :=
+    if lm1: i < seq1.length req then
+      seq1.getAt? i
+    else
+      seq2.getAt? (i - seq1.length req)
+  length? := seq1.length req + seq2.length?
+  length?_getAt? := by
+    intro i
+    split <;> rename_i lm1
+    · refine Iff.trans (iff_true_intro ?_) ?_
+      · calc
+          _ < _ := ENat.coe_lt_coe.mpr lm1
+          _ ≤ _ := by simp only [self_le_add_right]
+      · rw [true_iff]
+        have lm2 := lt_length_iff_getAt?_isSome_at req i
+        exact lm2.mp lm1
+    · cases lm2: seq2.toFinLabel
+      · have lm3 := seq2.length?_eq_natCast_length lm2
+        conv =>
+          lhs
+          rw [lm3, ← ENat.coe_add, ENat.coe_lt_coe]
+        have lm4 := lt_length_iff_getAt?_isSome_at req i
+        have lm5 := lt_length_iff_getAt?_isSome_at lm2 (i - seq1.length req)
+        refine Iff.trans ?_ lm5
+        symm
+        refine Nat.sub_lt_iff_lt_add' ?_
+        simpa using lm1
+      · have lm3 := toFinLabel_eq_infinite_iff_length?_eq_top.mp lm2
+        have lm4 := @seq2.length?_getAt?
+        simp [lm3] at lm4 ⊢
+        exact @lm4 _
+
+
+
+end Nemonuri.Sequence
+
 namespace Nemonuri.SequenceLike
 
 open Sequence
 
-structure ConsBy (C: Type _) (α: Type _) [SequenceLike C α] where
+structure ConsOp (C: Type _) (α: Type _) [SequenceLike C α] where
   consBy: α → C → C
   consBy_head {a: α} {seq: C} : toGetAt? (consBy a seq) 0 = .some a
   consBy_tail {a: α} {seq: C} {i: ℕ} : toGetAt? (consBy a seq) (i + 1) = toGetAt? seq i
 
 
-namespace ConsBy
+namespace ConsOp
 
 
 variable {C: Type _} {α: Type _} [SequenceLike C α]
-         {cb: ConsBy C α} {a: α} {seq: C}
+         {cb: ConsOp C α} {a: α} {seq: C}
 
 
 theorem consBy_head_at (a: α) (seq: C) : toGetAt? (cb.consBy a seq) 0 = .some a := @cb.consBy_head _ a seq
@@ -160,17 +345,17 @@ theorem consBy_length?_eq_length?_add_one
     simp [lm1, lm3]
 
 
-end ConsBy
+end ConsOp
 
 
-structure TailBy (C: Type _) (α: Type _) [SequenceLike C α] where
+structure TailOp (C: Type _) (α: Type _) [SequenceLike C α] where
   tailBy: C → C
   tailBy_cons {seq: C} {i: ℕ} : toGetAt? (tailBy seq) i = toGetAt? seq (i + 1)
 
-namespace TailBy
+namespace TailOp
 
 variable {C: Type _} {α: Type _} [SequenceLike C α]
-         {tb: TailBy C α} {seq: C}
+         {tb: TailOp C α} {seq: C}
 
 theorem tailBy_cons_at (seq: C) (i: ℕ) : toGetAt? (tb.tailBy seq) i = toGetAt? seq (i + 1) := @tb.tailBy_cons seq i
 
@@ -231,8 +416,8 @@ theorem tailBy_fixpoint_iff_empty (req: (seq : Sequence α).toFinLabel = .finite
     obtain ⟨n, req⟩ := req
     rw [toEmptyLabel_eq_empty_iff_forall_getAt?_eq_none]
     intro n2
-    have lm3 := TailBy.eq_zero_of_forall_eq_add_one _ lm1 n
-    have lm4 := TailBy.eq_zero_of_forall_eq_add_one _ lm1 n2
+    have lm3 := TailOp.eq_zero_of_forall_eq_add_one _ lm1 n
+    have lm4 := TailOp.eq_zero_of_forall_eq_add_one _ lm1 n2
     calc
       _ = _ := lm4
       _ = _ := lm3.symm
@@ -258,7 +443,7 @@ theorem tailBy_fixpoint_iff_const_eq (req: (seq : Sequence α).toFinLabel = .inf
   constructor
   · intro lm2
     simp [lm2] at lm1
-    replace lm1 := fun i => TailBy.eq_zero_of_forall_eq_add_one _ lm1 i
+    replace lm1 := fun i => TailOp.eq_zero_of_forall_eq_add_one _ lm1 i
     obtain ⟨a0, lm3⟩ := req 0
     exists a0
     refine funext ?_
@@ -375,14 +560,14 @@ theorem tailBy_length_eq_length_sub_one (req: (seq : Sequence α).toFinLabel = .
         simp [lm6] at lm1
 
 
-end TailBy
+end TailOp
 
-section ConsByTailBy
+section ConsOpTailOp
 
 variable {C: Type _} {α: Type _} [SequenceLike C α]
-         {cb: ConsBy C α} {tb: TailBy C α} {a: α} {seq: C}
+         {cb: ConsOp C α} {tb: TailOp C α} {a: α} {seq: C}
 
-namespace ConsBy
+namespace ConsOp
 
 theorem consBy_tailBy : tb.tailBy (cb.consBy a seq) = seq := by
   refine toSequenceAt_getAt?_ext ?_
@@ -395,9 +580,9 @@ theorem consBy_tailBy : tb.tailBy (cb.consBy a seq) = seq := by
   specialize lm2 n
   exact lm2.trans lm1
 
-end ConsBy
+end ConsOp
 
-namespace TailBy
+namespace TailOp
 
 theorem tailBy_consBy (req: (seq : Sequence α).toEmptyLabel = .nonempty)
   : cb.consBy ((seq : Sequence α).head req) (tb.tailBy seq) = seq := by
@@ -430,16 +615,20 @@ theorem tailBy_consBy (req: (seq : Sequence α).toEmptyLabel = .nonempty)
       _ = _ := lm3
 
 
-end TailBy
+end TailOp
 
-end ConsByTailBy
+end ConsOpTailOp
 
 
-structure NilBy (C: Type _) (α: Type _) [SequenceLike C α] where
+structure NilOp (C: Type _) (α: Type _) [SequenceLike C α] where
   nilBy: C
   nilBy_empty : (toSequence nilBy).toEmptyLabel = .empty
 
-
+/-
+structure AppendOp (C: Type _) (α: Type _) [SequenceLike C α] where
+  appendBy: C → C → C
+  appendBy_cons
+-/
 
 end Nemonuri.SequenceLike
 

@@ -316,12 +316,19 @@ theorem length_le_iff_getAt?_eq_none (req: seq.toFinLabel = .finite) {i: ℕ}
   refine Iff.trans ?_ lm1
   exact ENat.coe_le_coe |> Iff.symm
 
+theorem length_le_iff_getAt?_eq_none_at (req: seq.toFinLabel = .finite) (i: ℕ)
+  : ((seq.length req) ≤ i) ↔ ((seq.getAt? i) = .none) :=
+  @seq.length_le_iff_getAt?_eq_none _ req i
+
 theorem lt_length_iff_getAt?_isSome (req: seq.toFinLabel = .finite) {i: ℕ}
   : (i < (seq.length req)) ↔ ((seq.getAt? i).isSome) := by
   have lm1 := Iff.not (@seq.length_le_iff_getAt?_eq_none _ req i)
   simp [Option.ne_none_iff_isSome] at lm1
   exact lm1
 
+theorem lt_length_iff_getAt?_isSome_at (req: seq.toFinLabel = .finite) (i: ℕ)
+  : (i < (seq.length req)) ↔ ((seq.getAt? i).isSome) :=
+  @seq.lt_length_iff_getAt?_isSome _ req i
 
 
 theorem getAt?_length_eq_none (req: seq.toFinLabel = .finite) : seq.getAt? (seq.length req) = .none := by
