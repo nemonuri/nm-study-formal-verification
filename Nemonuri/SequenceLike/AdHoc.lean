@@ -1,6 +1,6 @@
 module
 
-public import Nemonuri.Sequence.Instances
+public import Nemonuri.SequenceLike.Instances
 
 @[expose] public section
 
@@ -59,7 +59,57 @@ instance ofAdHoc : SequenceLike (AdHoc α) α where
       exact toLength?_toGetAt? )
   inj := AdHoc.getAt?_injective.eq_iff.mp
 
+namespace AdHoc
 
+
+def consOp : ConsOp (AdHoc α) α where
+  consBy a seq :=
+    AdHoc.casesOn
+      seq
+      (fun as => List.consOp.consBy a as |> AdHoc.finite)
+      (fun as => ωSequence.consOp.consBy a as |> AdHoc.infinite)
+  consBy_head := by
+    intro a seq
+    rcases seq with as | as
+    · dsimp only
+      dsimp [SequenceLike.toGetAt?]
+      dsimp [List.consOp]
+      dsimp [AdHoc.getAt?]
+      dsimp [← toGetAt?_eq_toSequence_getAt?]
+      dsimp [SequenceLike.toGetAt?]
+      simp
+    · dsimp only
+      dsimp [SequenceLike.toGetAt?]
+      dsimp [ωSequence.consOp]
+      dsimp [AdHoc.getAt?]
+      dsimp [← toGetAt?_eq_toSequence_getAt?]
+      dsimp [SequenceLike.toGetAt?]
+  consBy_tail := by
+    intro a seq i
+    rcases seq with as | as
+    · dsimp only
+      dsimp [SequenceLike.toGetAt?, List.consOp, AdHoc.getAt?, ← toGetAt?_eq_toSequence_getAt?]
+    · dsimp only
+      dsimp [SequenceLike.toGetAt?, ωSequence.consOp, AdHoc.getAt?, ← toGetAt?_eq_toSequence_getAt?]
+
+def tailOp : TailOp (AdHoc α) α where
+  tailBy seq :=
+    match seq with
+    | .finite as => List.tailOp.tailBy as |> .finite
+    | .infinite as => ωSequence.tailOp.tailBy as |> .infinite
+  tailBy_cons := by
+    intro seq i
+    rcases seq with as | as
+    · dsimp only
+      dsimp [SequenceLike.toGetAt?, AdHoc.getAt?]
+      exact List.tailOp.tailBy_cons_at as i
+    · dsimp only
+      dsimp [SequenceLike.toGetAt?, AdHoc.getAt?]
+      exact ωSequence.tailOp.tailBy_cons_at as i
+
+
+
+end AdHoc
 
 
 end Nemonuri.SequenceLike

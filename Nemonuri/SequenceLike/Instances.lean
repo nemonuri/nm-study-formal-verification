@@ -1,16 +1,16 @@
 module
 
-public import Nemonuri.SequenceLike
+public import Nemonuri.SequenceLike.Basic
 public import Nemonuri.SequenceLike.Operations
 public import Cslib.Foundations.Data.OmegaSequence.Init
 
 @[expose] public section
 
-namespace Nemonuri.SequenceLike
-
 open Cslib
 
 variable {α: Type _}
+
+namespace Nemonuri.SequenceLike
 
 scoped instance ofList : SequenceLike (List α) α where
   toGetAt? as i := as[i]?
@@ -23,30 +23,35 @@ scoped instance ofList : SequenceLike (List α) α where
     simp [funext_iff] at lm1
     exact List.ext_getElem? lm1
 
-section OfList
+end Nemonuri.SequenceLike
 
-def consList : ConsOp (List α) α where
+namespace List
+
+open Nemonuri SequenceLike
+
+def consOp : ConsOp (List α) α where
   consBy a as := a::as
   consBy_head := by dsimp [toGetAt?]; simp
   consBy_tail := by
     intro _ _ _
     dsimp [toGetAt?]
 
-def tailList : TailOp (List α) α where
+def tailOp : TailOp (List α) α where
   tailBy as := as.tail
   tailBy_cons := by
     intro _ _
     dsimp [toGetAt?]
     simp only [List.getElem?_tail]
 
-def nilList : NilOp (List α) α where
+def nilOp : NilOp (List α) α where
   nilBy := []
   nilBy_empty := by
     dsimp [toSequence, toLength?, Sequence.toEmptyLabel]
     exact EmptyLabel.ofENat_zero
 
-end OfList
+end List
 
+namespace Nemonuri.SequenceLike
 
 scoped instance ofωSequence : SequenceLike (ωSequence α) α where
   toGetAt? as i := as i |> .some
@@ -60,11 +65,13 @@ scoped instance ofωSequence : SequenceLike (ωSequence α) α where
     exact ωSequence.ext lm1
 
 
-section OfωSequence
+end Nemonuri.SequenceLike
 
-open scoped ωSequence
+namespace Cslib.ωSequence
 
-def consωSeq : ConsOp (ωSequence α) α where
+open Nemonuri SequenceLike
+
+def consOp : ConsOp (ωSequence α) α where
   consBy a as := a ::ω as
   consBy_head := by
     intro _ _
@@ -73,16 +80,16 @@ def consωSeq : ConsOp (ωSequence α) α where
     intro _ _ _
     dsimp [toGetAt?]
 
-def tailωSeq : TailOp (ωSequence α) α where
+def tailOp : TailOp (ωSequence α) α where
   tailBy as := as.tail
   tailBy_cons := by
     intro _ _
     dsimp [toGetAt?]
 
-end OfωSequence
+end Cslib.ωSequence
 
 
 
-end Nemonuri.SequenceLike
+
 
 end
