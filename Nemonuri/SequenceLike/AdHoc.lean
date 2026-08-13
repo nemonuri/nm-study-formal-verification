@@ -107,6 +107,9 @@ def tailOp : TailOp (AdHoc α) α where
       dsimp [SequenceLike.toGetAt?, AdHoc.getAt?]
       exact ωSequence.tailOp.tailBy_cons_at as i
 
+def nilOp : NilOp (AdHoc α) α where
+  nilBy := List.nilOp.nilBy |> .finite
+  nilBy_empty := List.nilOp.nilBy_empty
 
 
 end AdHoc
