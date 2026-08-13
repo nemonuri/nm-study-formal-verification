@@ -1,7 +1,7 @@
 module
 
-public import Nemonuri.Sequence.SequenceLike
-public import Nemonuri.Sequence.Operations
+public import Nemonuri.SequenceLike
+public import Nemonuri.SequenceLike.Operations
 public import Cslib.Foundations.Data.OmegaSequence.Init
 
 @[expose] public section
