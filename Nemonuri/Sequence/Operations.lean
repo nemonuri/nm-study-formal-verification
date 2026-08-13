@@ -151,6 +151,17 @@ theorem takeRec_eq_take : @takeRec = @take := by
     --unfold takeRec
     --dsimp [take]
 
+/-
+def appendRec (seq1: Sequence α) (req: seq1.toFinLabel = .finite) (seq2: Sequence α) : Sequence α :=
+  if lm1: seq1.length req = 0 then
+    seq2
+  else
+    have lm2 : seq1.toEmptyLabel = .nonempty := by
+      rw [toEmptyLabel_eq_nonempty_iff_length?_ne_zero]
+      intro cont
+      exact lm1 (length_eq_zero_of_length?_eq_zero cont)
+    cons (seq1.head lm2) (appendRec seq1.tail req seq2)
+-/
 
 def append (seq1: Sequence α) (req: seq1.toFinLabel = .finite) (seq2: Sequence α) : Sequence α where
   getAt? i :=
