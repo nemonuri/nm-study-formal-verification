@@ -93,6 +93,37 @@ theorem tail_getAt?_eq_getAt?_add_one : seq.tail.getAt? i = seq.getAt? (i+1) := 
 @[defeq]
 theorem tail_length?_eq_length?_sub_one : seq.tail.length? = seq.length? - 1 := rfl
 
+theorem tail_toFinLabel_eq_toFinLabel : seq.tail.toFinLabel = seq.toFinLabel := by
+  cases lm1: seq.toFinLabel
+  · simp only [toFinLabel_eq_finite_iff_length?_eq_natCast] at lm1
+    simp only [toFinLabel_eq_finite_iff_length?_ne_top]
+    dsimp [tail_length?_eq_length?_sub_one]
+    obtain ⟨n, lm1⟩ := lm1
+    rw [lm1]
+    simp
+  · simp only [toFinLabel_eq_infinite_iff_length?_eq_top] at lm1 ⊢
+    dsimp [tail_length?_eq_length?_sub_one]
+    rw [lm1]
+    simp
+
+theorem tail_length_eq_length_sub_one (req: seq.toFinLabel = .finite)
+  : seq.tail.length (seq.tail_toFinLabel_eq_toFinLabel.trans req) = seq.length req - 1 := by
+  have lm1 := seq.tail_length?_eq_length?_sub_one
+  rw [← ENat.coe_inj]
+  conv => rhs; rw [ENat.coe_sub]; rw [← length?_eq_natCast_length]
+  conv => lhs; rw [← length?_eq_natCast_length]; rw [lm1]
+  rw [Nat.cast_one]
+
+theorem tail_length_lt_length (req1: seq.toFinLabel = .finite) (req2: seq.toEmptyLabel = .nonempty)
+  : seq.tail.length (seq.tail_toFinLabel_eq_toFinLabel.trans req1) < seq.length req1 := by
+  have lm1 := seq.tail_length_eq_length_sub_one req1
+  rw [lm1]
+  refine Nat.sub_one_lt ?_
+  rewrite [toEmptyLabel_eq_nonempty_iff_length?_ne_zero] at req2
+  intro cont
+  exact req2 (length?_eq_zero_of_length_eq_zero cont)
+
+
 theorem cons_eta (req: seq.toEmptyLabel = .nonempty)
   : (cons (seq.head req) seq.tail) = seq := by
   have lm1 := req
@@ -250,6 +281,83 @@ def append (seq1: Sequence α) (req: seq1.toFinLabel = .finite) (seq2: Sequence 
         have lm4 := @seq2.length?_getAt?
         simp [lm3] at lm4 ⊢
         exact @lm4 _
+
+
+def appendRec (seq1: Sequence α) (req: seq1.toFinLabel = .finite) (seq2: Sequence α) :=
+  if lm1: seq1.toEmptyLabel = .empty then
+    seq2
+  else
+    have lm2 : seq1.toEmptyLabel = .nonempty := EmptyLabel.ne_empty_iff_eq_nonempty.mp lm1
+    cons (seq1.head lm2) (appendRec seq1.tail (seq1.tail_toFinLabel_eq_toFinLabel.trans req) seq2)
+  termination_by (seq1.length req)
+  decreasing_by
+    exact seq1.tail_length_lt_length req lm2
+
+
+theorem appendRec_eq_append_at
+  (seq1: Sequence α) (req: seq1.toFinLabel = .finite) (seq2: Sequence α)
+  : appendRec seq1 req seq2 = append seq1 req seq2 := by
+  refine Sequence.ext ?_
+  refine funext ?_
+  intro i
+  dsimp [append]
+  split <;> rename_i lm1
+  · unfold appendRec
+    split <;> rename_i lm2
+    · have lm3 := length_eq_zero_of_empty lm2
+      simp [lm3] at lm1
+    · dsimp
+      revert lm2; simp only [EmptyLabel.ne_empty_iff_eq_nonempty]; intro lm2
+      have lm3 := appendRec_eq_append_at seq1.tail (seq1.tail_toFinLabel_eq_toFinLabel.trans req) seq2
+      rw [lm3]
+      rcases i with _ | i
+      · rw [cons_getAt?_zero]
+        rw [← head?_eq_some_head]
+        exact head?_eq_getAt?_zero
+      · rw [cons_getAt?_add_one_eq_getAt?]
+        dsimp [append]
+        split <;> rename_i lm4
+        · exact seq1.tail_getAt?_eq_getAt?_add_one
+        · simp at lm4
+          rewrite [← Nat.lt_sub_iff_add_lt] at lm1
+          have lm5 := seq1.tail_length_eq_length_sub_one req
+          rewrite [← lm5] at lm1
+          exact Nat.not_le_of_lt lm1 lm4 |> False.elim
+  · simp at lm1
+    unfold appendRec
+    dsimp
+    split <;> rename_i lm2
+    · have lm3 := length_eq_zero_of_empty lm2
+      simp [lm3]
+    · revert lm2; simp only [EmptyLabel.ne_empty_iff_eq_nonempty]; intro lm2
+      have lm3 := appendRec_eq_append_at seq1.tail (seq1.tail_toFinLabel_eq_toFinLabel.trans req) seq2
+      rw [lm3]
+      rcases i with _ | i
+      · simp at lm1
+        replace lm1 := seq1.length?_eq_zero_of_length_eq_zero lm1
+        rewrite [← toEmptyLabel_eq_empty_iff_length?_eq_zero] at lm1
+        simp [lm1] at lm2
+      · rw [cons_getAt?_add_one_eq_getAt?]
+        dsimp [append]
+        split <;> rename_i lm4
+        · have lm5 := seq1.tail_length_eq_length_sub_one req
+          rewrite [← Nat.sub_le_iff_le_add, ← lm5] at lm1
+          exact Nat.not_le_of_lt lm4 lm1 |> False.elim
+        · have lm5 := seq1.tail_length_eq_length_sub_one req
+          simp at lm4
+          have lm6 := seq1.length_pos_of_nonempty_finite lm2 req
+          refine congrArg _ ?_
+          omega
+  termination_by (seq1.length req)
+  decreasing_by
+    · exact seq1.tail_length_lt_length req lm2
+    · exact seq1.tail_length_lt_length req lm2
+
+theorem appendRec_eq_append : @appendRec = @append := by
+  ext
+  exact appendRec_eq_append_at _ _ _
+
+
 
 
 

@@ -362,6 +362,10 @@ theorem length_ne_zero_of_nonempty_finite (req1: seq.toEmptyLabel = .nonempty) (
   rewrite [toEmptyLabel_eq_nonempty_iff_length?_ne_zero] at req1
   exact fun x => req1 (length?_eq_zero_of_length_eq_zero x)
 
+theorem length_pos_of_nonempty_finite (req1: seq.toEmptyLabel = .nonempty) (req2: seq.toFinLabel = .finite)
+  : 0 < seq.length req2 :=
+  Nat.pos_of_ne_zero (length_ne_zero_of_nonempty_finite req1 req2)
+
 
 theorem length_eq_of_getAt?_isSome_and_add_one_eq_none
   (req1: seq.toFinLabel = .finite) {i: ℕ} (req2: (seq.getAt? i).isSome) (req3: seq.getAt? (i + 1) = .none)

@@ -43,6 +43,8 @@ theorem consBy_cons : toSequence ∘ (cb.consBy a) = (cons a) ∘ toSequence := 
     dsimp [← toGetAt?_eq_toSequence_getAt?]
     exact cb.consBy_tail
 
+theorem consBy_cons_at (a: α) : toSequence ∘ (cb.consBy a) = (cons a) ∘ toSequence :=
+  @cb.consBy_cons _ _ _ a
 
 theorem consBy_toEmptyLabel_eq_nonempty : toEmptyLabel (cb.consBy a seq : Sequence α) = .nonempty := by
   let c2 : C := cb.consBy a seq

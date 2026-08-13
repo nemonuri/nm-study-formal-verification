@@ -25,9 +25,18 @@ variable (Label: Type _) [DecidableEq Label] [Fintype Label] {T1: Type _} [HasLa
 
 def Preserves (f: (_: T1) → T2) : Prop := ∀ ⦃x: T1⦄, (toLabel x : Label) = (toLabel (f x))
 
+inductive LabelObj (T1: Type _) [HasLabel Label T1] : Label → Type _ where
+  | mk (t1: T1) : LabelObj T1 (toLabel t1)
+
 structure LabelHom (T1: Type _) [HasLabel Label T1] (T2: Type _) [HasLabel Label T2] where
   toFun: T1 → T2
   preserves: Preserves Label toFun
+
+/-
+structure PartialLabelHom (T1: Type _) [HasLabel Label T1] (T2: Type _) [HasLabel Label T2] (reqLabel: Label) where
+  toFun: (t1: T1) → (req: toLabel t1 = reqLabel) → T2
+  preserves: Preserves Label
+-/
 
 class IsLabelHomLike
   (F: Type _) (Label T1 T2: outParam (Type _))
@@ -168,6 +177,13 @@ theorem coe_coe [IsLabelHomLike F Label T1 T2] (f: F) : ((f: LabelHom Label T1 T
 
 end IsLabelHomLike
 
+namespace Preserves
+
+
+
+--theorem eq_labelHom {f: T1 → T2} (h: Preserves Label f) : --f = (LabelHom.mk f h) := by
+
+end Preserves
 
 end HasLabel
 
