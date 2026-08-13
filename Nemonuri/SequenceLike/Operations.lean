@@ -1,6 +1,7 @@
 module
 
 public import Nemonuri.SequenceLike.Basic
+public import Nemonuri.Sequence.Operations
 
 @[expose] public section
 
@@ -27,6 +28,20 @@ theorem consBy_head_at (a: α) (seq: C) : toGetAt? (cb.consBy a seq) 0 = .some a
 theorem consBy_tail_at (a: α) (seq: C) (i: ℕ) : toGetAt? (cb.consBy a seq) (i + 1) = toGetAt? seq i :=
   @cb.consBy_tail _ a seq i
 
+
+theorem consBy_cons : toSequence ∘ (cb.consBy a) = (cons a) ∘ toSequence := by
+  refine funext ?_
+  intro seq
+  refine Sequence.ext ?_
+  refine funext ?_
+  intro i
+  rcases i with _ | i
+  · dsimp [cons_getAt?_zero]
+    dsimp [← toGetAt?_eq_toSequence_getAt?]
+    exact cb.consBy_head
+  · dsimp [cons_getAt?_add_one_eq_getAt?]
+    dsimp [← toGetAt?_eq_toSequence_getAt?]
+    exact cb.consBy_tail
 
 
 theorem consBy_toEmptyLabel_eq_nonempty : toEmptyLabel (cb.consBy a seq : Sequence α) = .nonempty := by
@@ -160,6 +175,14 @@ theorem consBy_length?_eq_length?_add_one
     simp [toFinLabel_eq_infinite_iff_length?_eq_top] at lm1 lm3
     simp [lm1, lm3]
 
+theorem consBy_length?_eq_length?_add_one'
+  : toLength? (cb.consBy a seq) = toLength? seq + 1 := by
+  dsimp [toLength?_eq_toSequence_length?]
+  have lm1 := @cb.consBy_cons _ _  _ a |> funext_iff.mp
+  dsimp at lm1
+  rw [lm1]
+  rw [cons_length?_eq_length?_add_one]
+  --simp [consBy_cons]
 
 end ConsOp
 
@@ -173,7 +196,19 @@ namespace TailOp
 variable {C: Type _} {α: Type _} [SequenceLike C α]
          {tb: TailOp C α} {seq: C}
 
+
 theorem tailBy_cons_at (seq: C) (i: ℕ) : toGetAt? (tb.tailBy seq) i = toGetAt? seq (i + 1) := @tb.tailBy_cons seq i
+
+
+theorem tailBy_tail : toSequence ∘ (tailBy tb) = tail ∘ toSequence := by
+  refine funext ?_
+  intro seq
+  refine Sequence.ext ?_
+  refine funext ?_
+  intro i
+  dsimp [tail_getAt?_eq_getAt?_add_one]
+  dsimp only [← toGetAt?_eq_toSequence_getAt?]
+  exact tb.tailBy_cons
 
 
 theorem tailBy_infinite_iff_infinite
