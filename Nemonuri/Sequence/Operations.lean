@@ -151,6 +151,45 @@ def nil : Sequence α where
   length?_getAt? := by
     intro _; simp
 
+@[defeq]
+theorem nil_getAt?_none {i: ℕ} : (nil : Sequence α).getAt? i = .none := rfl
+
+@[defeq]
+theorem nil_length?_eq_zero : (nil : Sequence α).length? = 0 := rfl
+
+
+def single (a: α) : Sequence α where
+  getAt? i :=
+    match i with
+    | 0 => .some a
+    | i + 1 => .none
+  length? := 1
+  length?_getAt? := by
+    intro i2
+    split
+    · simp
+    · simp
+
+@[defeq]
+theorem single_length?_eq_one : (single a).length? = 1 := rfl
+
+
+def singleCons (a: α) : Sequence α := cons a nil
+
+theorem singleCons_eq_single : @singleCons = @single := by
+  ext α a
+  refine Sequence.ext ?_
+  dsimp [singleCons]
+  refine funext ?_
+  intro i
+  dsimp [single]
+  split
+  · exact cons_getAt?_zero
+  · simp
+    rw [cons_getAt?_add_one_eq_getAt?]
+    dsimp [nil]
+
+
 def takeRec (n: ℕ) (seq: Sequence α) : Sequence α :=
   match n with
   | 0 => nil
