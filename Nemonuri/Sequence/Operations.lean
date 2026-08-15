@@ -40,6 +40,27 @@ theorem cons_head? : (cons a seq).head? = .some a :=
     _ = _ := head?_eq_getAt?_zero
     _ = _ := cons_getAt?_zero
 
+theorem cons_nonempty : (cons a seq).toEmptyLabel = .nonempty := by
+  rw [toEmptyLabel_eq_nonempty_iff_exists_getAt?_eq_some]
+  have lm1 := @seq.cons_getAt?_zero _ a
+  exists 0
+  exists a
+
+theorem cons_toFinLabel_eq_toFinLabel : (cons a seq).toFinLabel = seq.toFinLabel := by
+  cases lm1: seq.toFinLabel
+  · rewrite [toFinLabel_eq_finite_iff_length?_eq_natCast] at lm1 ⊢
+    have lm2 := @seq.cons_length?_eq_length?_add_one _ a
+    rcases lm1 with ⟨n, lm1⟩
+    exists (n+1)
+    rw [Nat.cast_add, ← lm1, Nat.cast_one]
+    exact lm2
+  · rewrite [toFinLabel_eq_infinite_iff_length?_eq_top] at lm1 ⊢
+    have lm2 := @seq.cons_length?_eq_length?_add_one _ a
+    rw [lm1] at lm2
+    simpa using lm2
+
+
+
 
 
 def tail (seq: Sequence α) : Sequence α where
@@ -157,6 +178,19 @@ theorem nil_getAt?_none {i: ℕ} : (nil : Sequence α).getAt? i = .none := rfl
 @[defeq]
 theorem nil_length?_eq_zero : (nil : Sequence α).length? = 0 := rfl
 
+theorem eq_nil_iff_empty : (seq = nil) ↔ (seq.toEmptyLabel = .empty) := by
+  rw [← Sequence.ext_iff, funext_iff]
+  rw [toEmptyLabel_eq_empty_iff_forall_getAt?_eq_none]
+  dsimp [nil]
+  rfl
+
+
+
+
+/-
+theorem tail_empty_of_empty (req: seq.toEmptyLabel = .empty)
+  : seq.tail.toEmptyLabel = .empty := by
+-/
 
 def single (a: α) : Sequence α where
   getAt? i :=

@@ -33,30 +33,19 @@ theorem ext_iff : (sp = sp2) ↔ ((sp.fst.getAt? = sp2.fst.getAt?) ∧ (sp.snd.g
 
 def toFinLabelEq (sp: SequenceProd α β) : LabelEq FiniteLabel := LabelEq.finiteOfENat sp.fst.length? sp.snd.length?
 
-theorem tofinLabel_eq (req: sp.toFinLabelEq = .eq) : sp.fst.toFinLabel = sp.snd.toFinLabel := by
-  dsimp [toFinLabelEq, LabelEq.finiteOfENat, LabelEq.ofENat] at req
-  split at req <;> rename_i _ lm1
-  · simp at lm1
-    dsimp [Sequence.toFinLabel]
+theorem toFinLabel_eq_eq_iff : (sp.toFinLabelEq = .eq) ↔ (sp.fst.toFinLabel = sp.snd.toFinLabel) := by
+  dsimp [toFinLabelEq, Sequence.toFinLabel, LabelEq.finiteOfENat, LabelEq.ofENat]
+  split <;> rename_i _ lm1 <;> simp at lm1
+  · simp
     exact lm1
-  · simp at req
+  · simp
+    exact lm1
 
-theorem tofinLabel_eq_iff : (sp.toFinLabelEq = .eq) ↔ (sp.fst.toFinLabel = sp.snd.toFinLabel) := by
-  constructor
-  · exact tofinLabel_eq
-  · intro lm1
-    dsimp [toFinLabelEq, LabelEq.finiteOfENat, LabelEq.ofENat]
-    split <;> rename_i _ lm2
-    · rfl
-    · simp at lm2 ⊢
-      refine lm2 ?_
-      dsimp [Sequence.toFinLabel] at lm1
-      exact lm1
 
-theorem tofinLabel_ne_iff : (sp.toFinLabelEq = .ne) ↔ (sp.fst.toFinLabel ≠ sp.snd.toFinLabel) := by
+theorem toFinLabel_eq_ne_iff : (sp.toFinLabelEq = .ne) ↔ (sp.fst.toFinLabel ≠ sp.snd.toFinLabel) := by
   rw [← LabelEq.ne_eq_iff_eq_ne]
   refine Iff.not ?_
-  exact tofinLabel_eq_iff
+  exact toFinLabel_eq_eq_iff
 
 def toFinLabel (_: sp.toFinLabelEq = .eq) : FiniteLabel := sp.fst.toFinLabel
 
@@ -68,35 +57,24 @@ theorem tofinLabel_eq_snd_toFinLabel (req: sp.toFinLabelEq = .eq)
   : toFinLabel req = sp.snd.toFinLabel :=
   calc
     _ = _ := toFinLabel_eq_fst_toFinLabel req
-    _ = _ := tofinLabel_eq req
+    _ = _ := toFinLabel_eq_eq_iff.mp req
 
 
 def toEmptyLabelEq (sp: SequenceProd α β) : LabelEq EmptyLabel := LabelEq.emptyOfENat sp.fst.length? sp.snd.length?
 
-theorem toEmptyLabel_eq (req: sp.toEmptyLabelEq = .eq) : sp.fst.toEmptyLabel = sp.snd.toEmptyLabel := by
-  dsimp [toEmptyLabelEq, LabelEq.emptyOfENat, LabelEq.ofENat] at req
-  split at req <;> rename_i _ lm1
-  · simp at lm1
-    dsimp [Sequence.toEmptyLabel]
+
+theorem toEmptyLabel_eq_eq_iff : (sp.toEmptyLabelEq = .eq) ↔ (sp.fst.toEmptyLabel = sp.snd.toEmptyLabel) := by
+  dsimp [toEmptyLabelEq, Sequence.toEmptyLabel, LabelEq.emptyOfENat, LabelEq.ofENat]
+  split <;> rename_i _ lm1 <;> simp at lm1
+  · simp
     exact lm1
-  · simp at req
+  · simp
+    exact lm1
 
-theorem toEmptyLabel_eq_iff : (sp.toEmptyLabelEq = .eq) ↔ (sp.fst.toEmptyLabel = sp.snd.toEmptyLabel) := by
-  constructor
-  · exact toEmptyLabel_eq
-  · intro lm1
-    dsimp [toEmptyLabelEq, LabelEq.emptyOfENat, LabelEq.ofENat]
-    split <;> rename_i _ lm2
-    · rfl
-    · simp at lm2 ⊢
-      refine lm2 ?_
-      dsimp [Sequence.toEmptyLabel] at lm1
-      exact lm1
-
-theorem toEmptyLabel_ne_iff : (sp.toEmptyLabelEq = .ne) ↔ (sp.fst.toEmptyLabel ≠ sp.snd.toEmptyLabel) := by
+theorem toEmptyLabel_ne_eq_iff : (sp.toEmptyLabelEq = .ne) ↔ (sp.fst.toEmptyLabel ≠ sp.snd.toEmptyLabel) := by
   rw [← LabelEq.ne_eq_iff_eq_ne]
   refine Iff.not ?_
-  exact toEmptyLabel_eq_iff
+  exact toEmptyLabel_eq_eq_iff
 
 def toEmptyLabel (_: sp.toEmptyLabelEq = .eq) : EmptyLabel := sp.fst.toEmptyLabel
 
@@ -108,7 +86,7 @@ theorem toEmptyLabel_eq_snd_toEmptyLabel (req: sp.toEmptyLabelEq = .eq)
   : toEmptyLabel req = sp.snd.toEmptyLabel :=
   calc
     _ = _ := toEmptyLabel_eq_fst_toEmptyLabel req
-    _ = _ := toEmptyLabel_eq req
+    _ = _ := toEmptyLabel_eq_eq_iff.mp req
 
 
 end SequenceProd
