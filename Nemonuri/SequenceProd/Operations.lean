@@ -33,6 +33,16 @@ theorem singleFst_toFinLabel {a: α} : (singleFst α β a).toFinLabel singleFst_
 def stepL (a: α) (b: β) : SequenceProd α β → SequenceProd α β
   | ⟨fst, snd⟩ => ⟨Sequence.cons a fst, Sequence.cons b snd⟩
 
+theorem stepL_toEmptyLabelEq : (sp.stepL a b).toEmptyLabelEq = .eq := by
+  rw [toEmptyLabel_eq_eq_iff]
+  dsimp [stepL]
+  simp only [Sequence.cons_nonempty]
+
+theorem stepL_toEmptyLabel : (sp.stepL a b).toEmptyLabel stepL_toEmptyLabelEq = .nonempty := by
+  rw [toEmptyLabel_eq_fst_toEmptyLabel]
+  dsimp [stepL]
+  simp only [Sequence.cons_nonempty]
+
 
 end Nemonuri.SequenceProd
 

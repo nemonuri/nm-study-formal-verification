@@ -510,7 +510,7 @@ theorem ext (req: seq.getAt? = seq2.getAt?) : seq = seq2 := by
 
 
 
-theorem ext_iff : (seq.getAt? = seq2.getAt?) ↔ (seq = seq2) := ⟨Sequence.ext, congrArg (Sequence.getAt?)⟩
+theorem ext_iff : (seq = seq2) ↔ (seq.getAt? = seq2.getAt?) := ⟨congrArg (Sequence.getAt?), Sequence.ext⟩
 
 end Ext
 

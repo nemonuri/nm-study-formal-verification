@@ -179,7 +179,7 @@ theorem nil_getAt?_none {i: ℕ} : (nil : Sequence α).getAt? i = .none := rfl
 theorem nil_length?_eq_zero : (nil : Sequence α).length? = 0 := rfl
 
 theorem eq_nil_iff_empty : (seq = nil) ↔ (seq.toEmptyLabel = .empty) := by
-  rw [← Sequence.ext_iff, funext_iff]
+  rw [Sequence.ext_iff, funext_iff]
   rw [toEmptyLabel_eq_empty_iff_forall_getAt?_eq_none]
   dsimp [nil]
   rfl
@@ -283,7 +283,7 @@ theorem takeRec_eq_take_at (n: ℕ) : @takeRec α n = @take α n := by
       exact lm2 i
     · revert lm2; simp only [EmptyLabel.ne_empty_iff_eq_nonempty]; intro lm2
       have lm4 := seq.cons_eta lm2
-      rewrite [← Sequence.ext_iff] at lm4
+      rewrite [Sequence.ext_iff] at lm4
       rewrite [funext_iff] at lm4
       specialize lm4 i
       rw [← lm4]
@@ -314,6 +314,7 @@ theorem takeRec_eq_take_at (n: ℕ) : @takeRec α n = @take α n := by
             _ < _ := lm5
             _ ≤ _ := lm3
         · exact lm3
+
 
 theorem takeRec_eq_take : @takeRec = @take := by
   refine funext ?_
@@ -425,6 +426,7 @@ theorem appendRec_eq_append_at
   decreasing_by
     · exact seq1.tail_length_lt_length req lm2
     · exact seq1.tail_length_lt_length req lm2
+
 
 theorem appendRec_eq_append : @appendRec = @append := by
   ext

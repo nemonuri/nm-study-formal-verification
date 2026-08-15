@@ -2,6 +2,7 @@ module
 
 public import Nemonuri.SequenceProd.Labels
 public import Nemonuri.Sequence.Basic
+public import Nemonuri.OptionProd.Basic
 
 @[expose] public section
 
@@ -10,6 +11,7 @@ namespace Nemonuri
 structure SequenceProd (α: Type _) (β: Type _) where
   fst: Sequence α
   snd: Sequence β
+
 
 namespace SequenceProd
 
@@ -87,6 +89,30 @@ theorem toEmptyLabel_eq_snd_toEmptyLabel (req: sp.toEmptyLabelEq = .eq)
   calc
     _ = _ := toEmptyLabel_eq_fst_toEmptyLabel req
     _ = _ := toEmptyLabel_eq_eq_iff.mp req
+
+
+def head? (sp: SequenceProd α β) : OptionProd α β :=
+  match sp.fst.head?, sp.snd.head? with
+  | .some fst, .some snd => .both fst snd
+  | .some x, .none => .fst x
+  | .none, .some x => .snd x
+  | .none, .none => .none
+
+def head (sp: SequenceProd α β) (req1: sp.toEmptyLabelEq = .eq) (req2: sp.toEmptyLabel req1 = .nonempty) : Prod α β :=
+  have lm1 := sp.toEmptyLabel_eq_fst_toEmptyLabel req1 |>.symm.trans req2
+  have lm2 := sp.toEmptyLabel_eq_snd_toEmptyLabel req1 |>.symm.trans req2
+  ⟨sp.fst.head lm1, sp.snd.head lm2⟩
+
+theorem head?_eq_ofProd_head (req1: sp.toEmptyLabelEq = .eq) (req2: sp.toEmptyLabel req1 = .nonempty)
+  : sp.head? = OptionProd.ofProd (sp.head req1 req2) := by
+  rcases lm1: sp.head req1 req2 with ⟨fst, snd⟩
+  dsimp
+  dsimp [head] at lm1
+  simp [Prod.ext_iff] at lm1
+  rcases lm1 with ⟨lm1, lm2⟩
+  rewrite [← Option.some_inj, ← Sequence.head?_eq_some_head] at lm1 lm2
+  dsimp [head?]
+  simp only [lm1, lm2]
 
 
 end SequenceProd
