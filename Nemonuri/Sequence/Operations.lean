@@ -165,6 +165,13 @@ theorem cons_eta (req: seq.toEmptyLabel = .nonempty)
   | succ i =>
     dsimp [cons_getAt?_add_one_eq_getAt?, tail_getAt?_eq_getAt?_add_one]
 
+theorem cons_tail {a: α} : (cons a seq).tail = seq := by
+  refine Sequence.ext ?_
+  refine funext ?_
+  intro i
+  dsimp [tail]
+  exact cons_getAt?_add_one_eq_getAt?
+
 
 def nil : Sequence α where
   getAt? _ := .none
@@ -178,19 +185,96 @@ theorem nil_getAt?_none {i: ℕ} : (nil : Sequence α).getAt? i = .none := rfl
 @[defeq]
 theorem nil_length?_eq_zero : (nil : Sequence α).length? = 0 := rfl
 
+theorem nil_empty : (nil : Sequence α).toEmptyLabel = .empty := by
+  have lm1 := @nil_length?_eq_zero α
+  exact toEmptyLabel_eq_empty_iff_length?_eq_zero.mpr lm1
+
 theorem eq_nil_iff_empty : (seq = nil) ↔ (seq.toEmptyLabel = .empty) := by
-  rw [Sequence.ext_iff, funext_iff]
-  rw [toEmptyLabel_eq_empty_iff_forall_getAt?_eq_none]
-  dsimp [nil]
-  rfl
+  constructor
+  · intro lm1; subst lm1; exact nil_empty
+  · intro lm1
+    rw [Sequence.ext_iff, funext_iff]
+    dsimp [nil_getAt?_none]
+    rewrite [toEmptyLabel_eq_empty_iff_forall_getAt?_eq_none] at lm1
+    exact lm1
+
+
+theorem nil_tail_eq_nil : (nil : Sequence α).tail = nil := by
+  refine Sequence.ext ?_
+  dsimp only [nil, tail]
+
+
+theorem empty_of_tail_eq_self (req1: seq.toFinLabel = .finite) (req2: seq.tail = seq)
+  : seq.toEmptyLabel = .empty := by
+  rewrite [Sequence.ext_iff, funext_iff] at req2
+  simp only [tail_getAt?_eq_getAt?_add_one] at req2
+  have lm1 := seq.getAt?_length_eq_none req1
+  cases lm2: seq.toEmptyLabel
+  · rfl
+  · have lm3 := length_pos_of_nonempty_finite lm2 req1
+    have lm4 := seq.getAt?_length_sub_one_isSome_iff_nonempty req1 |>.mpr lm2
+    specialize req2 (seq.length req1 - 1)
+    conv at req2 =>
+      lhs
+      arg 2
+      rw [Nat.sub_one_add_one_eq_of_pos lm3]
+    rewrite [Option.isSome_iff_exists] at lm4
+    rcases lm4 with ⟨a, lm4⟩
+    rewrite [lm1, lm4] at req2
+    simp at req2
+
+theorem tail_eq_self_iff_empty (req: seq.toFinLabel = .finite)
+  : (seq.tail = seq) ↔ (seq.toEmptyLabel = .empty) := by
+  constructor
+  · intro lm1
+    exact seq.empty_of_tail_eq_self req lm1
+  · intro lm1
+    refine Sequence.ext ?_
+    refine funext ?_
+    intro i
+    rewrite [toEmptyLabel_eq_empty_iff_forall_getAt?_eq_none] at lm1
+    dsimp [tail_getAt?_eq_getAt?_add_one]
+    have lm2 := lm1 (i+1)
+    have lm3 := lm1 i
+    calc
+      _ = _ := lm2
+      _ = _ := lm3.symm
+
+theorem tail_eq_self_iff_eq_nil (req: seq.toFinLabel = .finite)
+  : (seq.tail = seq) ↔ (seq = nil) :=
+  calc
+    _ ↔ _ := seq.tail_eq_self_iff_empty req
+    _ ↔ _ := seq.eq_nil_iff_empty.symm
+
+
+theorem cons_ne_nil {a: α} : cons a seq ≠ nil := by
+  intro lm1
+  have lm2 := congrArg Sequence.toEmptyLabel lm1
+  rewrite [cons_nonempty, nil_empty] at lm2
+  simp at lm2
 
 
 
+theorem tail_cons_eq_self_iff {a: α}
+  : ((cons a seq.tail) = seq) ↔ (∃(req: seq.toEmptyLabel = .nonempty), (seq.head req = a)) := by
+  constructor
+  · intro lm1
+    refine Exists.intro ?_ ?_
+    · have lm2 := congrArg Sequence.toEmptyLabel lm1
+      rewrite [cons_nonempty] at lm2
+      exact lm2.symm
+    · conv =>
+        lhs
+        arg 1
+        rw [← lm1]
+      rw [← Option.some_inj, ← head?_eq_some_head]
+      exact cons_head?
+  · rintro ⟨lm1, lm2⟩
+    rw [← lm2]
+    exact cons_eta _
 
-/-
-theorem tail_empty_of_empty (req: seq.toEmptyLabel = .empty)
-  : seq.tail.toEmptyLabel = .empty := by
--/
+
+
 
 def single (a: α) : Sequence α where
   getAt? i :=
