@@ -64,7 +64,7 @@ theorem stepL_tail : (sp.stepL a b).tail = sp := by
   <;> rw [← Sequence.ext_iff]
   <;> exact Sequence.cons_tail
 
-/-
+
 theorem stepL_eta (req1: sp.toEmptyLabelEq = .eq) (req2: sp.toEmptyLabel req1 = .nonempty)
   : let x := sp.head req1 req2; stepL x.fst x.snd sp.tail = sp := by
   extract_lets x
@@ -79,8 +79,20 @@ theorem stepL_eta (req1: sp.toEmptyLabelEq = .eq) (req2: sp.toEmptyLabel req1 = 
   <;> dsimp [tail, stepL]
   <;> rw [Sequence.tail_cons_eq_self_iff]
   · refine Exists.intro ?_ ?_
-    ·
--/
+    · have lm3 := toEmptyLabel_eq_fst_toEmptyLabel req1
+      calc
+        _ = _ := lm3.symm
+        _ = _ := req2
+    · rw [← lm1]
+      dsimp [head]
+  · refine Exists.intro ?_ ?_
+    · have lm3 := toEmptyLabel_eq_snd_toEmptyLabel req1
+      calc
+        _ = _ := lm3.symm
+        _ = _ := req2
+    · rw [← lm2]
+      dsimp [head]
+
 
 
 /-
