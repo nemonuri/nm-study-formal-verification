@@ -625,83 +625,60 @@ theorem getFromLastAt?_isSome_iff {i: ℕ}
       simp at lm4
 
 
-
-
-
-/-
 theorem getFromLastAt?_zero_isSome_iff_finite_and_nonempty
   : (seq.getFromLastAt? 0).isSome ↔ ((seq.toFinLabel = .finite) ∧ (seq.toEmptyLabel = .nonempty)) := by
-  have lm1 := Iff.not (seq.forall_getFromLastAt?_eq_none_iff_infinite_or_empty)
-  simp [FiniteLabel.ne_infinite_iff_eq_finite, EmptyLabel.ne_empty_iff_eq_nonempty] at lm1
-  rw [Option.isSome_iff_exists]
-  simp only [Option.ne_none_iff_exists] at lm1
   constructor
-  · rintro ⟨a, lm2⟩
-    refine lm1.mp ?_
-    exists 0
-    exists a
-    exact lm2.symm
-  · intro lm2
-    replace lm1 := lm1.mpr lm2
-    rcases lm1 with ⟨i, lm1⟩
-    induction i with
-    | zero =>
-      rcases lm1 with ⟨a, lm1⟩
-      exists a
-      exact lm1.symm
-    | succ i lm3 =>
--/
-/-
+  · intro lm1
+    have lm2 := seq.getFromLastAt?_isSome_iff.mp lm1
+    rcases lm2 with ⟨lm2, lm3⟩
+    refine And.intro lm2 ?_
+    rewrite [← ENat.coe_lt_coe, ENat.coe_zero, ← (seq.length?_eq_natCast_length lm2)] at lm3
+    exact seq.toEmptyLabel_eq_nonempty_iff_length?_pos |>.mpr lm3
+  · rintro ⟨lm1, lm2⟩
+    refine seq.getFromLastAt?_isSome_iff.mpr ?_
+    refine Exists.intro ?_ ?_
+    · exact lm1
+    · exact length_pos_of_nonempty_finite lm2 lm1
+
+
 theorem lt_length_iff_getFromLastAt?_isSome (req: seq.toFinLabel = .finite) {i: ℕ}
   : (i < (seq.length req)) ↔ ((seq.getFromLastAt? i).isSome) := by
-  cases lm1: seq.toEmptyLabel
-  · have lm2 := length_eq_zero_of_empty lm1
-    rw [lm2]
-    simp
-    exact getFromLastAt?_eq_none_of_empty lm1
-  · have lm2 := seq.lt_length_iff_getAt?_isSome_at req
--/
-/-
-  have lm1 := seq.lt_length_iff_getAt?_isSome_at req (seq.length req - (i + 1))
+  have lm1 := seq.lt_length_iff_getAt?_isSome_at req
+  have lm2 := @seq.getFromLastAt?_eq_getAt? _ req
   constructor
-  · intro lm2
-    have lm3 := getFromLastAt?_eq_getAt? req lm2
-    simp at lm1
--/
-    --replace lm1 := lm1.mp lm2
+  · intro lm3
+    specialize @lm2 i lm3
+    rw [lm2]
+    refine (lm1 _).mp ?_
+    simp
+    calc
+      0 ≤ i := Nat.zero_le _
+      _ < _ := lm3
+  · intro lm3
+    rewrite [seq.getFromLastAt?_isSome_iff] at lm3
+    rcases lm3 with ⟨lm3, lm4⟩
+    exact lm4
+
+theorem length_le_iff_getFromLastAt?_eq_none (req: seq.toFinLabel = .finite) {i: ℕ}
+  : (seq.length req ≤ i) ↔ (seq.getFromLastAt? i = .none) := by
+  have lm1 := Iff.not (@seq.lt_length_iff_getFromLastAt?_isSome _ req i)
+  simpa using lm1
 
 
+def getFromLastAt (seq: Sequence α) (i: ℕ) (req1: seq.toFinLabel = .finite) (req2: i < (seq.length req1)) : α :=
+  seq.getFromLastAt? i |>.get (seq.lt_length_iff_getFromLastAt?_isSome req1 |>.mp req2)
 
+def last? (seq: Sequence α) : Option α := seq.getFromLastAt? 0
 
-/-
-theorem getFromEndAt?_one_isSome (req1: seq.toEmptyLabel = .nonempty) (req2: seq.toFinLabel = .finite)
-  : (seq.getFromEndAt? 0).isSome = .true := by
--/
+def last (seq: Sequence α) (req1: seq.toEmptyLabel = .nonempty) (req2: seq.toFinLabel = .finite) : α :=
+  seq.getFromLastAt 0 req2 (seq.length_pos_of_nonempty_finite req1 req2)
 
-
-def last (seq: Sequence α) (req1: seq.toEmptyLabel = .nonempty) (req2: seq.toFinLabel = .finite) :=
-  seq[(seq.length req2) - 1]'(by
-    have lm1 := seq.length?_eq_natCast_length req2
-    rw [lm1]
-    rw [ENat.coe_lt_coe]
-    rewrite [toEmptyLabel_eq_nonempty_iff_length?_pos, lm1] at req1
-    conv at req1 => lhs; change (Nat.cast 0)
-    rw [ENat.coe_lt_coe] at req1
-    refine Nat.sub_one_lt ?_
-    exact Nat.ne_zero_of_lt req1 )
-
-def last? (seq: Sequence α) : Option α :=
-  match lm1: seq.toEmptyLabel, lm2: seq.toFinLabel with
-  | .nonempty, .finite => .some (seq.last lm1 lm2)
-  | _, _ => .none
 
 theorem last?_eq_some_last (req1: seq.toEmptyLabel = .nonempty) (req2: seq.toFinLabel = .finite)
   : seq.last? = .some (seq.last req1 req2) := by
-  dsimp [last?]
-  split
-  · rfl
-  · rename_i lm1
-    exact False.elim (lm1 req1 req2)
+  dsimp [last?, last, getFromLastAt]
+  simp only [Option.some_get]
+
 
 section Ext
 
