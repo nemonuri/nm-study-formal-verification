@@ -1,5 +1,7 @@
 module
 
+public import Mathlib.Logic.Equiv.Defs
+
 @[expose] public section
 
 namespace Nemonuri
@@ -14,7 +16,7 @@ namespace OptionProd
 
 variable {α: Type _} {β: Type _} {x1 x2: OptionProd α β} {a: α} {b: β}
 
-@[simp]
+
 def fst? : OptionProd α β → Option α
   | both x _ => .some x
   | fst x => .some x
@@ -76,12 +78,74 @@ def ofProd : Prod α β → OptionProd α β
 @[defeq, simp]
 theorem ofProd_eq_both : ofProd (a, b) = .both a b := rfl
 
-theorem ofProd_inj : Function.Injective (@ofProd α β) := by
+theorem ofProd_injective : Function.Injective (@ofProd α β) := by
   intro x1 x2 lm1
   cases x1
   cases x2
   simp at lm1
   simpa using lm1
+
+theorem ofProd_inj {x1 x2: Prod α β} : (ofProd x1 = ofProd x2) ↔ (x1 = x2) := ofProd_injective.eq_iff
+
+
+def ofProd? : Prod (Option α) (Option β) → OptionProd α β
+  | ⟨.some a, .some b⟩ => .both a b
+  | ⟨.some a, .none⟩ => .fst a
+  | ⟨.none, .some b⟩ => .snd b
+  | ⟨.none, .none⟩ => .none
+
+def toProd? : OptionProd α β → Prod (Option α) (Option β)
+  | .both a b => ⟨.some a, .some b⟩
+  | .fst a => ⟨.some a, .none⟩
+  | .snd b => ⟨.none, .some b⟩
+  | .none => ⟨.none, .none⟩
+
+theorem leftInverse_toProd?_ofProd? : Function.LeftInverse (@toProd? α β) ofProd? := by
+  rintro ⟨x1, x2⟩
+  cases x1 <;> cases x2 <;> dsimp [toProd?, ofProd?]
+
+theorem rightInverse_toProd?_ofProd? : Function.RightInverse (@toProd? α β) ofProd? := by
+  intro x
+  cases x <;> dsimp [toProd?, ofProd?]
+
+theorem ofProd?_injective : Function.Injective (@ofProd? α β) := leftInverse_toProd?_ofProd?.injective
+
+theorem toProd?_injective : Function.Injective (@toProd? α β) := rightInverse_toProd?_ofProd?.injective
+
+@[simps]
+def equivOfProd? : (Prod (Option α) (Option β)) ≃ OptionProd α β where
+  toFun := ofProd?
+  invFun := toProd?
+  left_inv := leftInverse_toProd?_ofProd?
+  right_inv := rightInverse_toProd?_ofProd?
+
+
+
+
+section OfProd?
+
+variable {oa: Option α} {ob: Option β}
+
+@[simp]
+theorem ofProd?_fst? : (ofProd? (oa, ob)).fst? = oa := by
+  cases oa <;> cases ob <;> dsimp [ofProd?]
+
+@[simp]
+theorem ofProd?_snd? : (ofProd? (oa, ob)).snd? = ob := by
+  cases oa <;> cases ob <;> dsimp [ofProd?]
+
+@[simp]
+theorem ofProd?_toProd?_fst : (ofProd? (oa, ob)).toProd?.fst = oa := by
+  rw [leftInverse_toProd?_ofProd?]
+
+@[simp]
+theorem ofProd?_toProd?_snd : (ofProd? (oa, ob)).toProd?.snd = ob := by
+  rw [leftInverse_toProd?_ofProd?]
+
+end OfProd?
+
+
+
 
 
 end OptionProd

@@ -46,6 +46,11 @@ theorem cons_nonempty : (cons a seq).toEmptyLabel = .nonempty := by
   exists 0
   exists a
 
+theorem cons_head : (cons a seq).head cons_nonempty = a := by
+  rw [← Option.some_inj]
+  rw [← head?_eq_some_head]
+  exact cons_head?
+
 theorem cons_toFinLabel_eq_toFinLabel : (cons a seq).toFinLabel = seq.toFinLabel := by
   cases lm1: seq.toFinLabel
   · rewrite [toFinLabel_eq_finite_iff_length?_eq_natCast] at lm1 ⊢
