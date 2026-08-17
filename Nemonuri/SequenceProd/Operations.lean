@@ -95,13 +95,47 @@ theorem stepL_eta (req1: sp.toEmptyLabelEq = .labelEq) (req2: sp.toEmptyLabel re
 
 
 
-/-
-theorem stepL_head : (sp.stepL a b).head stepL_toEmptyLabelEq stepL_toEmptyLabel = (a, b) := by
-  dsimp [head]
-  refine Prod.ext ?_ ?_ <;>
-  dsimp [stepL]
-  exact Sequence.cons_head?
--/
+def nil : SequenceProd α β := ⟨Sequence.nil, Sequence.nil⟩
+
+section Nil
+
+theorem nil_finiteEq : (nil: SequenceProd α β).toFiniteLabelEq = .labelEq := by
+  rw [finiteEq_iff_fst_snd_finiteEq]
+  dsimp [nil]
+  rfl
+
+theorem nil_finite : (nil: SequenceProd α β).toFiniteLabel nil_finiteEq = .finite := by
+  rw [← fst_self_finiteEq]
+  dsimp [nil]
+  exact Sequence.nil_finite
+
+end Nil
+
+
+def append (sp1: SequenceProd α β) (req1: sp1.toFiniteLabelEq = .labelEq) (req2: sp1.toFiniteLabel req1 = .finite) (sp2: SequenceProd α β) : SequenceProd α β :=
+  have lm1 := sp1.fst_self_finiteEq req1 |>.trans req2
+  have lm2 := sp1.snd_self_finiteEq req1 |>.trans req2
+  ⟨sp1.fst.append lm1 sp2.fst, sp1.snd.append lm2 sp2.snd⟩
+
+section Append
+
+theorem append_nil_eq_id : (nil: SequenceProd α β).append nil_finiteEq nil_finite = id := by
+  refine funext ?_
+  intro sp
+  dsimp [nil, append]
+  congr <;> simp [Sequence.append_nil_eq_id]
+
+theorem append_self_nil_eq_self (req1: sp.toFiniteLabelEq = .labelEq) (req2: sp.toFiniteLabel req1 = .finite)
+  : sp.append req1 req2 nil = sp := by
+  refine prod_ext ?_ ?_ <;> dsimp [nil, append] <;> simp [Sequence.append_self_nil_eq_self]
+
+
+end Append
+
+
+
+
+def stepL? (o: OptionProd α β) (sp: SequenceProd α β) : SequenceProd α β := ⟨Sequence.cons? o.fst? sp.fst, Sequence.cons? o.snd? sp.snd⟩
 
 end Nemonuri.SequenceProd
 

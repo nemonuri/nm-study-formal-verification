@@ -33,6 +33,20 @@ theorem ext_iff : (sp = sp2) ↔ ((sp.fst.getAt? = sp2.fst.getAt?) ∧ (sp.snd.g
   · rintro ⟨lm1, lm2⟩
     exact ext lm1 lm2
 
+theorem prod_ext (req1: sp.fst = sp2.fst) (req2: sp.snd = sp2.snd) : sp = sp2 := by
+  refine ext ?_ ?_ <;> rw [← Sequence.ext_iff]
+  · exact req1
+  · exact req2
+
+theorem prod_ext_iff : (sp = sp2) ↔ ((sp.fst = sp2.fst) ∧ (sp.snd = sp2.snd)) := by
+  constructor
+  · intro lm1
+    subst lm1
+    constructor <;> rfl
+  · rintro ⟨lm1, lm2⟩
+    exact prod_ext lm1 lm2
+
+
 def toFiniteLabelEq (sp: SequenceProd α β) : LabelEq FiniteLabel := LabelEq.finiteOfENat sp.fst.length? sp.snd.length?
 
 theorem finiteEq_iff_fst_snd_finiteEq : (sp.toFiniteLabelEq = .labelEq) ↔ (sp.fst.toFiniteLabel = sp.snd.toFiniteLabel) := by

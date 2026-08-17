@@ -1,7 +1,6 @@
 module
 
 public import Nemonuri.Sequence.Basic
-public import Mathlib.Data.PFun
 
 @[expose] public section
 
@@ -194,6 +193,8 @@ theorem nil_length?_eq_zero : (nil : Sequence α).length? = 0 := rfl
 theorem nil_empty : (nil : Sequence α).toEmptyLabel = .empty := by
   have lm1 := @nil_length?_eq_zero α
   exact empty_iff_length?_eq_zero.mpr lm1
+
+theorem nil_finite : (nil : Sequence α).toFiniteLabel = .finite := nil_empty |> finite_of_empty
 
 theorem eq_nil_iff_empty : (seq = nil) ↔ (seq.toEmptyLabel = .empty) := by
   constructor
@@ -587,6 +588,11 @@ theorem append_self_nil_eq_self (req: seq.toFiniteLabel = .finite) : append seq 
   symm
   exact lm2.mp lm1
 
+
+def cons? (o: Option α) (seq: Sequence α) : Sequence α :=
+  match o with
+  | .some a => cons a seq
+  | .none   => seq
 
 
 end Nemonuri.Sequence
