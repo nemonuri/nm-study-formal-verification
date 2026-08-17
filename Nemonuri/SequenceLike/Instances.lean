@@ -13,11 +13,12 @@ variable {α: Type _}
 namespace Nemonuri.SequenceLike
 
 scoped instance ofList : SequenceLike (List α) α where
-  toGetAt? as i := as[i]?
-  toLength? as := as.length
-  toLength?_toGetAt? := by
-    intro as i
-    simp
+  toSturct := {
+    toGetAt? as i := as[i]?
+    toLength? as := as.length
+    toLength?_toGetAt? := by
+      intro as i
+      simp }
   inj := by
     intro as1 as2 lm1
     simp [funext_iff] at lm1
@@ -31,16 +32,16 @@ open Nemonuri SequenceLike
 
 def consOp : ConsOp (List α) α where
   consBy a as := a::as
-  consBy_head := by dsimp [toGetAt?]; simp
+  consBy_head := by dsimp [toGetAt?, toSturct]; simp
   consBy_tail := by
     intro _ _ _
-    dsimp [toGetAt?]
+    dsimp [toGetAt?, toSturct]
 
 def tailOp : TailOp (List α) α where
   tailBy as := as.tail
   tailBy_cons := by
     intro _ _
-    dsimp [toGetAt?]
+    dsimp [toGetAt?, toSturct]
     simp only [List.getElem?_tail]
 
 def nilOp : NilOp (List α) α where
@@ -54,11 +55,12 @@ end List
 namespace Nemonuri.SequenceLike
 
 scoped instance ofωSequence : SequenceLike (ωSequence α) α where
-  toGetAt? as i := as i |> .some
-  toLength? as := ⊤
-  toLength?_toGetAt? := by
-    intro as i
-    simp
+  toSturct := {
+    toGetAt? as i := as i |> .some
+    toLength? as := ⊤
+    toLength?_toGetAt? := by
+      intro as i
+      simp }
   inj := by
     intro c1 c2 lm1
     simp [funext_iff] at lm1
@@ -75,16 +77,16 @@ def consOp : ConsOp (ωSequence α) α where
   consBy a as := a ::ω as
   consBy_head := by
     intro _ _
-    dsimp [toGetAt?]
+    dsimp [toGetAt?, toSturct]
   consBy_tail := by
     intro _ _ _
-    dsimp [toGetAt?]
+    dsimp [toGetAt?, toSturct]
 
 def tailOp : TailOp (ωSequence α) α where
   tailBy as := as.tail
   tailBy_cons := by
     intro _ _
-    dsimp [toGetAt?]
+    dsimp [toGetAt?, toSturct]
 
 end Cslib.ωSequence
 

@@ -36,10 +36,10 @@ theorem getAt?_injective : Function.Injective (@getAt? α) := by
       refine toSequenceAt_getAt?_ext ?_
       exact funext lm1
     · specialize lm1 as1.length
-      simp [← toGetAt?_eq_toSequence_getAt?, toGetAt?] at lm1
+      simp [← toGetAt?_eq_toSequence_getAt?, toGetAt?, toSturct] at lm1
   · split at lm1 <;> rename_i seq2 as2
     · specialize lm1 as2.length
-      simp [← toGetAt?_eq_toSequence_getAt?, toGetAt?] at lm1
+      simp [← toGetAt?_eq_toSequence_getAt?, toGetAt?, toSturct] at lm1
     · congr
       refine toSequenceAt_getAt?_ext ?_
       exact funext lm1
@@ -50,13 +50,14 @@ end AdHoc
 
 
 instance ofAdHoc : SequenceLike (AdHoc α) α where
-  toGetAt? := AdHoc.getAt?
-  toLength? := AdHoc.length?
-  toLength?_toGetAt? {_ _} := by
-    dsimp [AdHoc.getAt?, AdHoc.length?]
-    split <;> (
-      dsimp [← toLength?_eq_toSequence_length?, ← toGetAt?_eq_toSequence_getAt?]
-      exact toLength?_toGetAt? )
+  toSturct := {
+    toGetAt? := AdHoc.getAt?
+    toLength? := AdHoc.length?
+    toLength?_toGetAt? {_ _} := by
+      dsimp [AdHoc.getAt?, AdHoc.length?]
+      split <;> (
+        dsimp [← toLength?_eq_toSequence_length?, ← toGetAt?_eq_toSequence_getAt?]
+        exact toLength?_toGetAt? ) }
   inj := AdHoc.getAt?_injective.eq_iff.mp
 
 namespace AdHoc
@@ -72,25 +73,25 @@ def consOp : ConsOp (AdHoc α) α where
     intro a seq
     rcases seq with as | as
     · dsimp only
-      dsimp [SequenceLike.toGetAt?]
+      dsimp [SequenceLike.toGetAt?, toSturct]
       dsimp [List.consOp]
       dsimp [AdHoc.getAt?]
       dsimp [← toGetAt?_eq_toSequence_getAt?]
-      dsimp [SequenceLike.toGetAt?]
+      dsimp [SequenceLike.toGetAt?, toSturct]
       simp
     · dsimp only
-      dsimp [SequenceLike.toGetAt?]
+      dsimp [SequenceLike.toGetAt?, toSturct]
       dsimp [ωSequence.consOp]
       dsimp [AdHoc.getAt?]
       dsimp [← toGetAt?_eq_toSequence_getAt?]
-      dsimp [SequenceLike.toGetAt?]
+      dsimp [SequenceLike.toGetAt?, toSturct]
   consBy_tail := by
     intro a seq i
     rcases seq with as | as
     · dsimp only
-      dsimp [SequenceLike.toGetAt?, List.consOp, AdHoc.getAt?, ← toGetAt?_eq_toSequence_getAt?]
+      dsimp [SequenceLike.toGetAt?, toSturct, List.consOp, AdHoc.getAt?, ← toGetAt?_eq_toSequence_getAt?]
     · dsimp only
-      dsimp [SequenceLike.toGetAt?, ωSequence.consOp, AdHoc.getAt?, ← toGetAt?_eq_toSequence_getAt?]
+      dsimp [SequenceLike.toGetAt?, toSturct, ωSequence.consOp, AdHoc.getAt?, ← toGetAt?_eq_toSequence_getAt?]
 
 def tailOp : TailOp (AdHoc α) α where
   tailBy seq :=
