@@ -477,11 +477,77 @@ structure NilOp (C: Type _) (α: Type _) [SequenceLike C α] where
   nilBy: C
   nilBy_empty : (toSequence nilBy).toEmptyLabel = .empty
 
+
+structure HAppendOp (C1 C2 C3: Type _) (α: Type _) [SequenceLike C1 α] [SequenceLike C2 α] [SequenceLike C3 α] where
+  appendBy (seq1: C1) (req: toLength? seq1 ≠ ⊤) : C2 → C3
+  lt_length {i: ℕ} {seq1: C1} {req1: toLength? seq1 ≠ ⊤} {req2: i < toLength? seq1} {seq2: C2} : toGetAt? (appendBy seq1 req1 seq2) i = toGetAt? seq1 i
+  length_le {i: ℕ} {seq1: C1} {req1: toLength? seq1 ≠ ⊤} {req2: toLength? seq1 ≤ i} {seq2: C2} : toGetAt? (appendBy seq1 req1 seq2) i = toGetAt? seq2 (i - (toLength? seq1).toNat)
+
+abbrev AppendOp (C: Type _) (α: Type _) [SequenceLike C α] : Type _ := HAppendOp C C C α
+
+namespace HAppendOp
+
+variable {C1 C2 C3: Type _} {α: Type _} [SequenceLike C1 α] [SequenceLike C2 α] [SequenceLike C3 α]
+         {ab: HAppendOp C1 C2 C3 α} {seq1: C1}
+
+
+def appendBy? (ab: HAppendOp C1 C2 C3 α) (seq1: C1) (seq2: C2) : Option (C3) := --fun seq1 => Part.mk (toLength? seq1 ≠ ⊤) (ab.appendBy seq1)
+  if lm1: toLength? seq1 = ⊤ then
+    .none
+  else
+    .some (ab.appendBy seq1 lm1 seq2)
+
+theorem appendBy_append₂ (req1: toLength? seq1 ≠ ⊤)
+  : toSequence ∘ (ab.appendBy seq1 req1) = (append (toSequence seq1) (toLength?_ne_top_iff_toSequence_finite.mp req1)) ∘ toSequence := by
+  refine funext ?_
+  intro seq2
+  dsimp
+  refine Sequence.ext ?_
+  refine funext ?_
+  intro i
+  have lm2 := toLength?_ne_top_iff_toSequence_finite.mp req1
+  by_cases lm1: i < toLength? seq1
+  · have lm3 := @ab.lt_length i seq1 req1 lm1 seq2
+    simp only [toGetAt?_eq_toSequence_getAt?] at lm3
+    rw [lm3]
+    rewrite [toLength?_eq_toSequence_length?, length?_eq_natCast_length lm2, ENat.coe_lt_coe] at lm1
+    symm
+    exact append_getAt?_of_lt_length lm1
+  · simp at lm1
+    have lm3 := @ab.length_le i seq1 req1 lm1 seq2
+    simp only [toGetAt?_eq_toSequence_getAt?, toLength?_eq_toSequence_length?] at lm3
+    rw [lm3]
+    rewrite [toLength?_eq_toSequence_length?, length?_eq_natCast_length lm2, ENat.coe_le_coe] at lm1
+    symm
+    refine Eq.trans (append_getAt?_of_length_le lm1) ?_
+    congr
+    dsimp [length_eq_length?_lift]
+    refine ENat.lift_eq_toNat_of_lt_top ?_
+
+theorem appendBy_append₃
+  : (fun seq1 req1 seq2 => toSequence (ab.appendBy seq1 req1 seq2)) = (fun seq1 req1 seq2 => append (toSequence seq1) (toLength?_ne_top_iff_toSequence_finite.mp req1) (toSequence seq2)) := by
+  refine funext ?_
+  intro seq1
+  refine funext ?_
+  intro req1
+  exact appendBy_append₂ req1
+
+
+
 /-
-structure AppendOp (C: Type _) (α: Type _) [SequenceLike C α] where
-  appendBy: C → C → C
-  appendBy_cons
+theorem appendBy?_append?
+  : (toSequence <$> ab.appendBy? seq1) = ( (append? (toSequence seq1)).bind toSequence) := by
 -/
+
+
+/-
+theorem appendBy_append --(req1: toLength? seq1 ≠ ⊤)
+  : (toSequence) ∘' (ab.appendBy) = (@append α) ∘' toSequence := by
+-/
+
+
+
+end HAppendOp
 
 end Nemonuri.SequenceLike
 

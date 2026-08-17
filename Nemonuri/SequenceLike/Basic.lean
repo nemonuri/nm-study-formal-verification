@@ -119,6 +119,11 @@ theorem toGetAt_eq_toSequence_getAt : (toGetAt c) = ((toSequence c).getAt) := rf
 instance (priority := low) ofSequence : SequenceLike (Sequence α) α :=
   .mk Sequence.getAt? Sequence.length? (fun {seq} => Sequence.length?_getAt? seq) Sequence.ext
 
+
+theorem toLength?_ne_top_iff_toSequence_finite : (toLength? c ≠ ⊤) ↔ (toSequence c).toFiniteLabel = .finite := by
+  rw [toLength?_eq_toSequence_length?]
+  rw [finite_iff_length?_ne_top]
+
 end SequenceLike
 
 

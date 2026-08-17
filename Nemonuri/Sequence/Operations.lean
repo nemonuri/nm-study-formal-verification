@@ -1,6 +1,7 @@
 module
 
 public import Nemonuri.Sequence.Basic
+public import Mathlib.Data.PFun
 
 @[expose] public section
 
@@ -445,6 +446,47 @@ def append (seq1: Sequence α) (req: seq1.toFiniteLabel = .finite) (seq2: Sequen
         simp [lm3] at lm4 ⊢
         exact @lm4 _
 
+section Append
+
+variable {seq1: Sequence α} {req1: seq1.toFiniteLabel = .finite} {seq2: Sequence α} {i: ℕ}
+
+theorem append_getAt?_of_lt_length (req2: i < seq1.length req1) : (append seq1 req1 seq2).getAt? i = seq1.getAt? i := by
+  dsimp [append]
+  rw [ite_eq_left_iff]
+  intro lm1
+  exact absurd req2 lm1
+
+theorem append_getAt?_of_length_le (req2: seq1.length req1 ≤ i) : (append seq1 req1 seq2).getAt? i = seq2.getAt? (i - seq1.length req1) := by
+  dsimp [append]
+  rw [ite_eq_right_iff]
+  intro lm1
+  have lm2 := Trans.trans lm1 req2
+  simp at lm2
+
+@[defeq]
+theorem append_length? : (append seq1 req1 seq2).length? = seq1.length req1 + seq2.length? := rfl
+
+def append? (seq1: Sequence α) (seq2: Sequence α) : Option (Sequence α) :=
+  match lm1: seq1.toFiniteLabel with
+  | .finite => .some (append seq1 lm1 seq2)
+  | .infinite => .none
+
+/-
+def append? : Sequence α →. Sequence α → Sequence α := fun seq1 => Part.mk (seq1.toFiniteLabel = .finite) (append seq1)
+
+theorem append?_dom_eq : append?.Dom = { (seq1: Sequence α) | seq1.toFiniteLabel = .finite } := by
+  refine Set.ext ?_
+  intro seq1
+  simp
+  rw [← Part.dom_iff_mem]
+  dsimp [append?]
+  rfl
+
+@[defeq]
+theorem append?_fn_eq_append : append?.fn = (@append α) := rfl
+-/
+
+end Append
 
 def appendRec (seq1: Sequence α) (req: seq1.toFiniteLabel = .finite) (seq2: Sequence α) :=
   if lm1: seq1.toEmptyLabel = .empty then
