@@ -522,6 +522,28 @@ theorem appendRec_eq_append : @appendRec = @append := by
   exact appendRec_eq_append_at _ _ _
 
 
+theorem append_nil_eq_id : append (nil: Sequence α) (finite_of_empty nil_empty) = id := by
+  refine funext ?_
+  intro seq
+  dsimp only [id_eq]
+  rw [← appendRec_eq_append]
+  rw [appendRec]
+  rw [dite_eq_left_iff]
+  intro lm1
+  simp [nil_empty] at lm1
+
+theorem append_self_nil_eq_self (req: seq.toFiniteLabel = .finite) : append seq req nil = seq := by
+  refine Sequence.ext ?_
+  refine funext ?_
+  intro i
+  dsimp [append]
+  rw [ite_eq_left_iff]
+  intro lm1
+  simp at lm1
+  dsimp [nil]
+  have lm2 := seq.length_le_iff_getAt?_eq_none_at req i
+  symm
+  exact lm2.mp lm1
 
 
 
