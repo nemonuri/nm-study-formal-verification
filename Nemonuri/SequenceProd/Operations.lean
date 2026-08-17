@@ -14,32 +14,32 @@ variable {α: Type _} {β: Type _} {sp sp2: SequenceProd α β} {a: α} {b: β}
 
 def singleFst (α β: Type _) (a: α) : SequenceProd α β := ⟨Sequence.single a, Sequence.nil⟩
 
-theorem singleFst_toFinLabelEq {a: α} : (singleFst α β a).toFinLabelEq = .eq := by
-  rw [toFinLabel_eq_eq_iff]
+theorem singleFst_finiteEq {a: α} : (singleFst α β a).toFiniteLabelEq = .labelEq := by
+  rw [finiteEq_iff_fst_snd_finiteEq]
   dsimp [singleFst]
-  dsimp [Sequence.toFinLabel]
+  dsimp [Sequence.toFiniteLabel]
   rw [Sequence.single_length?_eq_one, Sequence.nil_length?_eq_zero]
   rw [← ENat.coe_one, ← ENat.coe_zero]
   simp only [FiniteLabel.ofENat_natCast]
 
-theorem singleFst_toFinLabel {a: α} : (singleFst α β a).toFinLabel singleFst_toFinLabelEq = .finite := by
-  rw [tofinLabel_eq_snd_toFinLabel]
+theorem singleFst_toFinLabel {a: α} : (singleFst α β a).toFiniteLabel singleFst_finiteEq = .finite := by
+  rw [← snd_self_finiteEq]
   dsimp [singleFst]
   refine Sequence.finite_of_empty ?_
-  rw [Sequence.toEmptyLabel_eq_empty_iff_length?_eq_zero]
+  rw [Sequence.empty_iff_length?_eq_zero]
   exact nil_length?_eq_zero
 
 
 def stepL (a: α) (b: β) : SequenceProd α β → SequenceProd α β
   | ⟨fst, snd⟩ => ⟨Sequence.cons a fst, Sequence.cons b snd⟩
 
-theorem stepL_emptyLabel_eq : (sp.stepL a b).toEmptyLabelEq = .eq := by
-  rw [toEmptyLabel_eq_eq_iff]
+theorem stepL_emptyLabel_eq : (sp.stepL a b).toEmptyLabelEq = .labelEq := by
+  rw [emptyEq_iff_fst_snd_emptyEq]
   dsimp [stepL]
   simp only [Sequence.cons_nonempty]
 
 theorem stepL_nonempty : (sp.stepL a b).toEmptyLabel stepL_emptyLabel_eq = .nonempty := by
-  rw [toEmptyLabel_eq_fst_toEmptyLabel]
+  rw [← fst_self_emptyEq]
   dsimp [stepL]
   simp only [Sequence.cons_nonempty]
 
@@ -65,7 +65,7 @@ theorem stepL_tail : (sp.stepL a b).tail = sp := by
   <;> exact Sequence.cons_tail
 
 
-theorem stepL_eta (req1: sp.toEmptyLabelEq = .eq) (req2: sp.toEmptyLabel req1 = .nonempty)
+theorem stepL_eta (req1: sp.toEmptyLabelEq = .labelEq) (req2: sp.toEmptyLabel req1 = .nonempty)
   : let x := sp.head req1 req2; stepL x.fst x.snd sp.tail = sp := by
   extract_lets x
   rcases lm1: x with ⟨a, b⟩
@@ -79,14 +79,14 @@ theorem stepL_eta (req1: sp.toEmptyLabelEq = .eq) (req2: sp.toEmptyLabel req1 = 
   <;> dsimp [tail, stepL]
   <;> rw [Sequence.tail_cons_eq_self_iff]
   · refine Exists.intro ?_ ?_
-    · have lm3 := toEmptyLabel_eq_fst_toEmptyLabel req1
+    · have lm3 := fst_self_emptyEq req1 |>.symm
       calc
         _ = _ := lm3.symm
         _ = _ := req2
     · rw [← lm1]
       dsimp [head]
   · refine Exists.intro ?_ ?_
-    · have lm3 := toEmptyLabel_eq_snd_toEmptyLabel req1
+    · have lm3 := snd_self_emptyEq req1 |>.symm
       calc
         _ = _ := lm3.symm
         _ = _ := req2

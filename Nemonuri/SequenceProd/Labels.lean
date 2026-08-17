@@ -7,8 +7,8 @@ public import Nemonuri.Sequence.Labels
 namespace Nemonuri
 
 inductive LabelEq (T: Type _) [DecidableEq T] [Fintype T] where
-  | eq
-  | ne
+  | labelEq
+  | labelNe
 
 namespace LabelEq
 
@@ -16,7 +16,7 @@ variable {T: Type _} [DecidableEq T] [Fintype T]
 
 def beq (l1 l2: LabelEq T) : Bool :=
   match l1, l2 with
-  | .eq, .eq | .ne, .ne => .true
+  | .labelEq, .labelEq | .labelNe, .labelNe => .true
   | _, _ => .false
 
 instance : DecidableEq (LabelEq T) :=
@@ -34,7 +34,7 @@ instance : DecidableEq (LabelEq T) :=
       · simp at lm1
       · simp at lm2 )
 
-def enumList (T: Type _) [DecidableEq T] [Fintype T] : List (LabelEq T) := [.eq, .ne]
+def enumList (T: Type _) [DecidableEq T] [Fintype T] : List (LabelEq T) := [.labelEq, .labelNe]
 
 theorem enumList_nodup : enumList T |>.Nodup := by
   dsimp [enumList]
@@ -48,12 +48,12 @@ instance : Fintype (LabelEq T) where
     simp
     cases leq <;> simp
 
-theorem ne_eq_iff_eq_ne {l: LabelEq T}
-  : (l ≠ .eq) ↔ (l = .ne) := by
+theorem ne_labelEq_iff_eq_labelNe {l: LabelEq T}
+  : (l ≠ .labelEq) ↔ (l = .labelNe) := by
   cases l <;> simp
 
-theorem ne_ne_iff_eq_eq {l: LabelEq T}
-  : (l ≠ .eq) ↔ (l = .ne) := by
+theorem ne_labelNe_iff_eq_labelEq {l: LabelEq T}
+  : (l ≠ .labelEq) ↔ (l = .labelNe) := by
   cases l <;> simp
 
 section ENat
@@ -62,12 +62,14 @@ variable {en1 en2: ℕ∞}
 
 def ofENat (toLabel: ℕ∞ → T) (en1 en2: ℕ∞) : LabelEq T :=
   match decide (toLabel en1 = toLabel en2) with
-  | .true => .eq
-  | .false => .ne
+  | .true => .labelEq
+  | .false => .labelNe
 
 def finiteOfENat : ℕ∞ → ℕ∞ → LabelEq FiniteLabel := ofENat FiniteLabel.ofENat
 
 def emptyOfENat : ℕ∞ → ℕ∞ → LabelEq EmptyLabel := ofENat EmptyLabel.ofENat
+
+
 
 end ENat
 

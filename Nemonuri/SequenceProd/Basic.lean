@@ -33,10 +33,10 @@ theorem ext_iff : (sp = sp2) ↔ ((sp.fst.getAt? = sp2.fst.getAt?) ∧ (sp.snd.g
   · rintro ⟨lm1, lm2⟩
     exact ext lm1 lm2
 
-def toFinLabelEq (sp: SequenceProd α β) : LabelEq FiniteLabel := LabelEq.finiteOfENat sp.fst.length? sp.snd.length?
+def toFiniteLabelEq (sp: SequenceProd α β) : LabelEq FiniteLabel := LabelEq.finiteOfENat sp.fst.length? sp.snd.length?
 
-theorem toFinLabel_eq_eq_iff : (sp.toFinLabelEq = .eq) ↔ (sp.fst.toFinLabel = sp.snd.toFinLabel) := by
-  dsimp [toFinLabelEq, Sequence.toFinLabel, LabelEq.finiteOfENat, LabelEq.ofENat]
+theorem finiteEq_iff_fst_snd_finiteEq : (sp.toFiniteLabelEq = .labelEq) ↔ (sp.fst.toFiniteLabel = sp.snd.toFiniteLabel) := by
+  dsimp [toFiniteLabelEq, Sequence.toFiniteLabel, LabelEq.finiteOfENat, LabelEq.ofENat]
   split <;> rename_i _ lm1 <;> simp at lm1
   · simp
     exact lm1
@@ -44,28 +44,28 @@ theorem toFinLabel_eq_eq_iff : (sp.toFinLabelEq = .eq) ↔ (sp.fst.toFinLabel = 
     exact lm1
 
 
-theorem toFinLabel_eq_ne_iff : (sp.toFinLabelEq = .ne) ↔ (sp.fst.toFinLabel ≠ sp.snd.toFinLabel) := by
-  rw [← LabelEq.ne_eq_iff_eq_ne]
+theorem finiteEq_iff_fst_snd_finiteNe : (sp.toFiniteLabelEq = .labelNe) ↔ (sp.fst.toFiniteLabel ≠ sp.snd.toFiniteLabel) := by
+  rw [← LabelEq.ne_labelEq_iff_eq_labelNe]
   refine Iff.not ?_
-  exact toFinLabel_eq_eq_iff
+  exact finiteEq_iff_fst_snd_finiteEq
 
-def toFinLabel (_: sp.toFinLabelEq = .eq) : FiniteLabel := sp.fst.toFinLabel
+def toFiniteLabel (sp: SequenceProd α β) (_: sp.toFiniteLabelEq = .labelEq) : FiniteLabel := sp.fst.toFiniteLabel
 
-theorem toFinLabel_eq_fst_toFinLabel (req: sp.toFinLabelEq = .eq)
-  : toFinLabel req = sp.fst.toFinLabel :=
+theorem fst_self_finiteEq (req: sp.toFiniteLabelEq = .labelEq)
+  : sp.fst.toFiniteLabel = sp.toFiniteLabel req :=
   rfl
 
-theorem tofinLabel_eq_snd_toFinLabel (req: sp.toFinLabelEq = .eq)
-  : toFinLabel req = sp.snd.toFinLabel :=
+theorem snd_self_finiteEq (req: sp.toFiniteLabelEq = .labelEq)
+  : sp.snd.toFiniteLabel = sp.toFiniteLabel req :=
   calc
-    _ = _ := toFinLabel_eq_fst_toFinLabel req
-    _ = _ := toFinLabel_eq_eq_iff.mp req
+    _ = _ := finiteEq_iff_fst_snd_finiteEq.mp req |>.symm
+    _ = _ := fst_self_finiteEq req
 
 
 def toEmptyLabelEq (sp: SequenceProd α β) : LabelEq EmptyLabel := LabelEq.emptyOfENat sp.fst.length? sp.snd.length?
 
 
-theorem toEmptyLabel_eq_eq_iff : (sp.toEmptyLabelEq = .eq) ↔ (sp.fst.toEmptyLabel = sp.snd.toEmptyLabel) := by
+theorem emptyEq_iff_fst_snd_emptyEq : (sp.toEmptyLabelEq = .labelEq) ↔ (sp.fst.toEmptyLabel = sp.snd.toEmptyLabel) := by
   dsimp [toEmptyLabelEq, Sequence.toEmptyLabel, LabelEq.emptyOfENat, LabelEq.ofENat]
   split <;> rename_i _ lm1 <;> simp at lm1
   · simp
@@ -73,22 +73,22 @@ theorem toEmptyLabel_eq_eq_iff : (sp.toEmptyLabelEq = .eq) ↔ (sp.fst.toEmptyLa
   · simp
     exact lm1
 
-theorem toEmptyLabel_ne_eq_iff : (sp.toEmptyLabelEq = .ne) ↔ (sp.fst.toEmptyLabel ≠ sp.snd.toEmptyLabel) := by
-  rw [← LabelEq.ne_eq_iff_eq_ne]
+theorem emptyNe_iff_fst_snd_emptyNe : (sp.toEmptyLabelEq = .labelNe) ↔ (sp.fst.toEmptyLabel ≠ sp.snd.toEmptyLabel) := by
+  rw [← LabelEq.ne_labelEq_iff_eq_labelNe]
   refine Iff.not ?_
-  exact toEmptyLabel_eq_eq_iff
+  exact emptyEq_iff_fst_snd_emptyEq
 
-def toEmptyLabel (_: sp.toEmptyLabelEq = .eq) : EmptyLabel := sp.fst.toEmptyLabel
+def toEmptyLabel (sp: SequenceProd α β) (_: sp.toEmptyLabelEq = .labelEq) : EmptyLabel := sp.fst.toEmptyLabel
 
-theorem toEmptyLabel_eq_fst_toEmptyLabel (req: sp.toEmptyLabelEq = .eq)
-  : toEmptyLabel req = sp.fst.toEmptyLabel :=
+theorem fst_self_emptyEq (req: sp.toEmptyLabelEq = .labelEq)
+  : sp.fst.toEmptyLabel = sp.toEmptyLabel req :=
   rfl
 
-theorem toEmptyLabel_eq_snd_toEmptyLabel (req: sp.toEmptyLabelEq = .eq)
-  : toEmptyLabel req = sp.snd.toEmptyLabel :=
+theorem snd_self_emptyEq (req: sp.toEmptyLabelEq = .labelEq)
+  : sp.snd.toEmptyLabel = sp.toEmptyLabel req :=
   calc
-    _ = _ := toEmptyLabel_eq_fst_toEmptyLabel req
-    _ = _ := toEmptyLabel_eq_eq_iff.mp req
+    _ = _ := emptyEq_iff_fst_snd_emptyEq.mp req |>.symm
+    _ = _ := sp.fst_self_emptyEq req
 
 
 def head? (sp: SequenceProd α β) : OptionProd α β :=
@@ -107,12 +107,12 @@ theorem head?_eq_ofProd? : sp.head? = OptionProd.ofProd? (sp.fst.head?, sp.snd.h
 
 
 
-def head (sp: SequenceProd α β) (req1: sp.toEmptyLabelEq = .eq) (req2: sp.toEmptyLabel req1 = .nonempty) : Prod α β :=
-  have lm1 := sp.toEmptyLabel_eq_fst_toEmptyLabel req1 |>.symm.trans req2
-  have lm2 := sp.toEmptyLabel_eq_snd_toEmptyLabel req1 |>.symm.trans req2
+def head (sp: SequenceProd α β) (req1: sp.toEmptyLabelEq = .labelEq) (req2: sp.toEmptyLabel req1 = .nonempty) : Prod α β :=
+  have lm1 := sp.fst_self_emptyEq req1 |>.trans req2
+  have lm2 := sp.snd_self_emptyEq req1 |>.trans req2
   ⟨sp.fst.head lm1, sp.snd.head lm2⟩
 
-theorem head?_eq_ofProd_head (req1: sp.toEmptyLabelEq = .eq) (req2: sp.toEmptyLabel req1 = .nonempty)
+theorem head?_eq_ofProd_head (req1: sp.toEmptyLabelEq = .labelEq) (req2: sp.toEmptyLabel req1 = .nonempty)
   : sp.head? = OptionProd.ofProd (sp.head req1 req2) := by
   rcases lm1: sp.head req1 req2 with ⟨fst, snd⟩
   dsimp

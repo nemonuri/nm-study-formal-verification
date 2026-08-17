@@ -24,8 +24,8 @@ variable {cf: Cons α} {a: α} {seq: Sequence α}
 
 
 /-
-theorem cons_length_eq_length_add_one (req: seq.toFinLabel = .finite)
-  : ((cf.cons a seq).length (cf.cons_toFinLabel_eq_finite_iff_toFinLabel_eq_finite.mpr req)) = (seq.length req) + 1 := by
+theorem cons_length_eq_length_add_one (req: seq.toFiniteLabel = .finite)
+  : ((cf.cons a seq).length (cf.cons_finite_iff_finite.mpr req)) = (seq.length req) + 1 := by
   have lm1 := @cf.cons_tail a seq
 -/
 
@@ -77,7 +77,7 @@ theorem toSequenceAt_injective : Function.Injective (toSequenceAt C α) := by
   rewrite [toSequenceAt_eq_toSequence] at lm1
   have lm2 := @SequenceLike.inj C α _ c1 c2
   refine lm2 ?_
-  rewrite [← Sequence.ext_iff] at lm1
+  rewrite [Sequence.ext_iff] at lm1
   dsimp [toSequence] at lm1
   simp [funext_iff] at lm1
   refine funext ?_
@@ -101,13 +101,13 @@ theorem toLength?_eq_toSequence_length? : toLength? c = (toSequence c).length? :
 /-
 def toEmptyLabel (c: C) : EmptyLabel := .ofENat (toLength? c)
 
-def toFinLabel (c: C) : FiniteLabel := .ofENat (toLength? c)
+def toFiniteLabel (c: C) : FiniteLabel := .ofENat (toLength? c)
 
 @[defeq]
 theorem toEmptyLabel_eq_toSequence_toEmptyLabel : toEmptyLabel c = (toSequence c).toEmptyLabel := rfl
 
 @[defeq]
-theorem toFinLabel_eq_toSequence_toFinLabel : toFinLabel c = (toSequence c).toFinLabel := rfl
+theorem toFiniteLabel_eq_toSequence_toFiniteLabel : toFiniteLabel c = (toSequence c).toFiniteLabel := rfl
 -/
 
 def toGetAt (c: C) (i: ℕ) (req: i < toLength? c) : α :=
