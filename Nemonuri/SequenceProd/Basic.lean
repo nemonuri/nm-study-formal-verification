@@ -140,6 +140,13 @@ theorem head?_eq_ofProd_head (req1: sp.toEmptyLabelEq = .labelEq) (req2: sp.toEm
 
 def getAt? (sp: SequenceProd α β) (i: ℕ) : OptionProd α β := OptionProd.ofProd? ⟨sp.fst.getAt? i, sp.snd.getAt? i⟩
 
+@[defeq]
+theorem getAt?_eq_ofProd?_getAt?_at (i: ℕ) : sp.getAt? i = .ofProd? (sp.fst.getAt? i, sp.snd.getAt? i) := rfl
+
+@[defeq]
+theorem getAt?_eq_ofProd?_getAt? : sp.getAt? = (fun (i: ℕ) => .ofProd? (sp.fst.getAt? i, sp.snd.getAt? i)) := rfl
+
+
 def getAt (sp: SequenceProd α β) (i: ℕ) (req1: i < sp.fst.length?) (req2: i < sp.snd.length?) : Prod α β := ⟨sp.fst.getAt i req1, sp.snd.getAt i req2⟩
 
 theorem getAt?_eq_ofProd_getAt {i: ℕ} (req1: i < sp.fst.length?) (req2: i < sp.snd.length?)
@@ -155,6 +162,24 @@ theorem getAt?_eq_ofProd_getAt {i: ℕ} (req1: i < sp.fst.length?) (req2: i < sp
   refine And.intro ?_ ?_
   · exact Sequence.getAt?_eq_some_getAt req1
   · exact Sequence.getAt?_eq_some_getAt req2
+
+
+
+theorem getAt?_ext (req: sp.getAt? = sp2.getAt?) : sp = sp2 := by
+  dsimp only [getAt?_eq_ofProd?_getAt?] at req
+  rewrite [funext_iff] at req
+  conv at req =>
+    conv =>
+      arg 2
+      rw [OptionProd.ext_iff]
+      simp
+    rw [forall_and]
+    simp only [← funext_iff]
+  rcases req with ⟨lm1, lm2⟩
+  exact SequenceProd.ext lm1 lm2
+
+theorem getAt?_ext_iff : (sp = sp2) ↔ (sp.getAt? = sp2.getAt?) := ⟨fun lm1 => congrArg _ lm1, getAt?_ext⟩
+
 
 
 def getAt?Flip (i: ℕ) {α β: Type _} (sp: SequenceProd α β) : OptionProd α β := sp.getAt? i

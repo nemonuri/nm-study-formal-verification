@@ -14,6 +14,8 @@ variable {α: Type _} {β: Type _} {sp sp2: SequenceProd α β} {a: α} {b: β}
 
 def singleFst (α β: Type _) (a: α) : SequenceProd α β := ⟨Sequence.single a, Sequence.nil⟩
 
+section SingleFst
+
 theorem singleFst_finiteEq {a: α} : (singleFst α β a).toFiniteLabelEq = .labelEq := by
   rw [finiteEq_iff_fst_snd_finiteEq]
   dsimp [singleFst]
@@ -29,9 +31,27 @@ theorem singleFst_toFinLabel {a: α} : (singleFst α β a).toFiniteLabel singleF
   rw [Sequence.empty_iff_length?_eq_zero]
   exact nil_length?_eq_zero
 
+theorem singleFst_getAt?_zero : (singleFst α β a).getAt? 0 = OptionProd.fst a := by
+  refine OptionProd.ext ?_ ?_ <;> dsimp [singleFst, getAt?_eq_ofProd?_getAt?]
+  . simp
+    dsimp [Sequence.single]
+  · simp
+    exact Sequence.nil_getAt?_none
+
+theorem singleFst_getAt?_add_one {i: ℕ} : (singleFst α β a).getAt? (i + 1) = OptionProd.none := by
+  refine OptionProd.ext ?_ ?_ <;> dsimp [singleFst, getAt?_eq_ofProd?_getAt?]
+  · simp
+    dsimp [Sequence.single]
+  · simp
+    exact Sequence.nil_getAt?_none
+
+end SingleFst
+
 
 def stepL (a: α) (b: β) : SequenceProd α β → SequenceProd α β
   | ⟨fst, snd⟩ => ⟨Sequence.cons a fst, Sequence.cons b snd⟩
+
+section StepL
 
 theorem stepL_emptyLabel_eq : (sp.stepL a b).toEmptyLabelEq = .labelEq := by
   rw [emptyEq_iff_fst_snd_emptyEq]
@@ -53,6 +73,19 @@ theorem stepL_head : (sp.stepL a b).head stepL_emptyLabel_eq stepL_nonempty = (a
   rw [← SequenceProd.head?_eq_ofProd_head]
   refine stepL_head?.trans ?_
   dsimp
+
+theorem stepL_getAt?_zero : (sp.stepL a b).getAt? 0 = OptionProd.both a b := by
+  rw [← getAt?Flip_eq_getAt?]
+  rw [← head?_eq_getAt?Flip_zero]
+  exact stepL_head?
+
+theorem stepL_getAt?_add_one_at (i: ℕ) : (sp.stepL a b).getAt? (i + 1) = sp.getAt? i := by
+  simp only [getAt?_eq_ofProd?_getAt?]
+  refine congrArg _ ?_
+  refine Prod.ext ?_ ?_ <;> dsimp [stepL]
+  <;> exact Sequence.cons_getAt?_add_one_eq_getAt?
+
+end StepL
 
 
 def tail : SequenceProd α β → SequenceProd α β

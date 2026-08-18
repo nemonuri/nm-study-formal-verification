@@ -120,6 +120,33 @@ def equivOfProd? : (Prod (Option α) (Option β)) ≃ OptionProd α β where
   right_inv := rightInverse_toProd?_ofProd?
 
 
+section ToProd?
+
+@[defeq, simp]
+theorem both_toProd?_fst : (.both a b : OptionProd α β).toProd?.fst = .some a := rfl
+
+@[defeq, simp]
+theorem fst_toProd?_fst : (.fst a : OptionProd α β).toProd?.fst = .some a := rfl
+
+@[defeq, simp]
+theorem snd_toProd?_fst : (.snd b : OptionProd α β).toProd?.fst = .none := rfl
+
+@[defeq, simp]
+theorem none_toProd?_fst : (.none : OptionProd α β).toProd?.fst = .none := rfl
+
+@[defeq, simp]
+theorem both_toProd?_snd : (.both a b : OptionProd α β).toProd?.snd = .some b := rfl
+
+@[defeq, simp]
+theorem fst_toProd?_snd : (.fst a : OptionProd α β).toProd?.snd = .none := rfl
+
+@[defeq, simp]
+theorem snd_toProd?_snd : (.snd b : OptionProd α β).toProd?.snd = .some b := rfl
+
+@[defeq, simp]
+theorem none_toProd?_snd : (.none : OptionProd α β).toProd?.snd = .none := rfl
+
+end ToProd?
 
 
 section OfProd?
