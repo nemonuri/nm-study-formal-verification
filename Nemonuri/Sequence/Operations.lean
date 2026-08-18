@@ -298,6 +298,12 @@ def single (a: α) : Sequence α where
 @[defeq]
 theorem single_length?_eq_one : (single a).length? = 1 := rfl
 
+@[defeq]
+theorem single_getAt?_zero : (single a).getAt? 0 = Option.some a := rfl
+
+@[defeq]
+theorem single_getAt?_add_one : (single a).getAt? (i + 1) = Option.none := rfl
+
 
 def singleCons (a: α) : Sequence α := cons a nil
 

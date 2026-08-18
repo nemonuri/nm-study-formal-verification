@@ -112,6 +112,17 @@ def nilOp : NilOp (AdHoc α) α where
   nilBy := List.nilOp.nilBy |> .finite
   nilBy_empty := List.nilOp.nilBy_empty
 
+def singleOp : SingleOp (AdHoc α) α where
+  singleBy a := .finite [a]
+  getAt?_zero := by
+    intro a
+    dsimp [SequenceLike.toGetAt?, SequenceLike.toSturct, AdHoc.getAt?]
+    rw [← toGetAt?_eq_toSequence_getAt?]
+    dsimp [SequenceLike.toGetAt?, SequenceLike.toSturct]
+    rfl
+  getAt?_add_on := by
+    intro a i
+
 
 end AdHoc
 

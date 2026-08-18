@@ -532,22 +532,38 @@ theorem appendBy_append₃
   intro req1
   exact appendBy_append₂ req1
 
-
-
-/-
-theorem appendBy?_append?
-  : (toSequence <$> ab.appendBy? seq1) = ( (append? (toSequence seq1)).bind toSequence) := by
--/
-
-
-/-
-theorem appendBy_append --(req1: toLength? seq1 ≠ ⊤)
-  : (toSequence) ∘' (ab.appendBy) = (@append α) ∘' toSequence := by
--/
-
-
-
 end HAppendOp
+
+structure SingleOp (C α: Type _) [SequenceLike C α] where
+  singleBy: α → C
+  getAt?_zero {a: α} : (toGetAt? (singleBy a) 0) = Option.some a
+  getAt?_add_on {a: α} {i: ℕ} : (toGetAt? (singleBy a) (i + 1)) = Option.none
+
+
+namespace SingleOp
+
+variable {C: Type _} {α: Type _} [SequenceLike C α]
+         {so: SingleOp C α}
+
+
+theorem singleBy_single : toSequence ∘ so.singleBy = single := by
+  refine funext ?_
+  intro a
+  refine Sequence.ext ?_
+  refine funext ?_
+  intro i
+  rcases i with _ | i
+  · dsimp
+    rw [← toGetAt?_eq_toSequence_getAt?, getAt?_zero]
+    rw [single_getAt?_zero]
+  · dsimp
+    rw [← toGetAt?_eq_toSequence_getAt?, getAt?_add_on]
+    rw [single_getAt?_add_one]
+
+
+end SingleOp
+
+
 
 end Nemonuri.SequenceLike
 

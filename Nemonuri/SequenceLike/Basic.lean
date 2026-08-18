@@ -1,5 +1,6 @@
 module
 
+public meta import Nemonuri.SequenceLike.Tactic
 public import Nemonuri.Sequence.Basic
 
 @[expose] public section
@@ -22,15 +23,34 @@ namespace SequenceLike
 
 open Sequence
 
+namespace Struct
+
+variable {C1 C2: Type _} {α: Type _}
+
+/-- Contravariant map -/
+def contramap (f: C1 → C2) (st: Struct C2 α) : Struct C1 α where
+  toGetAt? := st.toGetAt? ∘ f
+  toLength? := st.toLength? ∘ f
+  toLength?_toGetAt? := (fun {c1} => @st.toLength?_toGetAt? (f c1))
+
+def ofSequenceLike (C α: Type _) [i: SequenceLike C α] : Struct C α := i.toSturct
+
+
+end Struct
+
+attribute [seqlike_norm] SequenceLike.toSturct
+
 variable {C: Type _} {α: Type _} [SequenceLike C α] {c: C}
 
+@[seqlike_norm]
 def toGetAt? : C → ℕ → (Option α) := toSturct.toGetAt?
 
+@[seqlike_norm]
 def toLength? : C → ℕ∞ := toSturct.toLength?
 
 theorem toLength?_toGetAt? {c: C} {i: ℕ} : (i < (toLength? c)) ↔ (toGetAt? c i).isSome := by
   have lm1 := @toSturct.toLength?_toGetAt? c i
-  dsimp [toGetAt?, toLength?]
+  dsimp only [seqlike_norm]
   exact lm1
 
 def toSequence (c: C) : Sequence α where
