@@ -53,6 +53,12 @@ theorem lt_fst_length?_of_lt_snd_length? (h: IsWShape sp) {i: ℕ} (req: i < sp.
     _ < _ := h.add_one_lt_fst_length?_of_lt_snd_length? req
 
 
+theorem fst_nonempty (h: IsWShape sp) : sp.fst.toEmptyLabel = .nonempty := by
+  rw [sp.fst.nonempty_iff_length?_ne_zero]
+  rw [h.length?_eq]
+  simp
+
+
 
 end IsWShape
 

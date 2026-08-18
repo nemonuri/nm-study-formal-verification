@@ -142,6 +142,9 @@ theorem nil_finite : (nil: SequenceProd α β).toFiniteLabel nil_finiteEq = .fin
   dsimp [nil]
   exact Sequence.nil_finite
 
+@[defeq]
+theorem nil_getAt? {i: ℕ} : (nil: SequenceProd α β).getAt? i = OptionProd.none := rfl
+
 end Nil
 
 
