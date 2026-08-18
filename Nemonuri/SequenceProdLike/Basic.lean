@@ -1,5 +1,6 @@
 module
 
+public meta import Nemonuri.SequenceLike.Tactic
 public import Nemonuri.SequenceLike.Basic
 public import Nemonuri.SequenceProd.Basic
 
@@ -20,14 +21,9 @@ open SequenceProd
 variable {C α β: Type _} [SequenceProdLike C α β] {c: C}
 
 def toSequenceProd (c: C) : SequenceProd α β where
-  fst := {
-    getAt? := fst.toGetAt? c
-    length? := fst.toLength? c
-    length?_getAt? := fst.toLength?_toGetAt? }
-  snd := {
-    getAt? := snd.toGetAt? c
-    length? := snd.toLength? c
-    length?_getAt? := snd.toLength?_toGetAt? }
+  fst := fst.toSequence c
+  snd := snd.toSequence c
+
 
 abbrev toSequenceProdAt (C α β: Type _) [SequenceProdLike C α β] (c: C) : SequenceProd α β := toSequenceProd c
 
@@ -68,9 +64,10 @@ theorem snd_toLength?_eq_toSequenceProd_snd_toLength? : snd.toLength? c = (toSeq
 
 def toGetAt? (c: C) (i: ℕ) : OptionProd α β := .ofProd? (fst.toGetAt? c i, snd.toGetAt? c i)
 
-@[defeq]
+@[defeq, seqlike_unfold]
 theorem toGetAt?_eq_ofProd?_toGetAt?_at (i: ℕ) : toGetAt? c i = .ofProd? (fst.toGetAt? c i, snd.toGetAt? c i) := rfl
 
+@[seqlike_unfold ←]
 theorem toGetAt?_eq_toSequenceProd_getAt? : toGetAt? c = (toSequenceProd c).getAt? := by
   refine funext ?_
   intro i
@@ -82,7 +79,7 @@ theorem toGetAt?_eq_toSequenceProd_getAt? : toGetAt? c = (toSequenceProd c).getA
   · rw [fst_toGetAt?_eq_toSequenceProd_fst_getAt?]
   · rw [snd_toGetAt?_eq_toSequenceProd_snd_getAt?]
 
-
+attribute [seqlike_unfold] SequenceProdLike.fst SequenceProdLike.snd
 
 
 end SequenceProdLike

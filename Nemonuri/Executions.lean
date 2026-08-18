@@ -1,10 +1,6 @@
 module
 
-public import Cslib.Foundations.Semantics.LTS.Execution
-public import Cslib.Foundations.Semantics.LTS.OmegaExecution
-public import Nemonuri.Executions.FiniteExecutionFragment
-public import Nemonuri.Executions.InfiniteExecutionFragment
-public import Nemonuri.Executions.ExecutionFragment
+public import Nemonuri.Executions.Basic
 
 /-!
 

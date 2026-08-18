@@ -38,10 +38,10 @@ theorem getAt?_injective : Function.Injective (@getAt? α) := by
       refine toSequenceAt_getAt?_ext ?_
       exact funext lm1
     · specialize lm1 as1.length
-      simp [← toGetAt?_eq_toSequence_getAt?, seqlike_norm] at lm1
+      simp [← toGetAt?_eq_toSequence_getAt?, seqlike_unfold] at lm1
   · split at lm1 <;> rename_i seq2 as2
     · specialize lm1 as2.length
-      simp [← toGetAt?_eq_toSequence_getAt?, seqlike_norm] at lm1
+      simp [← toGetAt?_eq_toSequence_getAt?, seqlike_unfold] at lm1
     · congr
       refine toSequenceAt_getAt?_ext ?_
       exact funext lm1
@@ -75,25 +75,25 @@ def consOp : ConsOp (AdHoc α) α where
     intro a seq
     rcases seq with as | as
     · dsimp only
-      dsimp [seqlike_norm]
+      dsimp [seqlike_unfold]
       dsimp [List.consOp]
       dsimp [AdHoc.getAt?]
       dsimp [← toGetAt?_eq_toSequence_getAt?]
-      dsimp [seqlike_norm]
+      dsimp [seqlike_unfold]
       simp
     · dsimp only
-      dsimp [seqlike_norm]
+      dsimp [seqlike_unfold]
       dsimp [ωSequence.consOp]
       dsimp [AdHoc.getAt?]
       dsimp [← toGetAt?_eq_toSequence_getAt?]
-      dsimp [seqlike_norm]
+      dsimp [seqlike_unfold]
   consBy_tail := by
     intro a seq i
     rcases seq with as | as
     · dsimp only
-      dsimp [seqlike_norm, List.consOp, AdHoc.getAt?, ← toGetAt?_eq_toSequence_getAt?]
+      dsimp [seqlike_unfold, List.consOp, AdHoc.getAt?, ← toGetAt?_eq_toSequence_getAt?]
     · dsimp only
-      dsimp [seqlike_norm, ωSequence.consOp, AdHoc.getAt?, ← toGetAt?_eq_toSequence_getAt?]
+      dsimp [seqlike_unfold, ωSequence.consOp, AdHoc.getAt?, ← toGetAt?_eq_toSequence_getAt?]
 
 def tailOp : TailOp (AdHoc α) α where
   tailBy seq :=
@@ -118,15 +118,15 @@ def singleOp : SingleOp (AdHoc α) α where
   singleBy a := .finite [a]
   getAt?_zero := by
     intro a
-    dsimp [seqlike_norm, AdHoc.getAt?]
+    dsimp [seqlike_unfold, AdHoc.getAt?]
     rw [← toGetAt?_eq_toSequence_getAt?]
-    dsimp [seqlike_norm]
+    dsimp [seqlike_unfold]
     rfl
-  getAt?_add_on := by
+  getAt?_add_one := by
     intro a i
-    dsimp [seqlike_norm, AdHoc.getAt?]
+    dsimp [seqlike_unfold, AdHoc.getAt?]
     rw [← toGetAt?_eq_toSequence_getAt?]
-    dsimp [seqlike_norm]
+    dsimp [seqlike_unfold]
 
 
 end AdHoc

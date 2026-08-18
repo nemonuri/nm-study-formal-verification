@@ -537,7 +537,7 @@ end HAppendOp
 structure SingleOp (C α: Type _) [SequenceLike C α] where
   singleBy: α → C
   getAt?_zero {a: α} : (toGetAt? (singleBy a) 0) = Option.some a
-  getAt?_add_on {a: α} {i: ℕ} : (toGetAt? (singleBy a) (i + 1)) = Option.none
+  getAt?_add_one {a: α} {i: ℕ} : (toGetAt? (singleBy a) (i + 1)) = Option.none
 
 
 namespace SingleOp
@@ -557,7 +557,7 @@ theorem singleBy_single : toSequence ∘ so.singleBy = single := by
     rw [← toGetAt?_eq_toSequence_getAt?, getAt?_zero]
     rw [single_getAt?_zero]
   · dsimp
-    rw [← toGetAt?_eq_toSequence_getAt?, getAt?_add_on]
+    rw [← toGetAt?_eq_toSequence_getAt?, getAt?_add_one]
     rw [single_getAt?_add_one]
 
 

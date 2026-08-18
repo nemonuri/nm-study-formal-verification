@@ -6,6 +6,6 @@ public meta import Lean.Meta.Tactic.Simp.Attr
 
 public meta section
 
-register_simp_attr seqlike_norm
+register_simp_attr seqlike_unfold
 
 end

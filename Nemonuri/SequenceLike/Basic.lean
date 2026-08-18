@@ -25,38 +25,53 @@ open Sequence
 
 namespace Struct
 
-variable {C1 C2: Type _} {α: Type _}
+variable {C C1 C2: Type _} {α: Type _}
 
 /-- Contravariant map -/
+@[seqlike_unfold]
 def contramap (f: C1 → C2) (st: Struct C2 α) : Struct C1 α where
   toGetAt? := st.toGetAt? ∘ f
   toLength? := st.toLength? ∘ f
   toLength?_toGetAt? := (fun {c1} => @st.toLength?_toGetAt? (f c1))
 
+@[seqlike_unfold]
 def ofSequenceLike (C α: Type _) [i: SequenceLike C α] : Struct C α := i.toSturct
 
+def toSequence (st: Struct C α) (c: C) : Sequence α where
+  getAt? i := st.toGetAt? c i
+  length? := st.toLength? c
+  length?_getAt? := st.toLength?_toGetAt?
 
 end Struct
 
-attribute [seqlike_norm] SequenceLike.toSturct
+attribute [seqlike_unfold] SequenceLike.toSturct
 
 variable {C: Type _} {α: Type _} [SequenceLike C α] {c: C}
 
-@[seqlike_norm]
+@[seqlike_unfold]
 def toGetAt? : C → ℕ → (Option α) := toSturct.toGetAt?
 
-@[seqlike_norm]
+@[seqlike_unfold]
 def toLength? : C → ℕ∞ := toSturct.toLength?
 
 theorem toLength?_toGetAt? {c: C} {i: ℕ} : (i < (toLength? c)) ↔ (toGetAt? c i).isSome := by
   have lm1 := @toSturct.toLength?_toGetAt? c i
-  dsimp only [seqlike_norm]
+  dsimp only [seqlike_unfold]
   exact lm1
 
 def toSequence (c: C) : Sequence α where
   getAt? i := toGetAt? c i
   length? := toLength? c
   length?_getAt? := @toLength?_toGetAt? C α _ c
+
+@[defeq]
+theorem toSequence_eq_toStruct_toSequence : toSequence c = toSturct.toSequence c := rfl
+
+@[defeq]
+theorem toGetAt?_eq_toSturct_toGetAt? : @toGetAt? C α _ = toSturct.toGetAt? := rfl
+
+@[defeq]
+theorem toLength?_eq_toSturct_toLength? : @toLength? C α _ = toSturct.toLength? := rfl
 
 abbrev toSequenceAt (C: Type _) (α: Type _) [SequenceLike C α] (c: C) : Sequence α := @toSequence C α _ c
 
