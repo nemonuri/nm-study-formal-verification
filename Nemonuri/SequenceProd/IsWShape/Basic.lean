@@ -83,6 +83,34 @@ theorem minLength?_add_one_eq_fst_length? (h: IsWShape sp) : sp.minLength? + 1 =
 
 
 
+theorem finite_iff_minLength?_lt_top (h: IsWShape sp)
+  : (sp.toFiniteLabel h.finite_eq = .finite) ↔ (sp.minLength? < ⊤) := by
+  rw [← snd_self_finiteEq, h.minLength?_eq_snd_length?]
+  exact sp.snd.finite_iff_length?_lt_top
+
+theorem minLength?_add_one_eq_fst_length (h: IsWShape sp) (req: sp.toFiniteLabel h.finite_eq = .finite)
+  : (sp.minLength?.lift (h.finite_iff_minLength?_lt_top.mp req)) + 1 = (sp.fst.length req) := by
+  rw [← ENat.coe_inj]
+  simp
+  rw [← Sequence.length?_eq_natCast_length]
+  exact h.minLength?_add_one_eq_fst_length?
+
+
+theorem finite_iff_fst_finite (h: IsWShape sp)
+  : (sp.toFiniteLabel h.finite_eq = .finite) ↔ (sp.fst.toFiniteLabel = .finite) := by
+  rw [h.finite_eq |> fst_self_finiteEq]
+
+theorem finite_iff_snd_finite (h: IsWShape sp)
+  : (sp.toFiniteLabel h.finite_eq = .finite) ↔ (sp.snd.toFiniteLabel = .finite) := by
+  rw [h.finite_eq |> snd_self_finiteEq]
+
+
+theorem finite_iff_minLength?_eq_natCast (h: IsWShape sp)
+  : (sp.toFiniteLabel h.finite_eq = .finite) ↔ ∃(n: ℕ), sp.minLength? = (n: ℕ∞) := by
+  rw [← snd_self_finiteEq, h.minLength?_eq_snd_length?]
+  exact sp.snd.finite_iff_length?_eq_natCast
+
+
 end IsWShape
 
 

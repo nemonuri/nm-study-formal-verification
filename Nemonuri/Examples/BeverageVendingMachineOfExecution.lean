@@ -119,10 +119,14 @@ theorem ϱ_not_maximal (x: ϱ) : ¬(ts.IsMaximal x) := by
   conv at lm3 =>
     arg 2
     arg 1
-    rw [Sequence.last?_eq_getFromLastAt?_zero]
-    dsimp [Sequence.getFromLastAt?, Sequence.getFromEndAt?]
-  split at lm3 <;> rename_i lm4
-  · simp at lm3
+    rw [Sequence.last?_eq_getFromLastAt?_zero, Sequence.getFromLastAt?_eq_some_iff_getAt?_eq_some]
+    simp [← SequenceProd.getAt?_fst?_eq_fst_getAt?_at, exec_spec_norm]
+  simp [Set.ext_iff] at lm3
+  refine lm3 5 ?_ Act.get_soda State.pay ?_
+  · simp only [← ENat.coe_one, ← ENat.coe_add]
+  · exact Tr.soda_pay
+
+
 
 /-
   rcases lm3 with ⟨⟨xs, lm3⟩, lm4⟩ | _

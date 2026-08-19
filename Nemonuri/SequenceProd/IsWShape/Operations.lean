@@ -15,6 +15,7 @@ theorem of_singleFst : (singleFst α β a).IsWShape := by
   rw [Sequence.single_length?_eq_one, Sequence.nil_length?_eq_zero]
   simp
 
+
 theorem stepL_iff : (sp.stepL a b).IsWShape ↔ sp.IsWShape := by
   constructor
   · intro lm1
@@ -29,6 +30,8 @@ theorem stepL_iff : (sp.stepL a b).IsWShape ↔ sp.IsWShape := by
     dsimp [stepL]
     simp [Sequence.cons_length?_eq_length?_add_one]
     exact lm2
+
+
 
 theorem not_nil : ¬(nil: SequenceProd α β).IsWShape := by
   intro lm1

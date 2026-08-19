@@ -82,11 +82,26 @@ attribute [exec_spec_norm]
   SequenceProd.singleFst_getAt?_zero SequenceProd.singleFst_getAt?_add_one SequenceProd.singleFst_minLength?
   SequenceProd.nil_getAt? SequenceProd.nil_minLength?
 
+/-
+attribute [exec_spec_norm] SequenceProd.singleFst_last?  SequenceProd.nil_last?
+
+attribute [exec_spec_norm ←]
+  SequenceProd.last?_fst?_eq_fst_last? SequenceProd.last?_snd?_eq_snd_last?
+-/
+
 section IsWShape
 
 open SequenceProd
 
-attribute [exec_spec_norm] IsWShape.stepL_iff IsWShape.of_singleFst IsWShape.not_nil
+attribute [exec_spec_norm]
+  IsWShape.stepL_iff IsWShape.of_singleFst IsWShape.not_nil
+
+attribute [exec_spec_norm ←]
+  IsWShape.minLength?_add_one_eq_fst_length? IsWShape.minLength?_add_one_eq_fst_length
+  IsWShape.finite_iff_fst_finite IsWShape.finite_iff_snd_finite
+
+attribute [exec_spec_norm low]
+  IsWShape.finite_iff_minLength?_eq_natCast
 
 end IsWShape
 

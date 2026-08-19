@@ -51,6 +51,32 @@ theorem singleFst_minLength? : (singleFst α β a).minLength? = 0 := by
   dsimp [nil_length?_eq_zero]
   simp
 
+theorem singleFst_last? : (singleFst α β a).last? = OptionProd.fst a := by
+  refine OptionProd.ext ?_ ?_
+  · rw [last?_fst?_eq_fst_last?]
+    dsimp [singleFst]
+    rw [Sequence.last?_eq_getFromLastAt?_zero]
+    refine Sequence.getFromLastAt?_eq_of_le_length_at ?_ 0 ?_ |> Eq.subst ?_
+    · rw [← Sequence.single_getAt?_zero]
+      refine congrArg _ ?_
+      simp
+      conv =>
+        lhs
+        arg 1
+        rw [length_eq_length?_lift]
+        simp [single_length?_eq_one]
+    · refine finite_of_length?_eq_one ?_
+      simp [single_length?_eq_one]
+    · simp
+      rw [← ENat.coe_le_coe, ← length?_eq_natCast_length, single_length?_eq_one]
+      simp
+  · rw [last?_snd?_eq_snd_last?]
+    dsimp [singleFst]
+    rw [Sequence.last?_eq_getFromLastAt?_zero]
+    refine getFromLastAt?_eq_none_of_empty ?_
+    exact Sequence.nil_empty
+
+
 end SingleFst
 
 
@@ -163,6 +189,16 @@ theorem nil_minLength? : (nil: SequenceProd α β).minLength? = 0 := by
   dsimp [nil]
   rw [minLength?_eq_ite]
   simp [Sequence.nil_length?_eq_zero]
+
+theorem nil_last? : (nil: SequenceProd α β).last? = .none := by
+  simp only [OptionProd.ext_iff]
+  rw [last?_fst?_eq_fst_last?, last?_snd?_eq_snd_last?]
+  simp [last?_eq_getFromLastAt?_zero]
+  dsimp [nil]
+  refine And.intro ?_ ?_ <;> (
+    refine getFromLastAt?_eq_none_of_empty ?_
+    exact nil_empty )
+
 
 end Nil
 

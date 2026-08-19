@@ -275,6 +275,17 @@ theorem getFromLastAt?_snd?_eq_snd_getFromLastAt?_at (i: ℕ) : (sp.getFromLastA
   simp only [OptionProd.ofProd?_snd?]
 
 
+def last? (sp: SequenceProd α β) : OptionProd α β := sp.getFromLastAt? 0
+
+theorem last?_fst?_eq_fst_last? : sp.last?.fst? = sp.fst.last? := by
+  dsimp [last?, Sequence.last?_eq_getFromLastAt?_zero]
+  exact getFromLastAt?_fst?_eq_fst_getFromLastAt?_at 0
+
+theorem last?_snd?_eq_snd_last? : sp.last?.snd? = sp.snd.last? := by
+  dsimp [last?, Sequence.last?_eq_getFromLastAt?_zero]
+  exact getFromLastAt?_snd?_eq_snd_getFromLastAt?_at 0
+
+
 theorem getFromLastAt?_eq_none_of_infinite (req1: sp.toFiniteLabelEq = .labelEq) (req2: sp.toFiniteLabel req1 = .infinite) {i: ℕ}
   : sp.getFromLastAt? i = OptionProd.none := by
   obtain ⟨lm1, lm2⟩ := (sp.finite_congr_of_finiteEq req1).mp req2

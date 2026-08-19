@@ -355,6 +355,17 @@ theorem length_eq_zero_of_length?_eq_zero (req: seq.length? = 0)
   rewrite [lm3, ← ENat.coe_zero] at req
   exact ENat.coe_inj.mp req
 
+theorem finite_of_length?_eq_one (req: seq.length? = 1) : seq.toFiniteLabel = .finite := by
+  rewrite [← ENat.coe_one, length?_eq_natCast_iff_length_eq] at req
+  rcases req with ⟨lm1, _⟩
+  exact lm1
+
+theorem length_eq_one_of_length?_eq_one (req: seq.length? = 1)
+  : seq.length (finite_of_length?_eq_one req) = 1 := by
+  rewrite [← ENat.coe_one, length?_eq_natCast_iff_length_eq] at req
+  rcases req with ⟨_, lm2⟩
+  exact lm2
+
 theorem length?_eq_zero_of_length_eq_zero {req1: seq.toFiniteLabel = .finite} (req2: seq.length req1 = 0)
   : seq.length? = 0 := by
   have lm1 := length?_eq_natCast_length req1
@@ -602,6 +613,19 @@ theorem getFromLastAt?_eq_of_finite (req: seq.toFiniteLabel = .finite) {i: ℕ}
   · simp [lm1] at req
   · rfl
 
+theorem getFromLastAt?_eq_of_le_length_at (req1: seq.toFiniteLabel = .finite) (i: ℕ) (req2: (i + 1) ≤ seq.length req1)
+  : (seq.getFromLastAt? i) = seq.getAt? (seq.length req1 - (i + 1)) := by
+  rw [getFromLastAt?_eq_of_finite req1]
+  simp
+  intro lm1
+  replace lm1 := Trans.trans req2 lm1
+  simp at lm1
+
+theorem getFromLastAt?_eq_of_lt_length_at (req1: seq.toFiniteLabel = .finite) (i: ℕ) (req2: i < seq.length req1)
+  : (seq.getFromLastAt? i) = seq.getAt? (seq.length req1 - (i + 1)) := by
+  refine seq.getFromLastAt?_eq_of_le_length_at req1 i ?_
+  simpa using req2
+
 
 theorem getFromLastAt?_isSome_iff {i: ℕ}
   : (seq.getFromLastAt? i).isSome ↔ (∃(req: seq.toFiniteLabel = .finite), i < seq.length req) := by
@@ -646,6 +670,24 @@ theorem getFromLastAt?_zero_isSome_iff_finite_and_nonempty
     refine Exists.intro ?_ ?_
     · exact lm1
     · exact length_pos_of_nonempty_finite lm2 lm1
+
+theorem getFromLastAt?_eq_some_iff_getAt?_eq_some {i: ℕ} {a: α}
+  : (seq.getFromLastAt? i = .some a) ↔ (∃(req: seq.toFiniteLabel = .finite), (i < seq.length req) ∧ (seq.getAt? (seq.length req - (i + 1)) = .some a)) := by
+  constructor
+  · intro lm1
+    have lm2 := Option.isSome_of_eq_some lm1
+    rw [getFromLastAt?_isSome_iff] at lm2
+    rcases lm2 with ⟨lm2, lm3⟩
+    exists lm2
+    rw [← lm1]
+    refine And.intro ?_ ?_
+    · exact lm3
+    · symm
+      exact seq.getFromLastAt?_eq_of_lt_length_at lm2 i lm3
+  · rintro ⟨lm1, lm2, lm3⟩
+    rw [← lm3]
+    exact seq.getFromLastAt?_eq_of_lt_length_at lm1 i lm2
+
 
 
 theorem lt_length_iff_getFromLastAt?_isSome (req: seq.toFiniteLabel = .finite) {i: ℕ}
