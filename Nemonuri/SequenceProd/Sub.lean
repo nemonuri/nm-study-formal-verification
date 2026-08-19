@@ -15,7 +15,7 @@ inductive IsPrefix (sp1: SequenceProd α β) : SequenceProd α β → Prop where
 
 namespace IsPrefix
 
-variable {sp: SequenceProd α β}
+variable {sp1 sp: SequenceProd α β}
 
 theorem of_nil : IsPrefix nil sp := by
   refine IsPrefix.intro ?_ ?_ sp |> Eq.subst ?_
@@ -26,6 +26,8 @@ theorem of_nil : IsPrefix nil sp := by
 theorem refl (req1: sp.toFiniteLabelEq = .labelEq) (req2: sp.toFiniteLabel req1 = .finite) : IsPrefix sp sp := by
   refine IsPrefix.intro req1 req2 nil |> Eq.subst ?_
   rw [append_self_nil_eq_self]
+
+--theorem getAt?_eq (h: IsPrefix sp1 sp)
 
 end IsPrefix
 

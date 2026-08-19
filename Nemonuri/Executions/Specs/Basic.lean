@@ -85,11 +85,20 @@ instance : Coe ts.S ts.ExecutionFragmentSpec := ⟨single⟩
 
 end Operations
 
+section Eval
+
+variable {ef: ts.ExecutionFragmentSpec}
+
 structure Mem (sp: SequenceProd ts.S ts.Act) (ef: ts.ExecutionFragmentSpec) : Prop where
   subSpec_mem: SubSpec.Mem sp (eq_subspec ▸ ef)
   executionFragment : IsExecutionFragment sp
 
 def EvalToSet (ef: ts.ExecutionFragmentSpec) : Set (SequenceProd ts.S ts.Act) := { sp | Mem sp ef }
+
+theorem EvalToSet.mem_iff_mem : (sp ∈ ef.EvalToSet) ↔ Mem sp ef := by
+  rfl
+
+end Eval
 
 end ExecutionFragmentSpec
 

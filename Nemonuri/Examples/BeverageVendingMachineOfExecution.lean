@@ -1,11 +1,9 @@
 module
 
-
+public meta import Nemonuri.Executions.Specs.Notation
 public import Nemonuri.Examples.BeverageVendingMachine
-public import Nemonuri.Executions.ExecutionFragment.Syntax
-public import Nemonuri.Executions.ExecutionFragment.Maximal
-public import Nemonuri.Executions.ExecutionFragment.Notation
-public import Nemonuri.Executions.ExecutionFragment.Semantics
+public import Nemonuri.Executions.Specs.Basic
+
 
 /-!
 
@@ -20,10 +18,7 @@ public import Nemonuri.Executions.ExecutionFragment.Semantics
 
 namespace Examples.Executions
 
-open Nemonuri TransitionSystem
-open Cslib ωSequence
-open ExecutionFragment SyntaxRaw
-
+open Nemonuri TransitionSystem ExecutionFragmentSpec
 
 
 def ρ₁ := 𝐸𝑥𝑒𝑐{ts}⸨ &(.pay) ─⌞.insert_coin⌟→ &(.select) ─⌞.τ⌟→ &(.soda) ─⌞.get_soda⌟→ &(.pay)
@@ -35,20 +30,28 @@ def ϱ := 𝐸𝑥𝑒𝑐{ts}⸨ &(.pay) ─⌞.insert_coin⌟→ &(.select)─
                     ─⌞.insert_coin⌟→ &(.select)─⌞.τ⌟→ State.soda ⸩
 
 
+
+
 section Proof1
 
 /-! Execution fragments `ρ₁` and `ϱ` are initial, but `ρ₂` is not. -/
 
-attribute [local simp] EvalToSet.mem_iff_mem
-
-theorem ρ₁_initial (x: ρ₁) : (x: ts.ExecutionFragmentRaw).IsInitial := by
+theorem ρ₁_initial (x: ρ₁) : ts.IsInitial x := by
   revert x
   simp [ρ₁]
   intro x lm1
+  replace lm1 := EvalToSet.mem_iff_mem.mp lm1
+  rcases lm1 with ⟨lm1, lm2⟩
+  refine IsInitial.mk lm2 ?_
+  simp [exec_spec_norm] at lm1
+  cases lm1
+  rename_i lm1 lm3
+
+/-
   simp [lm1.isInitial_iff]
   have lm2 := lm1.preOrWhole_is_prefix.states_getElem_eq' 0
   simp at lm2; exact lm2.symm
-
+-/
 
 theorem ϱ_initial (x: ϱ) : (x: ts.ExecutionFragmentRaw).IsInitial := by
   revert x

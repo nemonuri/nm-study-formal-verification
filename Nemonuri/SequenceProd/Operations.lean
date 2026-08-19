@@ -149,11 +149,12 @@ end Nil
 
 
 def append (sp1: SequenceProd α β) (req1: sp1.toFiniteLabelEq = .labelEq) (req2: sp1.toFiniteLabel req1 = .finite) (sp2: SequenceProd α β) : SequenceProd α β :=
-  have lm1 := sp1.fst_self_finiteEq req1 |>.trans req2
-  have lm2 := sp1.snd_self_finiteEq req1 |>.trans req2
-  ⟨sp1.fst.append lm1 sp2.fst, sp1.snd.append lm2 sp2.snd⟩
+  have lm1 := sp1.finite_congr_of_finiteEq req1 |>.mp req2
+  ⟨sp1.fst.append lm1.left sp2.fst, sp1.snd.append lm1.right sp2.snd⟩
 
 section Append
+
+variable {sp1 sp2: SequenceProd α β} {req1: sp1.toFiniteLabelEq = .labelEq} {req2: sp1.toFiniteLabel req1 = .finite} {i: ℕ}
 
 theorem append_nil_eq_id : (nil: SequenceProd α β).append nil_finiteEq nil_finite = id := by
   refine funext ?_
@@ -165,6 +166,22 @@ theorem append_self_nil_eq_self (req1: sp.toFiniteLabelEq = .labelEq) (req2: sp.
   : sp.append req1 req2 nil = sp := by
   refine prod_ext ?_ ?_ <;> dsimp [nil, append] <;> simp [Sequence.append_self_nil_eq_self]
 
+theorem append_getAt?_of_lt_length (req3: i < sp1.minLength?)
+  : (sp1.append req1 req2 sp2).getAt? i = sp1.getAt? i := by
+  rewrite [sp1.lt_minLength?_iff_lt_length?] at req3
+  rcases req3 with ⟨lm1, lm2⟩
+  dsimp [append]
+  repeat rw [SequenceProd.getAt?_eq_ofProd?_getAt?]
+  dsimp
+  refine OptionProd.ext ?_ ?_ <;> simp
+  · refine Sequence.append_getAt?_of_lt_length ?_
+    rw [← ENat.coe_lt_coe, ← Sequence.length?_eq_natCast_length]
+    exact lm1
+  · refine Sequence.append_getAt?_of_lt_length ?_
+    rw [← ENat.coe_lt_coe, ← Sequence.length?_eq_natCast_length]
+    exact lm2
+
+#print append_getAt?_of_lt_length
 
 end Append
 

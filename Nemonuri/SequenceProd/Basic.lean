@@ -75,6 +75,12 @@ theorem snd_self_finiteEq (req: sp.toFiniteLabelEq = .labelEq)
     _ = _ := finiteEq_iff_fst_snd_finiteEq.mp req |>.symm
     _ = _ := fst_self_finiteEq req
 
+theorem finite_congr_of_finiteEq (req: sp.toFiniteLabelEq = .labelEq) {fl: FiniteLabel}
+  : (sp.toFiniteLabel req = fl) ↔ (sp.fst.toFiniteLabel = fl) ∧ (sp.snd.toFiniteLabel = fl) := by
+  rw [fst_self_finiteEq req]
+  rw [snd_self_finiteEq req]
+  simp
+
 
 def toEmptyLabelEq (sp: SequenceProd α β) : LabelEq EmptyLabel := LabelEq.emptyOfENat sp.fst.length? sp.snd.length?
 
@@ -147,10 +153,44 @@ theorem getAt?_eq_ofProd?_getAt?_at (i: ℕ) : sp.getAt? i = .ofProd? (sp.fst.ge
 theorem getAt?_eq_ofProd?_getAt? : sp.getAt? = (fun (i: ℕ) => .ofProd? (sp.fst.getAt? i, sp.snd.getAt? i)) := rfl
 
 
-def getAt (sp: SequenceProd α β) (i: ℕ) (req1: i < sp.fst.length?) (req2: i < sp.snd.length?) : Prod α β := ⟨sp.fst.getAt i req1, sp.snd.getAt i req2⟩
+def minLength? (sp: SequenceProd α β) : ℕ∞ := Min.min sp.fst.length? sp.snd.length?
 
-theorem getAt?_eq_ofProd_getAt {i: ℕ} (req1: i < sp.fst.length?) (req2: i < sp.snd.length?)
-  : sp.getAt? i = OptionProd.ofProd (sp.getAt i req1 req2) := by
+def minLength (sp: SequenceProd α β) (req1: sp.toFiniteLabelEq = .labelEq) (req2: sp.toFiniteLabel req1 = .finite) : ℕ :=
+  have lm1 := sp.finite_congr_of_finiteEq req1 |>.mp req2
+  Min.min (sp.fst.length lm1.left) (sp.snd.length lm1.right)
+
+
+theorem minLength?_eq_natCast_minLength
+  (sp: SequenceProd α β) (req1: sp.toFiniteLabelEq = .labelEq) (req2: sp.toFiniteLabel req1 = .finite)
+  : sp.minLength? = Nat.cast (sp.minLength req1 req2) := by
+  obtain ⟨lm1, lm2⟩ := finite_congr_of_finiteEq req1 |>.mp req2
+  dsimp [minLength?, minLength]
+  rw [Sequence.length?_eq_natCast_length lm1]
+  rw [Sequence.length?_eq_natCast_length lm2]
+  let lo : LinearOrder ℕ∞ := inferInstance
+  rw [lo.min_def, Nat.min_def]
+  subst lo
+  symm
+  split <;> (
+  rename_i lm3; simp; try simp at lm3
+  intro lm4
+  replace lm4 := Trans.trans lm3 lm4
+  simp at lm4 )
+
+
+theorem lt_minLength?_iff_lt_length? {i: ℕ} : i < sp.minLength? ↔ (i < sp.fst.length?) ∧ (i < sp.snd.length?) := by
+  dsimp only [minLength?]
+  exact lt_inf_iff
+
+
+def getAt (sp: SequenceProd α β) (i: ℕ) (req: i < sp.minLength?) : Prod α β :=
+  have lm1 := lt_minLength?_iff_lt_length?.mp req
+  ⟨sp.fst.getAt i lm1.left, sp.snd.getAt i lm1.right⟩
+
+
+theorem getAt?_eq_ofProd_getAt {i: ℕ} (req: i < sp.minLength?)
+  : sp.getAt? i = OptionProd.ofProd (sp.getAt i req) := by
+  revert req; simp only [lt_minLength?_iff_lt_length?]; rintro ⟨req1, req2⟩
   dsimp [getAt]
   dsimp [getAt?]
   rw [← OptionProd.equivOfProd?.symm.injective.eq_iff]

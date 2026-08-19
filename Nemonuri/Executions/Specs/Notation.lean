@@ -28,7 +28,7 @@ macro_rules
 syntax:100 exec_expr:99 "─⌞" term "⌟→" exec_expr:100 : exec_expr
 
 macro_rules
-  | `(exec_expr| $s:exec_expr ─⌞ $a:term ⌟→ $tail:exec_expr ) => do ``(stepL $(.mk (← pure tail)) $(.mk (← pure s)) $a)
+  | `(exec_expr| $s:exec_expr ─⌞ $a:term ⌟→ $tail:exec_expr ) => do ``(stepL $(.mk (← pure s)) $a $(.mk (← pure tail)) )
 
 
 syntax:102 "..." : exec_expr

@@ -40,6 +40,12 @@ theorem refl (req: seq.toFiniteLabel = .finite) : IsPrefix seq seq := by
   refine IsPrefix.intro req nil |> Eq.subst ?_
   exact seq.append_self_nil_eq_self req
 
+theorem getAt?_eq (h: IsPrefix seq1 seq) {i: ℕ} (req: i < seq1.length?) : seq.getAt? i = seq1.getAt? i := by
+  rcases h with ⟨lm1, seq2⟩
+  refine append_getAt?_of_lt_length ?_
+  rw [← ENat.coe_lt_coe, ← length?_eq_natCast_length]
+  exact req
+
 end IsPrefix
 
 
