@@ -45,6 +45,12 @@ theorem singleFst_getAt?_add_one {i: ℕ} : (singleFst α β a).getAt? (i + 1) =
   · simp
     exact Sequence.nil_getAt?_none
 
+theorem singleFst_minLength? : (singleFst α β a).minLength? = 0 := by
+  dsimp [singleFst]
+  rw [minLength?_eq_ite]
+  dsimp [nil_length?_eq_zero]
+  simp
+
 end SingleFst
 
 
@@ -84,6 +90,12 @@ theorem stepL_getAt?_add_one_at (i: ℕ) : (sp.stepL a b).getAt? (i + 1) = sp.ge
   refine congrArg _ ?_
   refine Prod.ext ?_ ?_ <;> dsimp [stepL]
   <;> exact Sequence.cons_getAt?_add_one_eq_getAt?
+
+theorem stepL_minLength? : (sp.stepL a b).minLength? = sp.minLength? + 1 := by
+  dsimp [stepL]
+  simp only [minLength?_eq_ite]
+  simp [Sequence.cons_length?_eq_length?_add_one]
+  split <;> rfl
 
 end StepL
 
@@ -144,6 +156,11 @@ theorem nil_finite : (nil: SequenceProd α β).toFiniteLabel nil_finiteEq = .fin
 
 @[defeq]
 theorem nil_getAt? {i: ℕ} : (nil: SequenceProd α β).getAt? i = OptionProd.none := rfl
+
+theorem nil_minLength? : (nil: SequenceProd α β).minLength? = 0 := by
+  dsimp [nil]
+  rw [minLength?_eq_ite]
+  simp [Sequence.nil_length?_eq_zero]
 
 end Nil
 

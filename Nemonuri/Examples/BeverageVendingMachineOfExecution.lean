@@ -47,21 +47,30 @@ theorem ρ₁_initial (x: ρ₁) : ts.IsInitial x := by
   cases lm1
   rename_i lm1 lm3
   replace lm1 := lm1.getAt?_eq_at 0
-  simp? [exec_spec_norm] at lm1
+  simp [exec_spec_norm] at lm1
+  rewrite [SequenceProd.getAt?_eq_ofProd?_getAt?_at, OptionProd.ext_iff] at lm1
+  simp at lm1
+  rcases lm1 with ⟨lm1_1, lm1_2⟩
+  simp
+  rw [← Option.some_inj, ← Sequence.head?_eq_some_head, Sequence.head?_eq_getAt?_zero]
+  exact lm1_1.symm
 
-/-
-  simp [lm1.isInitial_iff]
-  have lm2 := lm1.preOrWhole_is_prefix.states_getElem_eq' 0
-  simp at lm2; exact lm2.symm
--/
 
-theorem ϱ_initial (x: ϱ) : (x: ts.ExecutionFragmentRaw).IsInitial := by
+theorem ϱ_initial (x: ϱ) : ts.IsInitial x := by
   revert x
   simp [ϱ]
   intro x lm1
-  simp [lm1.isInitial_iff]
-  have lm2 := lm1.preOrWhole_is_prefix.states_getElem_eq' 0
-  simp at lm2; exact lm2.symm
+  replace lm1 := EvalToSet.mem_iff_mem.mp lm1
+  rcases lm1 with ⟨lm1, lm2⟩
+  dsimp at lm1
+  refine IsInitial.mk lm2 ?_
+  simp
+  rw [← Option.some_inj, ← Sequence.head?_eq_some_head, Sequence.head?_eq_getAt?_zero]
+  simp [exec_spec_norm] at lm1
+  cases lm1
+  --simp [lm1.isInitial_iff]
+  --have lm2 := lm1.preOrWhole_is_prefix.states_getElem_eq' 0
+  --simp at lm2; exact lm2.symm
 
 theorem not_ρ₂_initial (x: ρ₂) : ¬(x: ts.ExecutionFragmentRaw).IsInitial := by
   revert x; simp only [Subtype.forall]; intro x lm1

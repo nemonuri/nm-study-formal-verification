@@ -3,6 +3,7 @@ module
 public meta import Nemonuri.Executions.Specs.Tactic
 public import Nemonuri.Executions.Basic
 public import Nemonuri.SequenceProd.Specs.SubSpec
+public import Nemonuri.SequenceProd.IsWShape
 
 @[expose] public section
 
@@ -77,9 +78,17 @@ theorem stepL_prefix : stepL s act (.prefix sp) = .prefix (.stepL s act sp) := r
 theorem stepL_both : stepL s act (.both sp sp2) = .both (.stepL s act sp) sp2 := rfl
 
 attribute [exec_spec_norm]
-  SequenceProd.stepL_getAt?_zero SequenceProd.stepL_getAt?_add_one_at
-  SequenceProd.singleFst_getAt?_zero SequenceProd.singleFst_getAt?_add_one
-  SequenceProd.nil_getAt?
+  SequenceProd.stepL_getAt?_zero SequenceProd.stepL_getAt?_add_one_at SequenceProd.stepL_minLength?
+  SequenceProd.singleFst_getAt?_zero SequenceProd.singleFst_getAt?_add_one SequenceProd.singleFst_minLength?
+  SequenceProd.nil_getAt? SequenceProd.nil_minLength?
+
+section IsWShape
+
+open SequenceProd
+
+attribute [exec_spec_norm] IsWShape.stepL_iff IsWShape.of_singleFst IsWShape.not_nil
+
+end IsWShape
 
 instance : Coe ts.S ts.ExecutionFragmentSpec := ⟨single⟩
 
