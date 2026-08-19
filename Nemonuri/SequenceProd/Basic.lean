@@ -296,6 +296,23 @@ theorem getFromLastAt?_eq_none_of_infinite (req1: sp.toFiniteLabelEq = .labelEq)
   · simp
     exact Sequence.getFromLastAt?_eq_none_of_infinite lm2
 
+/-
+@[mk_iff]
+structure IsFinite (sp: SequenceProd α β) : Prop where
+  finiteEq: sp.toFiniteLabelEq = .labelEq
+  finite: sp.toFiniteLabel finiteEq = .finite
+-/
+
+def FiniteSet : Set (SequenceProd α β) := { sp | ∃(finiteEq: sp.toFiniteLabelEq = .labelEq), sp.toFiniteLabel finiteEq = .finite }
+
+/-
+@[mk_iff]
+structure IsInfinite (sp: SequenceProd α β) : Prop where
+  finiteEq: sp.toFiniteLabelEq = .labelEq
+  infinite: sp.toFiniteLabel finiteEq = .infinite
+-/
+
+def InfiniteSet : Set (SequenceProd α β) := { sp | ∃(finiteEq: sp.toFiniteLabelEq = .labelEq), sp.toFiniteLabel finiteEq = .infinite }
 
 end SequenceProd
 

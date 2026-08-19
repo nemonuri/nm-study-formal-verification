@@ -45,7 +45,7 @@ theorem ρ₁_initial (x: ρ₁) : ts.IsInitial x := by
   refine IsInitial.mk lm2 ?_
   simp [exec_spec_norm] at lm1
   cases lm1
-  rename_i lm1 lm3
+  rename_i lm1
   replace lm1 := lm1.getAt?_eq_at 0
   simp [exec_spec_norm] at lm1
   simp [OptionProd.ext_iff, SequenceProd.getAt?_fst?_eq_fst_getAt?_at, SequenceProd.getAt?_snd?_eq_snd_getAt?_at] at lm1
@@ -54,10 +54,6 @@ theorem ρ₁_initial (x: ρ₁) : ts.IsInitial x := by
   rw [Sequence.head_eq_iff_getAt?_zero_eq_some]
   exact lm1_1.symm
 
-set_option pp.proofs true in
-#check SequenceProd.SubSpec.Mem.casesOn
-
-#print ρ₁_initial
 
 theorem ϱ_initial (x: ϱ) : ts.IsInitial x := by
   revert x
@@ -86,7 +82,7 @@ theorem not_ρ₂_initial (x: ρ₂) : ¬(ts.IsInitial x) := by
   simp at lm3
   rewrite [Sequence.head_eq_iff_getAt?_zero_eq_some] at lm3
   cases lm1
-  rename_i lm1 lm4
+  rename_i lm1
   replace lm1 := lm1.getAt?_eq_at 0
   simp [exec_spec_norm] at lm1
   simp [OptionProd.ext_iff, SequenceProd.getAt?_fst?_eq_fst_getAt?_at] at lm1
@@ -129,28 +125,26 @@ theorem ϱ_not_maximal (x: ϱ) : ¬(ts.IsMaximal x) := by
 
 /-!  Assuming that `ρ₁` and `ρ₂` are infinite, they are maximal. -/
 
-theorem ρ₁_maximal (x: ρ₁) : ts.IsMaximal x := by
-  revert x; simp [ρ₁]; intro x lm1
-  replace lm1 := EvalToSet.mem_iff_mem.mp lm1
-  rcases lm1 with ⟨lm1, lm2⟩
-  simp [exec_spec_norm] at lm1
-  cases lm1
-  rename_i lm1 lm3
-  cases lm3
-/-
-  refine lm1.isMaximal_of_left_infinite ?_
-  simp only [toSeqLabel_eq_toLabelAt, stepL_eq_stepLFlip]
-  simp [stepLFlip_preserves_seqLabel, HasLabel.Preserves.cancel]
--/
+theorem ρ₁_maximal (h: ρ₁ ⊆ SequenceProd.InfiniteSet) (x: ρ₁) : ts.IsMaximal x := by
+  revert x h; simp [Set.subset_def]
+  intro lm1 x lm2
+  specialize lm1 x lm2
+  dsimp [SequenceProd.InfiniteSet] at lm1
+  rcases lm1 with ⟨lm1, lm3⟩
+  simp [ρ₁, exec_spec_norm] at lm2
+  replace lm2 := EvalToSet.mem_iff_mem.mp lm2
+  replace lm2 := lm2.executionFragment
+  exact lm2.maximal_of_infinite lm3
 
-
-theorem ρ₂_maximal (x: ρ₂) : (x: ts.ExecutionFragmentRaw).IsMaximal := by
-  revert x; simp [ρ₂]; intro x lm1
-  refine lm1.isMaximal_of_left_infinite ?_
-  simp only [toSeqLabel_eq_toLabelAt, stepL_eq_stepLFlip]
-  simp [stepLFlip_preserves_seqLabel, HasLabel.Preserves.cancel]
-
---#print ρ₂_maximal
+theorem ρ₂_maximal (h: ρ₂ ⊆ SequenceProd.InfiniteSet) (x: ρ₂) : ts.IsMaximal x := by
+  revert x h; simp [Set.subset_def]
+  intro lm1 x lm2
+  specialize lm1 x lm2
+  dsimp [SequenceProd.InfiniteSet] at lm1
+  rcases lm1 with ⟨lm1, lm3⟩
+  simp [ρ₂, exec_spec_norm] at lm2
+  replace lm2 := EvalToSet.mem_iff_mem.mp lm2 |>.executionFragment
+  exact lm2.maximal_of_infinite lm3
 
 end Proof2
 

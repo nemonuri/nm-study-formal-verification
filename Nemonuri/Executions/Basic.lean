@@ -50,6 +50,25 @@ structure IsInitial (sp: SequenceProd ts.S ts.Act) : Prop where
   executionFragment: IsExecutionFragment sp
   mem_i: sp.fst.head (executionFragment.wShape.fst_nonempty) ∈ ts.I
 
+namespace IsExecutionFragment
+
+variable {sp: SequenceProd ts.S ts.Act}
+
+theorem maximal_of_infinite (h: ts.IsExecutionFragment sp) (req: sp.toFiniteLabel h.wShape.finite_eq = .infinite) : ts.IsMaximal sp := by
+  refine .mk h ?_
+  simp only [Option.mem_def]
+  intro s lm1
+  rewrite [Sequence.last?_eq_getFromLastAt?_zero, Sequence.getFromLastAt?_eq_some_iff_getAt?_eq_some] at lm1
+  rcases lm1 with ⟨lm1, _⟩
+  rewrite [← sp.fst_self_finiteEq] at req
+  simp [lm1] at req
+
+
+
+end IsExecutionFragment
+
+
+
 
 end Nemonuri.TransitionSystem
 
