@@ -48,10 +48,10 @@ def single (s: ts.S) : ts.ExecutionFragmentSpec := .refl (.singleFst ts.S ts.Act
 @[defeq, exec_spec_norm]
 theorem single_def : single s = .refl (.singleFst ts.S ts.Act s) := rfl
 
-def ellipsis : ts.ExecutionFragmentSpec := .both .nil .nil
+def ellipsis : ts.ExecutionFragmentSpec := .prefix .nil
 
 @[defeq, exec_spec_norm]
-theorem ellipsis_def : @ellipsis ts = .both .nil .nil := rfl
+theorem ellipsis_def : @ellipsis ts = .prefix .nil := rfl
 
 
 def consEllipsis : ts.ExecutionFragmentSpec → ts.ExecutionFragmentSpec

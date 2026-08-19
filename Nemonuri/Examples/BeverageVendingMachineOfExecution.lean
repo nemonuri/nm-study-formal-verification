@@ -127,40 +127,21 @@ theorem ϱ_not_maximal (x: ϱ) : ¬(ts.IsMaximal x) := by
   · exact Tr.soda_pay
 
 
-
-/-
-  rcases lm3 with ⟨⟨xs, lm3⟩, lm4⟩ | _
-  · dsimp [IsTerminal, SetOfDirectSuccessor, SetOfDirectSuccessorAt, FiniteExecutionFragment.states] at lm4
-    simp at lm1 lm2
-    revert lm4
-    simp
-    suffices goal: (xs.states.getLast ?h1) = State.soda by
-      simp [goal]
-      exists Act.get_soda
-      simp [Set.eq_empty_iff_forall_notMem]
-      exists State.pay
-      exact Tr.soda_pay
-    case h1 => exact (FiniteExecutionFragment.mk xs lm3).states_length_pos |> List.ne_nil_of_length_pos
-    rw [List.getLast_eq_iff_getLast?_eq_some]
-    refine Eq.trans ((UniqueMem.of_mem_left_whole lm1 ?_).states_eq.symm |> congrArg (List.getLast?)) ?_
-    · simp only [toLabel_eq_toLabelAt, stepL_eq_stepLFlip]
-      simp [stepLFlip_preserves_label, HasLabel.Preserves.cancel]
-    · simp only [stepL_eq_stepLFlip]
-      simp [stepLFlip_preserves_label, HasLabel.Preserves.cancel]
-  · revert lm1
-    refine Mem.not_infinite_finite ?_ ?_
-    · dsimp
-    · simp only [toSeqLabel_eq_toLabelAt, stepL_eq_stepLFlip]
-      simp [stepLFlip_preserves_seqLabel, HasLabel.Preserves.cancel]
--/
-
 /-!  Assuming that `ρ₁` and `ρ₂` are infinite, they are maximal. -/
 
-theorem ρ₁_maximal (x: ρ₁) : (x: ts.ExecutionFragmentRaw).IsMaximal := by
+theorem ρ₁_maximal (x: ρ₁) : ts.IsMaximal x := by
   revert x; simp [ρ₁]; intro x lm1
+  replace lm1 := EvalToSet.mem_iff_mem.mp lm1
+  rcases lm1 with ⟨lm1, lm2⟩
+  simp [exec_spec_norm] at lm1
+  cases lm1
+  rename_i lm1 lm3
+  cases lm3
+/-
   refine lm1.isMaximal_of_left_infinite ?_
   simp only [toSeqLabel_eq_toLabelAt, stepL_eq_stepLFlip]
   simp [stepLFlip_preserves_seqLabel, HasLabel.Preserves.cancel]
+-/
 
 
 theorem ρ₂_maximal (x: ρ₂) : (x: ts.ExecutionFragmentRaw).IsMaximal := by
