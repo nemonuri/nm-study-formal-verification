@@ -46,6 +46,8 @@ theorem ρ₁_initial (x: ρ₁) : ts.IsInitial x := by
   simp [exec_spec_norm] at lm1
   cases lm1
   rename_i lm1 lm3
+  replace lm1 := lm1.getAt?_eq_at 0
+  simp? [exec_spec_norm] at lm1
 
 /-
   simp [lm1.isInitial_iff]

@@ -27,7 +27,12 @@ theorem refl (req1: sp.toFiniteLabelEq = .labelEq) (req2: sp.toFiniteLabel req1 
   refine IsPrefix.intro req1 req2 nil |> Eq.subst ?_
   rw [append_self_nil_eq_self]
 
---theorem getAt?_eq (h: IsPrefix sp1 sp)
+theorem getAt?_eq (h: IsPrefix sp1 sp) {i: ℕ} (req: i < sp1.minLength?) : sp1.getAt? i = sp.getAt? i := by
+  rcases h with ⟨lm1, lm2, sp2⟩
+  symm
+  exact append_getAt?_of_lt_length req
+
+theorem getAt?_eq_at (h: IsPrefix sp1 sp) (i: ℕ) (req: i < sp1.minLength?) : sp1.getAt? i = sp.getAt? i := h.getAt?_eq req
 
 end IsPrefix
 

@@ -181,7 +181,6 @@ theorem append_getAt?_of_lt_length (req3: i < sp1.minLength?)
     rw [← ENat.coe_lt_coe, ← Sequence.length?_eq_natCast_length]
     exact lm2
 
-#print append_getAt?_of_lt_length
 
 end Append
 

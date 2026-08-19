@@ -59,6 +59,29 @@ theorem fst_nonempty (h: IsWShape sp) : sp.fst.toEmptyLabel = .nonempty := by
   simp
 
 
+theorem minLength?_eq_snd_length? (h: IsWShape sp) : sp.minLength? = sp.snd.length? := by
+  rw [SequenceProd.minLength?_eq_ite]
+  simp
+  intro lm1
+  cases lm2: sp.fst.toFiniteLabel
+  · rewrite [sp.fst.finite_iff_length?_eq_natCast] at lm2
+    rcases lm2 with ⟨n, lm2⟩
+    have lm3 : (1: ℕ∞) ≠ ⊤ := by simp
+    conv at lm1 =>
+      rewrite [← (ENat.add_le_add_iff_right lm3), ← h.length?_eq]
+      repeat rewrite [lm2]
+      rewrite [← ENat.coe_one, ← ENat.coe_add, ENat.coe_le_coe]
+    simp at lm1
+  · rewrite [sp.fst.infinite_iff_length?_eq_top] at lm2
+    rewrite [lm2] at lm1
+    simp at lm1
+    rw [lm1, lm2]
+
+theorem minLength?_add_one_eq_fst_length? (h: IsWShape sp) : sp.minLength? + 1 = sp.fst.length? := by
+  rw [h.minLength?_eq_snd_length?]
+  exact h.length?_eq.symm
+
+
 
 end IsWShape
 

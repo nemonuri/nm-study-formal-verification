@@ -155,27 +155,39 @@ theorem getAt?_eq_ofProd?_getAt? : sp.getAt? = (fun (i: ℕ) => .ofProd? (sp.fst
 
 def minLength? (sp: SequenceProd α β) : ℕ∞ := Min.min sp.fst.length? sp.snd.length?
 
+theorem minLength?_eq_ite : sp.minLength? = if sp.fst.length? ≤ sp.snd.length? then sp.fst.length? else sp.snd.length? := by
+  dsimp [minLength?]
+  rw [LinearOrder.min_def]
+
+
 def minLength (sp: SequenceProd α β) (req1: sp.toFiniteLabelEq = .labelEq) (req2: sp.toFiniteLabel req1 = .finite) : ℕ :=
   have lm1 := sp.finite_congr_of_finiteEq req1 |>.mp req2
   Min.min (sp.fst.length lm1.left) (sp.snd.length lm1.right)
+
+@[defeq]
+theorem minLength_eq_ite (req1: sp.toFiniteLabelEq = .labelEq) (req2: sp.toFiniteLabel req1 = .finite)
+  : sp.minLength req1 req2 =
+    (have lm1 := sp.finite_congr_of_finiteEq req1 |>.mp req2;
+    if (sp.fst.length lm1.left) ≤ (sp.snd.length lm1.right) then (sp.fst.length lm1.left) else (sp.snd.length lm1.right)) :=
+  rfl
+
 
 
 theorem minLength?_eq_natCast_minLength
   (sp: SequenceProd α β) (req1: sp.toFiniteLabelEq = .labelEq) (req2: sp.toFiniteLabel req1 = .finite)
   : sp.minLength? = Nat.cast (sp.minLength req1 req2) := by
-  obtain ⟨lm1, lm2⟩ := finite_congr_of_finiteEq req1 |>.mp req2
-  dsimp [minLength?, minLength]
+  rw [minLength?_eq_ite, minLength_eq_ite]
+  extract_lets lm1
+  rcases lm1 with ⟨lm1, lm2⟩
   rw [Sequence.length?_eq_natCast_length lm1]
   rw [Sequence.length?_eq_natCast_length lm2]
-  let lo : LinearOrder ℕ∞ := inferInstance
-  rw [lo.min_def, Nat.min_def]
-  subst lo
   symm
   split <;> (
   rename_i lm3; simp; try simp at lm3
   intro lm4
   replace lm4 := Trans.trans lm3 lm4
   simp at lm4 )
+
 
 
 theorem lt_minLength?_iff_lt_length? {i: ℕ} : i < sp.minLength? ↔ (i < sp.fst.length?) ∧ (i < sp.snd.length?) := by
