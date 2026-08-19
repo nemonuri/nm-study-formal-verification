@@ -97,6 +97,8 @@ theorem stepL_minLength? : (sp.stepL a b).minLength? = sp.minLength? + 1 := by
   simp [Sequence.cons_length?_eq_length?_add_one]
   split <;> rfl
 
+--theorem stepL_getFromLastAt? (req: sp.) (i: ℕ): (sp.stepL a b).getFromLastAt? i
+
 end StepL
 
 

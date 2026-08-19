@@ -267,6 +267,13 @@ theorem head?_eq_getAt?_zero : seq.head? = seq.getAt? 0 := by
   rw [head?_eq_getElem?]
   dsimp [GetElem?.getElem?]
 
+theorem head_eq_iff_getAt?_zero_eq_some (req: seq.toEmptyLabel = .nonempty) {a: α}
+  : (seq.head req = a) ↔ (seq.getAt? 0 = .some a) := by
+  conv =>
+    lhs
+    rw [← Option.some_inj]
+    rw [← (head?_eq_some_head req)]
+    rw [head?_eq_getAt?_zero]
 
 
 
@@ -669,6 +676,9 @@ def getFromLastAt (seq: Sequence α) (i: ℕ) (req1: seq.toFiniteLabel = .finite
   seq.getFromLastAt? i |>.get (seq.lt_length_iff_getFromLastAt?_isSome req1 |>.mp req2)
 
 def last? (seq: Sequence α) : Option α := seq.getFromLastAt? 0
+
+@[defeq]
+theorem last?_eq_getFromLastAt?_zero : seq.last? = seq.getFromLastAt? 0 := rfl
 
 def last (seq: Sequence α) (req1: seq.toEmptyLabel = .nonempty) (req2: seq.toFiniteLabel = .finite) : α :=
   seq.getFromLastAt 0 req2 (seq.length_pos_of_nonempty_finite req1 req2)

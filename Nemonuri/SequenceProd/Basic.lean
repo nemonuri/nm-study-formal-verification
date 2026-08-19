@@ -232,6 +232,13 @@ theorem getAt?_ext (req: sp.getAt? = sp2.getAt?) : sp = sp2 := by
 
 theorem getAt?_ext_iff : (sp = sp2) ↔ (sp.getAt? = sp2.getAt?) := ⟨fun lm1 => congrArg _ lm1, getAt?_ext⟩
 
+theorem getAt?_fst?_eq_fst_getAt?_at (i: ℕ) : (sp.getAt? i).fst? = (sp.fst.getAt? i) := by
+  rw [getAt?_eq_ofProd?_getAt?_at]
+  simp only [OptionProd.ofProd?_fst?]
+
+theorem getAt?_snd?_eq_snd_getAt?_at (i: ℕ) : (sp.getAt? i).snd? = (sp.snd.getAt? i) := by
+  rw [getAt?_eq_ofProd?_getAt?_at]
+  simp only [OptionProd.ofProd?_snd?]
 
 
 def getAt?Flip (i: ℕ) {α β: Type _} (sp: SequenceProd α β) : OptionProd α β := sp.getAt? i
@@ -258,6 +265,26 @@ def getFromEndAt? (sp: SequenceProd α β) (i: ℕ) (sentinel?: OptionProd α β
 
 def getFromLastAt? (sp: SequenceProd α β) (i: ℕ) : OptionProd α β :=
   OptionProd.ofProd? ⟨sp.fst.getFromLastAt? i, sp.snd.getFromLastAt? i⟩
+
+theorem getFromLastAt?_fst?_eq_fst_getFromLastAt?_at (i: ℕ) : (sp.getFromLastAt? i).fst? = (sp.fst.getFromLastAt? i) := by
+  dsimp [getFromLastAt?]
+  simp only [OptionProd.ofProd?_fst?]
+
+theorem getFromLastAt?_snd?_eq_snd_getFromLastAt?_at (i: ℕ) : (sp.getFromLastAt? i).snd? = (sp.snd.getFromLastAt? i) := by
+  dsimp [getFromLastAt?]
+  simp only [OptionProd.ofProd?_snd?]
+
+
+theorem getFromLastAt?_eq_none_of_infinite (req1: sp.toFiniteLabelEq = .labelEq) (req2: sp.toFiniteLabel req1 = .infinite) {i: ℕ}
+  : sp.getFromLastAt? i = OptionProd.none := by
+  obtain ⟨lm1, lm2⟩ := (sp.finite_congr_of_finiteEq req1).mp req2
+  dsimp [getFromLastAt?]
+  refine OptionProd.ext ?_ ?_
+  · simp
+    exact Sequence.getFromLastAt?_eq_none_of_infinite lm1
+  · simp
+    exact Sequence.getFromLastAt?_eq_none_of_infinite lm2
+
 
 end SequenceProd
 

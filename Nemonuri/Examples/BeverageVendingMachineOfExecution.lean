@@ -48,13 +48,16 @@ theorem ρ₁_initial (x: ρ₁) : ts.IsInitial x := by
   rename_i lm1 lm3
   replace lm1 := lm1.getAt?_eq_at 0
   simp [exec_spec_norm] at lm1
-  rewrite [SequenceProd.getAt?_eq_ofProd?_getAt?_at, OptionProd.ext_iff] at lm1
-  simp at lm1
+  simp [OptionProd.ext_iff, SequenceProd.getAt?_fst?_eq_fst_getAt?_at, SequenceProd.getAt?_snd?_eq_snd_getAt?_at] at lm1
   rcases lm1 with ⟨lm1_1, lm1_2⟩
   simp
-  rw [← Option.some_inj, ← Sequence.head?_eq_some_head, Sequence.head?_eq_getAt?_zero]
+  rw [Sequence.head_eq_iff_getAt?_zero_eq_some]
   exact lm1_1.symm
 
+set_option pp.proofs true in
+#check SequenceProd.SubSpec.Mem.casesOn
+
+#print ρ₁_initial
 
 theorem ϱ_initial (x: ϱ) : ts.IsInitial x := by
   revert x
@@ -65,36 +68,63 @@ theorem ϱ_initial (x: ϱ) : ts.IsInitial x := by
   dsimp at lm1
   refine IsInitial.mk lm2 ?_
   simp
-  rw [← Option.some_inj, ← Sequence.head?_eq_some_head, Sequence.head?_eq_getAt?_zero]
+  rw [Sequence.head_eq_iff_getAt?_zero_eq_some, ← SequenceProd.getAt?_fst?_eq_fst_getAt?_at]
   simp [exec_spec_norm] at lm1
   cases lm1
-  --simp [lm1.isInitial_iff]
-  --have lm2 := lm1.preOrWhole_is_prefix.states_getElem_eq' 0
-  --simp at lm2; exact lm2.symm
+  simp [exec_spec_norm]
 
-theorem not_ρ₂_initial (x: ρ₂) : ¬(x: ts.ExecutionFragmentRaw).IsInitial := by
+
+theorem not_ρ₂_initial (x: ρ₂) : ¬(ts.IsInitial x) := by
   revert x; simp only [Subtype.forall]; intro x lm1
   simp [ρ₂] at lm1
-  refine lm1.isInitial_iff.not.mpr ?_
-  have lm2 := lm1.preOrWhole_is_prefix.states_getElem_eq' 0
-  simp at lm2
-  intro cont; simp at cont
-  have lm3 := Eq.trans lm2 cont
+  rw [EvalToSet.mem_iff_mem] at lm1
+  simp [exec_spec_norm] at lm1
+  rcases lm1 with ⟨lm1, lm2⟩; clear lm2
+  dsimp only at lm1
+  intro lm3
+  rcases lm3 with ⟨lm2, lm3⟩
   simp at lm3
+  rewrite [Sequence.head_eq_iff_getAt?_zero_eq_some] at lm3
+  cases lm1
+  rename_i lm1 lm4
+  replace lm1 := lm1.getAt?_eq_at 0
+  simp [exec_spec_norm] at lm1
+  simp [OptionProd.ext_iff, SequenceProd.getAt?_fst?_eq_fst_getAt?_at] at lm1
+  rcases lm1 with ⟨lm1, lm5⟩
+  simp [← lm1] at lm3
+
 
 end Proof1
 
 
 section Proof2
 
+
 /-! `ϱ` is not maximal as it does not end in a terminal state.  -/
 
-attribute [local simp] EvalToSet.mem_iff_mem
-
-
-theorem ϱ_not_maximal (x: ϱ) : ¬(x: ts.ExecutionFragmentRaw).IsMaximal := by
+theorem ϱ_not_maximal (x: ϱ) : ¬(ts.IsMaximal x) := by
   revert x; simp [ϱ]; intro x lm1
   rintro ⟨lm2, lm3⟩
+  replace lm1 := EvalToSet.mem_iff_mem.mp lm1
+  simp [exec_spec_norm] at lm1
+  replace lm1 := lm1.subSpec_mem
+  dsimp at lm1
+  simp at lm3
+  conv at lm3 =>
+    arg 2
+    arg 2
+    dsimp [IsTerminal, SetOfDirectSuccessor, SetOfDirectSuccessorAt]
+    simp
+  cases lm1
+  conv at lm3 =>
+    arg 2
+    arg 1
+    rw [Sequence.last?_eq_getFromLastAt?_zero]
+    dsimp [Sequence.getFromLastAt?, Sequence.getFromEndAt?]
+  split at lm3 <;> rename_i lm4
+  · simp at lm3
+
+/-
   rcases lm3 with ⟨⟨xs, lm3⟩, lm4⟩ | _
   · dsimp [IsTerminal, SetOfDirectSuccessor, SetOfDirectSuccessorAt, FiniteExecutionFragment.states] at lm4
     simp at lm1 lm2
@@ -118,7 +148,7 @@ theorem ϱ_not_maximal (x: ϱ) : ¬(x: ts.ExecutionFragmentRaw).IsMaximal := by
     · dsimp
     · simp only [toSeqLabel_eq_toLabelAt, stepL_eq_stepLFlip]
       simp [stepLFlip_preserves_seqLabel, HasLabel.Preserves.cancel]
-
+-/
 
 /-!  Assuming that `ρ₁` and `ρ₂` are infinite, they are maximal. -/
 
