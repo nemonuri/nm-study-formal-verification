@@ -70,6 +70,36 @@ def vectorEvalProdEquiv (n m k: ℕ) : AP n m k ≃ (List.Vector Bool m × Eval 
 instance toFintype {n m k: ℕ} : Fintype (AP n m k) := Fintype.ofEquiv _ (vectorEvalProdEquiv n m k).symm
 -/
 
+theorem not_all_zero (ap: AP 0 0 0) : False := by
+  cases ap <;> (
+    rename_i i
+    rcases i with ⟨i, lm1⟩
+    simp at lm1 )
+
+variable {n m k: ℕ}
+
+theorem any_ne_zero (ap: AP n m k) : (n ≠ 0) ∨ (m ≠ 0) ∨ (k ≠ 0) := by
+  by_contra lm1
+  simp at lm1
+  rcases lm1 with ⟨lm1_1, lm1_2, lm1_3⟩
+  subst lm1_1
+  subst lm1_2
+  subst lm1_3
+  exact ap.not_all_zero
+
+theorem nonempty_iff_any_ne_zero : (Nonempty (AP n m k)) ↔ ((n ≠ 0) ∨ (m ≠ 0) ∨ (k ≠ 0)) := by
+  constructor
+  · rintro ⟨ap⟩
+    exact ap.any_ne_zero
+  · intro lm1
+    simp only [← Nat.pos_iff_ne_zero] at lm1
+    rcases lm1 with lm1 | lm1
+    · exact .intro (.inputs (.mk 0 lm1))
+    · rcases lm1 with lm1 | lm1
+      · exact .intro (.outputs (.mk 0 lm1))
+      · exact .intro (.registers (.mk 0 lm1))
+
+
 end AP
 
 
@@ -145,6 +175,33 @@ instance {n m k: ℕ} : TransitionSystemLike (SequentialHardwareCircuit n m k) w
 
 instance {n m k: ℕ} {shc: SequentialHardwareCircuit n m k} : TransitionSystem.ConcreteFinite (shc: TransitionSystem) :=
   .mk inferInstance inferInstance inferInstance
+
+/-
+theorem toTransitionSystem_labeling_injective {n m k: ℕ} {shc: SequentialHardwareCircuit n m k} [NeZero m] : Function.Injective ((shc: TransitionSystem).L) := by
+  dsimp
+  rcases shc with ⟨ir, of, rf⟩
+  dsimp
+  intro e1 e2 lm2
+  simp only [funext_iff] at lm2
+  specialize lm2 (AP.outputs (default : Fin m))
+  dsimp [labeling] at lm2
+
+open PropositionalLogics Formula
+-/
+
+/-
+instance {n m k: ℕ} {shc: SequentialHardwareCircuit n m k} : Eval.EvalLike (shc: TransitionSystem).S (shc: TransitionSystem).AP where
+  coe e := .mk ((shc: TransitionSystem).L e)
+  coe_injective := by
+    dsimp
+    intro e1 e2
+    simp
+    intro lm1
+    simp only [funext_iff] at lm1
+    rcases m with _ | m
+    · dsimp [labeling] at lm1
+    --have := AP.outputs default
+-/
 
 end SequentialHardwareCircuit
 
