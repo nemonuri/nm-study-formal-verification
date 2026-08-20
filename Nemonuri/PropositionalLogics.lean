@@ -1,6 +1,6 @@
 module
 
-public import Nemonuri.FinsetLike
+public import Mathlib.Data.Fintype.Basic
 
 /-!
 
@@ -22,51 +22,55 @@ inductive FormulaRaw (Atom: Type _) where
   | and (x: FormulaRaw Atom) (y: FormulaRaw Atom)
 
 @[mk_iff]
-inductive IsFormula {Atom: Type _} (AP: Finset Atom) : (FormulaRaw Atom) → Prop where
+inductive IsFormula (AP: Type _) [Fintype AP] : (FormulaRaw AP) → Prop where
   | true : IsFormula AP (.true)
-  | atom (x: Atom) (h: x ∈ AP) : IsFormula AP (.atom x)
-  | neg (x: FormulaRaw Atom) (hx: IsFormula AP x) : IsFormula AP (.neg x)
-  | and (x: FormulaRaw Atom) (y: FormulaRaw Atom)
+  | atom (x: AP) : IsFormula AP (.atom x)
+  | neg (x: FormulaRaw AP) (hx: IsFormula AP x) : IsFormula AP (.neg x)
+  | and (x: FormulaRaw AP) (y: FormulaRaw AP)
         (hx: IsFormula AP x) (hy: IsFormula AP y) : IsFormula AP (.and x y)
 
 @[ext]
-structure Formula {Atom: Type _} (AP: Finset Atom) where
-  raw: FormulaRaw Atom
-  is_formula: IsFormula AP raw
+structure Formula (AP: Type _) [Fintype AP] where
+  raw: FormulaRaw AP
+  valid: IsFormula AP raw
 
 
 
 namespace Formula
 
-variable {Atom: Type _} {AP: Finset Atom}
+variable {AP: Type _} [Fintype AP]
 
-protected def mk' (AP) (x: FormulaRaw Atom) (h: IsFormula AP x) : Formula AP := @Formula.mk _ AP x h
+protected def mk' (AP: Type _) [Fintype AP] (x: FormulaRaw AP) (h: IsFormula AP x) : Formula AP := @Formula.mk AP _ x h
 
-protected def true (AP: Finset Atom) : Formula AP := ⟨.true, .true⟩
+@[match_pattern]
+protected def true (AP: Type _) [Fintype AP] : Formula AP := ⟨.true, .true⟩
 
-protected def atom (AP: Finset Atom) (x: AP) : Formula AP := ⟨.atom x.val, .atom x.val x.property⟩
+@[match_pattern]
+protected def atom (x: AP) : Formula AP := ⟨.atom x, .atom x⟩
 
-protected def neg (x: Formula AP) : Formula AP := ⟨.neg x.raw, .neg x.raw x.is_formula⟩
+@[match_pattern]
+protected def neg (x: Formula AP) : Formula AP := ⟨.neg x.raw, .neg x.raw x.valid⟩
 
-protected def and (x y: Formula AP) : Formula AP := ⟨.and x.raw y.raw, .and x.raw y.raw x.is_formula y.is_formula⟩
+@[match_pattern]
+protected def and (x y: Formula AP) : Formula AP := ⟨.and x.raw y.raw, .and x.raw y.raw x.valid y.valid⟩
 
-@[elab_as_elim, induction_eliminator]
+@[elab_as_elim]
 protected def recAlt
   {motive : Formula AP → Sort _}
   (true : motive <| Formula.true AP)
-  (atom : (x: AP) → motive <| Formula.atom AP x)
+  (atom : (x: AP) → motive <| Formula.atom x)
   (neg : (x: Formula AP) → motive <| Formula.neg x)
   (and : (x y: Formula AP) → motive <| Formula.and x y)
   (t: Formula AP)
   : motive t :=
-  let ⟨raw, is_formula⟩ := t
+  let ⟨raw, valid⟩ := t
   match raw with
   | .true => true
-  | .atom x => atom ⟨x, by cases is_formula; assumption⟩
-  | .neg x => neg (.mk' AP x (by cases is_formula; assumption))
-  | .and x y => and (.mk' AP x (by cases is_formula; assumption)) (.mk' AP y (by cases is_formula; assumption))
+  | .atom x => atom x
+  | .neg x => neg (.mk' AP x (by cases valid; assumption))
+  | .and x y => and (.mk' AP x (by cases valid; assumption)) (.mk' AP y (by cases valid; assumption))
 
-
+/-
 inductive Splitted (AP: Finset Atom) : Formula AP → Type _ where
   | true : Splitted AP (.true AP)
   | atom (x: AP) : Splitted AP (.atom AP x)
@@ -75,6 +79,7 @@ inductive Splitted (AP: Finset Atom) : Formula AP → Type _ where
 
 def split (x: Formula AP) : Splitted AP x :=
   Formula.recAlt Splitted.true Splitted.atom Splitted.neg Splitted.and x
+-/
 
 protected def or (x y: Formula AP) : Formula AP := .and (.neg x) (.neg y) |> .neg
 
@@ -82,7 +87,7 @@ protected def imp (x y: Formula AP) : Formula AP := .or (.neg x) y
 
 protected def eqv (x y: Formula AP) : Formula AP := .or (.and (.neg x) (.neg y)) (.and x y)
 
-protected def false (AP: Finset Atom) : Formula AP := .neg (.true AP)
+protected def false (AP: Type _) [Fintype AP] : Formula AP := .neg (.true AP)
 
 def iterAnd (xs: List (Formula AP)) : Formula AP :=
   match xs with
@@ -118,7 +123,7 @@ end Notation
 
 
 
-structure Eval (AP: Finset Atom) where
+structure Eval (AP: Type _) [Fintype AP]  where
   eval : AP → Bool
 
 namespace Eval
@@ -131,15 +136,9 @@ theorem app_eq_eval_app (μ: Eval AP) (a: AP) : μ a = μ.eval a := by rfl
 
 
 
-instance : FinsetLike (Eval AP) AP where
-  coe := (FinsetLike.coeBoolPredFor AP) ∘ (Eval.eval ·)
-  coe_injective := (FinsetLike.coeBoolPredFor_injective AP).comp (by rintro ⟨ev1⟩ ⟨ev2⟩; simp)
-
-
-
 section Coe
 
-class EvalLike (E: Type _) {Atom: outParam <| Type _} (AP: outParam <| Finset Atom) where
+class EvalLike (E: Type _) (AP: outParam <| Type _) [Fintype AP] where
   protected coe (e: E) : Eval AP
   coe_injective : Function.Injective coe
 
@@ -147,7 +146,7 @@ namespace EvalLike
 
 attribute [coe] EvalLike.coe
 
-variable {E: Type _} {Atom: Type _} {AP: Finset Atom} [EvalLike E AP]
+variable {E: Type _} {AP: Type _} [Fintype AP] [EvalLike E AP]
 
 instance : CoeOut E (Eval AP) where coe := EvalLike.coe
 --instance : EvalLike (Eval AP) AP := ⟨id, Function.injective_id⟩
@@ -161,7 +160,7 @@ scoped instance (A: Finset AP) (a: AP) : Decidable (a ∈ A) := A.decidableMem a
 
 def ofSubset (A: Finset AP) : Eval AP := ⟨fun a => decide (a ∈ A)⟩
 
-theorem ofSubset_injective : Function.Injective (@ofSubset _ AP _) := by
+theorem ofSubset_injective : Function.Injective (@ofSubset AP _ _) := by
   intro a1 a2
   unfold ofSubset
   simp
@@ -180,35 +179,13 @@ instance : EvalLike (AP → Bool) AP where
   coe := Eval.mk
   coe_injective := by intro _ _; simp
 
-/-
-open scoped EvalLike in
-instance [ft: Fintype Atom] [DecidableEq Atom] : EvalLike (Finset Atom) (ft: Finset Atom) :=
-  let attachUniv : Function.Embedding Atom (.univ: Finset Atom) :=
-    .mk (fun x => ⟨x, Finset.mem_univ x⟩) (by intro _ _; simp)
-  { coe := fun (fs: Finset Atom) => fs.map attachUniv --|> EvalLike.coe
-    coe_injective fs1 fs2 := by
-      subst attachUniv
-      intro lm1
-      simpa [EvalLike.coe_injective.eq_iff] using lm1 }
-
-open scoped EvalLike in
-instance [ft: Fintype Atom] : EvalLike (Atom → Bool) (ft: Finset Atom) where
-  coe f := (fun (a: (ft: Finset Atom)) => f a) --|> EvalLike.coe
-  coe_injective f1 f2 := by
-    simp only
-    intro lm1
-    simp only [EvalLike.coe_injective.eq_iff] at lm1
-    simp [funext_iff] at lm1
-    ext a
-    exact lm1 a (Finset.mem_univ a)
--/
 
 end Coe
 
 end Eval
 
 
-structure SatRelRaw (AP: Finset Atom) where
+structure SatRelRaw (AP: Type _) [Fintype AP] where
   ofRel :: rel : Eval AP → Formula AP → Prop
 
 instance : FunLike (SatRelRaw AP) (Eval AP) (Formula AP → Prop) where
@@ -216,15 +193,15 @@ instance : FunLike (SatRelRaw AP) (Eval AP) (Formula AP → Prop) where
   coe_injective x1 x2 := by cases x1; cases x2; simp
 
 @[mk_iff]
-structure IsSatRel (AP: Finset Atom) (raw: SatRelRaw AP) : Prop where
+structure IsSatRel (AP: Type _) [Fintype AP] (raw: SatRelRaw AP) : Prop where
   true : ∀μ, raw μ (.true AP)
-  atom (a: AP) : ∀μ, raw μ (.atom AP a) ↔ (μ a = .true)
+  atom (a: AP) : ∀μ, raw μ (.atom a) ↔ (μ a = .true)
   neg (x: Formula AP) : ∀μ, raw μ (¬ₚx) ↔ (¬raw μ x)
   and (x y: Formula AP) : ∀μ, raw μ (x ∧ₚ y) ↔ (raw μ x ∧ raw μ y)
 
-structure SatRel (AP: Finset Atom) where
+structure SatRel (AP: Type _) [Fintype AP] where
   raw: SatRelRaw AP
-  is_sat_rel: IsSatRel AP raw
+  valid: IsSatRel AP raw
 
 instance : FunLike (SatRel AP) (Eval AP) (Formula AP → Prop) where
   coe x := x.raw
@@ -262,19 +239,19 @@ namespace IsSat
 theorem true_intro
   : μ ⊨ₚ{sr} (.true AP) := by
   simp only [IsSat, app_eq_raw_app]
-  exact sr.is_sat_rel.true μ
+  exact sr.valid.true μ
 
 @[scoped grind =]
 theorem atom_iff (a: AP)
-  : μ ⊨ₚ{sr} (.atom AP a) ↔ μ a = .true := by
+  : μ ⊨ₚ{sr} (.atom a) ↔ μ a = .true := by
   simp only [IsSat, app_eq_raw_app]
-  rw [sr.is_sat_rel.atom]
+  rw [sr.valid.atom]
 
 @[scoped grind =]
 theorem neg_iff (p: Formula AP)
   : μ ⊨ₚ{sr} (¬ₚp) ↔ μ ⊭ₚ{sr} p := by
   simp only [IsSat, app_eq_raw_app _ μ]
-  rw [sr.is_sat_rel.neg]
+  rw [sr.valid.neg]
 
 @[scoped grind =]
 theorem false_iff
@@ -286,7 +263,7 @@ theorem false_iff
 theorem and_iff (p1 p2: Formula AP)
   : μ ⊨ₚ{sr} (p1 ∧ₚ p2) ↔ (μ ⊨ₚ{sr} p1) ∧ (μ ⊨ₚ{sr} p2) := by
   simp only [IsSat, app_eq_raw_app _ μ]
-  rw [sr.is_sat_rel.and]
+  rw [sr.valid.and]
 
 @[scoped grind =]
 theorem or_iff (p1 p2: Formula AP)
@@ -309,10 +286,10 @@ end IsSat
 
 
 
-class HasSatRelAt (AP: Finset Atom) (μ: Eval AP) (p: Formula AP) where
+class HasSatRel (AP: Type _) [Fintype AP] (μ: Eval AP) (p: Formula AP) where
   satRel: SatRel AP
 
-abbrev HasSatRel (Atom: Type _) : Type _ := (AP: Finset Atom) → (μ: Eval AP) → (p: Formula AP) → HasSatRelAt AP μ p
+--abbrev HasSatRel (Atom: Type _) : Type _ := (AP: Finset Atom) → (μ: Eval AP) → (p: Formula AP) → HasSatRelAt AP μ p
 
 
 section Notation
@@ -320,7 +297,7 @@ section Notation
 syntax:25 term:26 " ⊨ₚ " term:25 : term
 
 macro_rules
-  | `($μ ⊨ₚ $φ) => ``($μ ⊨ₚ{ HasSatRelAt.satRel $μ $φ } $φ )
+  | `($μ ⊨ₚ $φ) => ``($μ ⊨ₚ{ HasSatRel.satRel $μ $φ } $φ )
 
 end Notation
 

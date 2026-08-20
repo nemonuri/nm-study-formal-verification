@@ -22,6 +22,7 @@ public import Cslib.Foundations.Semantics.LTS.OmegaExecution
 
 namespace Nemonuri
 
+/-
 section Notation
 
 syntax:40 " 𝒰 " term:40 : term
@@ -30,6 +31,7 @@ macro_rules
   | `(𝒰 $α) => ``((Finset.univ : Finset $α))
 
 end Notation
+-/
 
 /-
 def attachUniv (α: Type _) [Fintype α] : α ↪ (𝒰 α) where
@@ -93,11 +95,11 @@ end Notation
 
 variable [ConcreteFinite ts]
 
-
+/-
 protected abbrev univ : Finset ts.AP := @Finset.univ _ (@ConcreteFinite.fintypeAP ts _)
 
 @[defeq] theorem univ_eq : ts.univ = Finset.univ := rfl
-
+-/
 
 /-- Not always injective -/
 def evalStateToBoolPred (s: ts.S) : ts.AP → Bool :=
@@ -110,12 +112,8 @@ omit [ts.ConcreteFinite] in
 @[defeq] theorem evalStateKernel_eq_ker : Quotient ts.evalStateKernel = Quotient (Setoid.ker ts.evalStateToBoolPred) := rfl
 
 
-instance : Eval.EvalLike (Quotient ts.evalStateKernel) ts.univ where
-  coe s := Quotient.liftOn s (Eval.mk ∘ (fun f x => f x.val) ∘ ts.evalStateToBoolPred) (by
-    simp
-    intro s1 s2 lm1
-    simp [funext_iff] at lm1
-    ext x; exact lm1 x.val )
+instance : Eval.EvalLike (Quotient ts.evalStateKernel) ts.AP where
+  coe s := Quotient.liftOn s (Eval.mk ∘ ts.evalStateToBoolPred) (by simp)
   coe_injective s1 s2 := by
     cases s1 using Quotient.inductionOn
     cases s2 using Quotient.inductionOn
@@ -151,15 +149,21 @@ end Notation
 
 
 @[scoped grind =]
-theorem isSat_iff [DecidableEq ts.AP] (p: Formula ts.univ) (s: ts.S) (sr: SatRel ts.univ)
+theorem isSat_iff [DecidableEq ts.AP] (p: Formula ts.AP) (s: ts.S) (sr: SatRel ts.AP)
   : ⟦s⟧{ts} ⊨ₚ{sr} p ↔ 𝐿{ts}⸨s⸩ ⊨ₚ{sr} p := by
-  revert p sr; dsimp only [univ_eq]; intro p sr
-  apply propext_iff.mp
-  refine congrArg₂ (IsSat sr) ?_ rfl
-  refine Eq.trans (Eval.mk _ |> Eq.refl) ?_
-  refine Eq.trans ?_ (Eval.ofSubset _ |> Eq.refl)
-  simp [evalStateToBoolPred, evalStateToFinset, Eval.ofSubset]
+  refine propext_iff.mp ?_
+  refine congrFun ?_ p
+  refine congrArg (sr.IsSat) ?_
+  dsimp [Eval.EvalLike.coe]
+  dsimp [Eval.ofSubset]
+  refine congrArg Eval.mk ?_
+  refine funext ?_
+  intro ap
+  dsimp [evalStateToBoolPred]
+  dsimp [evalStateToFinset]
+  simp
 
+#print isSat_iff
 
 /-!
 
@@ -247,7 +251,7 @@ structure IsActionDeterministic (ts: TransitionSystem) : Prop where
 
 structure IsAPDeterministic (ts: TransitionSystem) [ConcreteFinite ts] : Prop where
   initial_subsingleton : ts.I.Subsingleton
-  post_subsingleton (s: ts.S) (A: ts.AP → Bool) : ((𝑃𝑜𝑠𝑡{ts}⸨s⸩) ∩ { s': ts.S | (𝐿{ts}⸨s'⸩) = A }).Subsingleton
+  post_subsingleton (s: ts.S) (A: ts.AP → Bool) : ((𝑃𝑜𝑠𝑡{ts}⸨s⸩) ∩ { s': ts.S | (𝐿{ts}⸨s'⸩) = { ap | A ap = .true } }).Subsingleton
 
 
 
