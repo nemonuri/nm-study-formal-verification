@@ -92,6 +92,30 @@ theorem of_initial_maximal (req1: ts.IsInitial sp) (req2: ts.IsMaximal sp) : ts.
 end IsExecution
 
 
+/-!
+
+### Definition 2.10. Reachable States
+
+-/
+
+/- A state `s` is called reachable if there is some execution fragment that ends in s and that
+starts in some initial state. -/
+
+inductive IsReachable (s: ts.S) : Prop where
+  | intro (sp: SequenceProd ts.S ts.Act)
+          (initial: ts.IsInitial sp)
+          (finite: sp.toFiniteLabel initial.executionFragment.wShape.finite_eq = .finite)
+          (last_eq: sp.fst.last (initial.executionFragment.wShape.fst_nonempty) (initial.executionFragment.wShape.finite_iff_fst_finite.mp finite) = s)
+
+def Reach (ts: TransitionSystem) : Set (ts.S) := { s | ts.IsReachable s }
+
+syntax:61 " 𝑅𝑒𝑎𝑐ℎ⸨" term "⸩ " : term
+
+macro_rules
+  | `( 𝑅𝑒𝑎𝑐ℎ⸨ $ts ⸩ ) => ``( (Reach $ts) )
+
+
+
 end Nemonuri.TransitionSystem
 
 end
