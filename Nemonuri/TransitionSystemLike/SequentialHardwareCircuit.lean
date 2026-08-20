@@ -143,6 +143,9 @@ instance {n m k: ℕ} : TransitionSystemLike (SequentialHardwareCircuit n m k) w
   coe_injective := toTransitionSystem_injective
 
 
+instance {n m k: ℕ} {shc: SequentialHardwareCircuit n m k} : TransitionSystem.ConcreteFinite (shc: TransitionSystem) :=
+  .mk inferInstance inferInstance inferInstance
+
 end SequentialHardwareCircuit
 
 end Nemonuri

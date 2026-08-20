@@ -11,7 +11,7 @@ class TransitionSystemLike (α: Type _) where
   protected coe: α → TransitionSystem
   coe_injective: Function.Injective coe
 
-attribute [coe] TransitionSystemLike.coe
+attribute [coe, reducible] TransitionSystemLike.coe
 
 instance {α: Type _} [TransitionSystemLike α] : CoeOut α TransitionSystem := ⟨TransitionSystemLike.coe⟩
 
