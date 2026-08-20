@@ -63,11 +63,33 @@ theorem maximal_of_infinite (h: ts.IsExecutionFragment sp) (req: sp.toFiniteLabe
   rewrite [← sp.fst_self_finiteEq] at req
   simp [lm1] at req
 
-
-
 end IsExecutionFragment
 
 
+/-!
+
+### Definition 2.9. Execution
+
+-/
+
+/-- An *execution* of transition system TS is an initial, maximal execution fragment. -/
+structure IsExecution (sp: SequenceProd ts.S ts.Act) : Prop where
+  executionFragment: IsExecutionFragment sp
+  mem_i: sp.fst.head (executionFragment.wShape.fst_nonempty) ∈ ts.I
+  terminal (s: ts.S) (req: s ∈ sp.fst.last?) : ts.IsTerminal s
+
+namespace IsExecution
+
+variable {sp: SequenceProd ts.S ts.Act}
+
+theorem initial (h: ts.IsExecution sp) : ts.IsInitial sp := IsInitial.mk h.executionFragment h.mem_i
+
+theorem maximal (h: ts.IsExecution sp) : ts.IsMaximal sp := IsMaximal.mk h.executionFragment h.terminal
+
+theorem of_initial_maximal (req1: ts.IsInitial sp) (req2: ts.IsMaximal sp) : ts.IsExecution sp :=
+  IsExecution.mk req1.executionFragment req1.mem_i req2.terminal
+
+end IsExecution
 
 
 end Nemonuri.TransitionSystem

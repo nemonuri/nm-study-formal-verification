@@ -149,6 +149,21 @@ theorem ρ₂_maximal (h: ρ₂ ⊆ SequenceProd.InfiniteSet) (x: ρ₂) : ts.Is
 end Proof2
 
 
+section Proof3
+
+/-! `ρ₁` is an execution, while `ρ₂` and `ϱ` are not. -/
+
+theorem ρ₁_execution (h: ρ₁ ⊆ SequenceProd.InfiniteSet) (x: ρ₁) : ts.IsExecution x :=
+  .of_initial_maximal (ρ₁_initial x) (ρ₁_maximal h x)
+
+theorem ρ₂_not_execution (x: ρ₂) : ¬(ts.IsExecution x) := fun lm1 => lm1.initial |> (not_ρ₂_initial x)
+
+theorem ϱ_not_execution (x: ϱ) : ¬(ts.IsExecution x) := fun lm1 => lm1.maximal |> (ϱ_not_maximal x)
+
+/-! Note that `ρ₂` is maximal but not initial, while `ϱ` is initial but not maximal. -/
+
+end Proof3
+
 
 end Examples.Executions
 
