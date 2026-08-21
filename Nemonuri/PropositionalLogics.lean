@@ -148,7 +148,7 @@ end Eval
 class EvalLike (E: Type _) (AP: outParam <| Type _) [Fintype AP] where
   protected coe (e: E) : Eval AP
   coe_injective : Function.Injective coe
---  coe_surjective : Function.Surjective coe
+  coe_surjective : Function.Surjective coe
 
 namespace EvalLike
 
@@ -196,12 +196,12 @@ theorem ofSubset_surjective : Function.Surjective (@ofSubset AP _ _) := by
 instance : EvalLike (Finset AP) AP where
   coe := ofSubset
   coe_injective := ofSubset_injective
-  --coe_surjective := ofSubset_surjective
+  coe_surjective := ofSubset_surjective
 
 instance : EvalLike (AP → Bool) AP where
   coe := Eval.mk
   coe_injective := by intro _ _; simp
-  --coe_surjective := by rintro ⟨a⟩; exists a
+  coe_surjective := by rintro ⟨a⟩; exists a
 
 
 
@@ -504,15 +504,82 @@ namespace HasSatRel
 
 
 def liftToEvalAt (E: Type _) (AP: Type _) [Fintype AP] [EvalLike E AP] [HasSatRel E AP] : Eval.SatRel AP where
-  rel ev p := (∀(e: E), ((e: Eval AP) ≠ ev)) ∨ (∃(e: E), ((e: Eval AP) = ev) ∧ (HasSatRel.rel e p))
+  rel ev p := (∃(e: E), ((e: Eval AP) = ev) ∧ (HasSatRel.rel e p)) /-(∀(e: E), ((e: Eval AP) ≠ ev)) ∨ -/
   valid := by
     have lm1 := @HasSatRel.valid E AP _ _ _
     rcases lm1 with ⟨lm1_true, lm1_atom, lm1_neg, lm1_and⟩
     have lm2 := @EvalLike.coe_injective E AP _ _
+    have lm3 := @EvalLike.coe_surjective E AP _ _
     constructor
     · intro ev
-      by_contra lm3
-      simp at lm3
+      by_contra lm4
+      simp at lm4
+      obtain ⟨e, lm5⟩ := @lm3 ev
+      specialize lm4 e lm5
+      specialize lm1_true e
+      exact lm4 lm1_true
+    · intro a ev
+      obtain ⟨e, lm4⟩ := @lm3 ev
+      dsimp [toBoolPred] at lm1_atom
+      specialize lm1_atom a e
+      rewrite [lm4] at lm1_atom
+      rw [← lm1_atom]
+      constructor
+      · rintro ⟨e2, lm5, lm6⟩
+        replace lm5 := Eq.trans lm4 lm5.symm |> lm2.eq_iff.mp
+        rw [lm5]
+        exact lm6
+      · intro lm5
+        exists e
+    · intro p ev
+      obtain ⟨e, lm4⟩ := @lm3 ev
+      specialize lm1_neg p e
+      constructor
+      · simp
+        intro e2 lm5 lm6 e3 lm7
+        replace lm5 := Eq.trans lm4 lm5.symm |> lm2.eq_iff.mp
+        subst lm5
+        replace lm7 := Eq.trans lm4 lm7.symm |> lm2.eq_iff.mp
+        subst lm7
+        exact lm1_neg.mp lm6
+      · simp
+        intro lm5
+        specialize lm5 e lm4
+        exists e
+        simp [lm4]
+        exact lm1_neg.mpr lm5
+    · intro p1 p2 ev
+      specialize lm1_and p1 p2
+      constructor
+      · simp
+        intro e lm4 lm5
+        by_contra lm6
+        simp at lm6
+        specialize lm6 e lm4
+        specialize lm1_and e
+        obtain ⟨lm1_and_1, lm1_and_2⟩ := lm1_and.mp lm5; clear lm1_and
+        exact lm6 lm1_and_1 e lm4 lm1_and_2
+      · simp
+        intro e lm4 lm5 e2 lm6 lm7
+        exists e
+        simp [lm4]
+        rw [lm1_and e]
+        replace lm6 := Eq.trans lm4 lm6.symm |> lm2.eq_iff.mp
+        subst lm6
+        exact And.intro lm5 lm7
+
+abbrev liftToEval [HasSatRel E AP] : Eval.SatRel AP := liftToEvalAt E AP
+
+section Notation
+
+syntax:25 term:26 " ⊨ₚ " term:25 : term
+
+macro_rules
+  | `($μ ⊨ₚ $φ) => ``($μ ⊨ₚ{ HasSatRel.liftToEval } $φ )
+
+end Notation
+
+/-
       rcases lm3 with ⟨⟨e, lm3⟩, lm4⟩
       specialize lm4 e lm3
       specialize lm1_true e
@@ -524,6 +591,7 @@ def liftToEvalAt (E: Type _) (AP: Type _) [Fintype AP] [EvalLike E AP] [HasSatRe
       · intro lm3
         rcases lm3 with lm3 | lm3
         · have := lm2.left
+-/
 /-
     have lm1 := @HasSatRel.valid E AP _ _ _
     rcases lm1 with ⟨lm1_true, lm1_atom, lm1_neg, lm1_and⟩
@@ -585,7 +653,7 @@ instance ofEvalLike (e: E) (p: Formula AP) : HasSatRelAt (e: Eval AP) p where
   }
 -/
 
-end HasSatRelAt
+
 
 
 /-
