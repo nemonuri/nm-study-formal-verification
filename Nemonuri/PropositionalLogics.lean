@@ -15,12 +15,13 @@ public import Mathlib.Data.Fintype.Basic
 namespace Nemonuri.PropositionalLogics
 
 
-inductive FormulaRaw (Atom: Type _) where
+inductive Formula (AP: Type _) [Fintype AP] where
   | true
-  | atom (x: Atom)
-  | neg (x: FormulaRaw Atom)
-  | and (x: FormulaRaw Atom) (y: FormulaRaw Atom)
+  | atom (x: AP)
+  | neg (x: Formula AP)
+  | and (x: Formula AP) (y: Formula AP)
 
+/-
 @[mk_iff]
 inductive IsFormula (AP: Type _) [Fintype AP] : (FormulaRaw AP) → Prop where
   | true : IsFormula AP (.true)
@@ -33,13 +34,14 @@ inductive IsFormula (AP: Type _) [Fintype AP] : (FormulaRaw AP) → Prop where
 structure Formula (AP: Type _) [Fintype AP] where
   raw: FormulaRaw AP
   valid: IsFormula AP raw
-
+-/
 
 
 namespace Formula
 
 variable {AP: Type _} [Fintype AP]
 
+/-
 protected def mk' (AP: Type _) [Fintype AP] (x: FormulaRaw AP) (h: IsFormula AP x) : Formula AP := @Formula.mk AP _ x h
 
 @[match_pattern]
@@ -69,6 +71,7 @@ protected def recAlt
   | .atom x => atom x
   | .neg x => neg (.mk' AP x (by cases valid; assumption))
   | .and x y => and (.mk' AP x (by cases valid; assumption)) (.mk' AP y (by cases valid; assumption))
+-/
 
 /-
 inductive Splitted (AP: Finset Atom) : Formula AP → Type _ where
@@ -87,16 +90,16 @@ protected def imp (x y: Formula AP) : Formula AP := .or (.neg x) y
 
 protected def eqv (x y: Formula AP) : Formula AP := .or (.and (.neg x) (.neg y)) (.and x y)
 
-protected def false (AP: Type _) [Fintype AP] : Formula AP := .neg (.true AP)
+protected def false : Formula AP := .neg (.true)
 
 def iterAnd (xs: List (Formula AP)) : Formula AP :=
   match xs with
-  | [] => (.true AP)
+  | [] => (.true)
   | hd::tl => .and hd (iterAnd tl)
 
 def iterOr (xs: List (Formula AP)) : Formula AP :=
   match xs with
-  | [] => (.false AP)
+  | [] => (.false)
   | hd::tl => .or hd (iterOr tl)
 
 
@@ -121,12 +124,15 @@ macro_rules
 
 end Notation
 
+end Formula
 
 
-structure Eval (AP: Type _) [Fintype AP]  where
+structure Eval (AP: Type _) [Fintype AP] where
   eval : AP → Bool
 
 namespace Eval
+
+variable {AP: Type _} [Fintype AP]
 
 instance : FunLike (Eval AP) AP Bool where
   coe μ := μ.eval
@@ -134,13 +140,15 @@ instance : FunLike (Eval AP) AP Bool where
 
 theorem app_eq_eval_app (μ: Eval AP) (a: AP) : μ a = μ.eval a := by rfl
 
+end Eval
 
 
-section Coe
+
 
 class EvalLike (E: Type _) (AP: outParam <| Type _) [Fintype AP] where
   protected coe (e: E) : Eval AP
   coe_injective : Function.Injective coe
+--  coe_surjective : Function.Surjective coe
 
 namespace EvalLike
 
@@ -149,10 +157,14 @@ attribute [coe] EvalLike.coe
 variable {E: Type _} {AP: Type _} [Fintype AP] [EvalLike E AP]
 
 instance : CoeOut E (Eval AP) where coe := EvalLike.coe
---instance : EvalLike (Eval AP) AP := ⟨id, Function.injective_id⟩
 
-end EvalLike
+/-
+noncomputable def coeInv (ev: Eval AP) : E := Function.surjInv coe_surjective ev
 
+theorem coeInv_eq {ev: Eval AP} : EvalLike.coe (coeInv ev : E) = ev := by
+  dsimp [coeInv]
+  exact Function.surjInv_eq _ _
+-/
 
 variable [DecidableEq AP]
 
@@ -170,21 +182,34 @@ theorem ofSubset_injective : Function.Injective (@ofSubset AP _ _) := by
   specialize lm1 a
   simpa only [decide_eq_decide] using lm1
 
+theorem ofSubset_surjective : Function.Surjective (@ofSubset AP _ _) := by
+  rintro ⟨a⟩
+  dsimp [ofSubset]
+  let a1 : Finset AP := Finset.univ.filter (a · = .true)
+  exists a1
+  subst a1
+  refine congrArg _ ?_
+  refine funext ?_; intro ap
+  simp
+
 
 instance : EvalLike (Finset AP) AP where
   coe := ofSubset
   coe_injective := ofSubset_injective
+  --coe_surjective := ofSubset_surjective
 
 instance : EvalLike (AP → Bool) AP where
   coe := Eval.mk
   coe_injective := by intro _ _; simp
+  --coe_surjective := by rintro ⟨a⟩; exists a
 
 
-end Coe
-
-end Eval
 
 
+
+end EvalLike
+
+/-
 structure SatRelRaw (AP: Type _) [Fintype AP] where
   ofRel :: rel : Eval AP → Formula AP → Prop
 
@@ -206,18 +231,39 @@ structure SatRel (AP: Type _) [Fintype AP] where
 instance : FunLike (SatRel AP) (Eval AP) (Formula AP → Prop) where
   coe x := x.raw
   coe_injective x1 x2 := by cases x1; cases x2; simp
+-/
+
+@[mk_iff]
+structure IsSatRelAt (AP: Type _) [Fintype AP] (F: Type _) (eval: F → AP → Bool) (rel: F → Formula AP → Prop) : Prop where
+  true : ∀μ, rel μ (.true)
+  atom (a: AP) : ∀μ, rel μ (.atom a) ↔ (eval μ a = .true)
+  neg (x: Formula AP) : ∀μ, rel μ (¬ₚx) ↔ (¬rel μ x)
+  and (x y: Formula AP) : ∀μ, rel μ (x ∧ₚ y) ↔ (rel μ x ∧ rel μ y)
+
+namespace Eval
+
+abbrev IsSatRel {AP: Type _} [Fintype AP] (rel: Eval AP → Formula AP → Prop) : Prop := IsSatRelAt AP (Eval AP) DFunLike.coe rel
 
 
+structure SatRel (AP: Type _) [Fintype AP] where
+  rel : Eval AP → Formula AP → Prop
+  valid: IsSatRel rel
+
+instance {AP: Type _} [Fintype AP] : FunLike (SatRel AP) (Eval AP) (Formula AP → Prop) where
+  coe sr := sr.rel
+  coe_injective := by
+    rintro ⟨rel1⟩ ⟨rel2⟩
+    simp
 
 
 namespace SatRel
 
 
-variable (sr: SatRel AP) (μ: Eval AP)
+variable {AP: Type _} [Fintype AP] (sr: SatRel AP) (μ: Eval AP)
 
 
 theorem app_eq_raw_app
-  : sr μ = sr.raw μ :=
+  : sr μ = sr.rel μ :=
   rfl
 
 abbrev IsSat (p: Formula AP) : Prop := sr μ p
@@ -237,7 +283,7 @@ namespace IsSat
 
 @[scoped grind .]
 theorem true_intro
-  : μ ⊨ₚ{sr} (.true AP) := by
+  : μ ⊨ₚ{sr} (.true) := by
   simp only [IsSat, app_eq_raw_app]
   exact sr.valid.true μ
 
@@ -255,7 +301,7 @@ theorem neg_iff (p: Formula AP)
 
 @[scoped grind =]
 theorem false_iff
-  : μ ⊨ₚ{sr} (.false AP) ↔ False := by
+  : μ ⊨ₚ{sr} (.false) ↔ False := by
   simp only [Formula.false]
   grind only [= neg_iff, true_intro]
 
@@ -286,20 +332,6 @@ end IsSat
 
 
 
-class HasSatRel (AP: Type _) [Fintype AP] (μ: Eval AP) (p: Formula AP) where
-  satRel: SatRel AP
-
---abbrev HasSatRel (Atom: Type _) : Type _ := (AP: Finset Atom) → (μ: Eval AP) → (p: Formula AP) → HasSatRelAt AP μ p
-
-
-section Notation
-
-syntax:25 term:26 " ⊨ₚ " term:25 : term
-
-macro_rules
-  | `($μ ⊨ₚ $φ) => ``($μ ⊨ₚ{ HasSatRel.satRel $μ $φ } $φ )
-
-end Notation
 
 
 /-- `p1` `p2` are semantically equivalent -/
@@ -427,13 +459,13 @@ theorem dist_and (p1 p2 p3: Formula AP)
   grind
 
 @[scoped grind .]
-theorem iterAnd_nil : ⋀ₚ ([]: List (Formula AP)) ≡ₚ{sr} (.true AP) := by
-  unfold iterAnd
+theorem iterAnd_nil : ⋀ₚ ([]: List (Formula AP)) ≡ₚ{sr} (.true) := by
+  unfold Formula.iterAnd
   rfl
 
 @[scoped grind .]
-theorem iterOr_nil : ⋁ₚ ([]: List (Formula AP)) ≡ₚ{sr} (.false AP) := by
-  unfold iterOr
+theorem iterOr_nil : ⋁ₚ ([]: List (Formula AP)) ≡ₚ{sr} (.false) := by
+  unfold Formula.iterOr
   rfl
 
 end SemEquiv
@@ -451,24 +483,138 @@ theorem unsatisfiable_iff_neg_valid (p: Formula AP)
   simp only [IsSat.neg_iff]
 
 
-
 end SatRel
 
+end Eval
+
+namespace EvalLike
+
+variable {E: Type _} {AP: Type _} [Fintype AP] [EvalLike E AP]
+
+def toBoolPred (e: E) : AP → Bool := (e: Eval AP)
+
+abbrev IsSatRel (rel: E → Formula AP → Prop) : Prop := IsSatRelAt AP E toBoolPred rel
 
 
+class HasSatRel (E: Type _) (AP: Type _) [Fintype AP] [EvalLike E AP] where
+  rel : E → Formula AP → Prop
+  valid : IsSatRel rel
+
+namespace HasSatRel
 
 
+def liftToEvalAt (E: Type _) (AP: Type _) [Fintype AP] [EvalLike E AP] [HasSatRel E AP] : Eval.SatRel AP where
+  rel ev p := (∀(e: E), ((e: Eval AP) ≠ ev)) ∨ (∃(e: E), ((e: Eval AP) = ev) ∧ (HasSatRel.rel e p))
+  valid := by
+    have lm1 := @HasSatRel.valid E AP _ _ _
+    rcases lm1 with ⟨lm1_true, lm1_atom, lm1_neg, lm1_and⟩
+    have lm2 := @EvalLike.coe_injective E AP _ _
+    constructor
+    · intro ev
+      by_contra lm3
+      simp at lm3
+      rcases lm3 with ⟨⟨e, lm3⟩, lm4⟩
+      specialize lm4 e lm3
+      specialize lm1_true e
+      exact lm4 lm1_true
+    · intro ap ev
+      specialize lm1_atom ap
+      dsimp [toBoolPred] at lm1_atom
+      constructor
+      · intro lm3
+        rcases lm3 with lm3 | lm3
+        · have := lm2.left
+/-
+    have lm1 := @HasSatRel.valid E AP _ _ _
+    rcases lm1 with ⟨lm1_true, lm1_atom, lm1_neg, lm1_and⟩
+    have lm2 := @EvalLike.coe_injective E AP _ _
+    constructor
+    · intro ev
+      by_contra lm3
+      simp at lm3
+      rcases lm3 with ⟨lm3, lm4⟩
+      rcases lm3 with ⟨e⟩
+      specialize lm4 e
+-/
+
+/-
+  ∃(prop: Prop), (Option.some prop = (do let e: E ← Function.partialInv (EvalLike.coe) ev; return HasSatRel.rel e p)) ∧ prop
+-/
+/-
+  valid := by
+    have lm1 := @EvalLike.coe_injective E AP _ _
+    have lm2 := Function.partialInv_left lm1
+    simp
+    dsimp [Eval.IsSatRel, DFunLike.coe]
+    constructor
+    · intro ev
+-/
+    --simp [Option.bind_eq_some_iff]
 
 
+end HasSatRel
+
+end EvalLike
+
+/-
+class HasSatRelAt {AP: Type _} [Fintype AP] (μ: Eval AP) (p: Formula AP) where
+  satRel: SatRel AP
 
 
+section Notation
 
-end Formula
+syntax:25 term:26 " ⊨ₚ " term:25 : term
+
+macro_rules
+  | `($μ ⊨ₚ $φ) => ``($μ ⊨ₚ{ HasSatRelAt.satRel $μ $φ } $φ )
+
+end Notation
 
 
+namespace HasSatRelAt
+
+variable {E AP: Type _} [Fintype AP] [EvalLike E AP]
+-/
 
 
+/-
+instance ofEvalLike (e: E) (p: Formula AP) : HasSatRelAt (e: Eval AP) p where
+  satRel := {
+    rel :=
+    valid := _
+  }
+-/
 
+end HasSatRelAt
+
+
+/-
+class SatRelLike (SR: Type _) (E: Type _) (AP: outParam <| Type _) [Fintype AP] [EvalLike E AP] where
+  toRel : SR → E → Formula AP → Prop
+  valid (sr: SR) : IsSatRel AP (fun ev => toRel sr (EvalLike.coeInv ev))
+-/
+/-
+  true (sr: SR) : ∀μ, toRel sr μ (.true)
+  atom (sr: SR) (a: AP) : ∀μ, toRel sr μ (.atom a) ↔ ((μ: Eval AP) a = .true)
+  neg (sr: SR) (x: Formula AP) : ∀μ, toRel sr μ (¬ₚx) ↔ (¬toRel sr μ x)
+  and (sr: SR) (x y: Formula AP) : ∀μ, toRel sr μ (x ∧ₚ y) ↔ (toRel sr μ x ∧ toRel sr μ y)
+-/
+
+/-
+namespace SatRelLike
+
+variable {SR E AP: Type _} [Fintype AP] [EvalLike E AP] [SatRelLike SR E AP]
+
+
+def toSatRel (sr: SR) : SatRel AP where
+  rel ev := toRel sr (EvalLike.coeInv ev : E)
+  valid := SatRelLike.valid sr
+
+#print toSatRel
+
+
+end SatRelLike
+-/
 
 end Nemonuri.PropositionalLogics
 
