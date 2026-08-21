@@ -1,6 +1,7 @@
 module
 
 public import Mathlib.Data.Fintype.Basic
+public import Mathlib.Data.Fintype.Pi
 
 /-!
 
@@ -140,6 +141,29 @@ instance : FunLike (Eval AP) AP Bool where
 
 theorem app_eq_eval_app (μ: Eval AP) (a: AP) : μ a = μ.eval a := by rfl
 
+abbrev Indicator (AP: Type _) [Fintype AP] : Type _ := AP → Bool
+
+namespace Indicator
+
+def mk (f: AP → Bool) : Indicator AP := f
+
+def fn (ind: Indicator AP) : AP → Bool := ind
+
+
+scoped instance [DecidableEq AP] : Fintype (AP → Bool) := Pi.instFintype
+
+instance toFintype [DecidableEq AP] : Fintype (Indicator AP) := inferInstanceAs (Fintype (AP → Bool))
+
+
+end Indicator
+
+
+def equivOfIndicatorAndEval : Indicator AP ≃ Eval AP where
+  toFun := Eval.mk
+  invFun := Eval.eval
+
+instance toFintype [DecidableEq AP] : Fintype (Eval AP) := Fintype.ofEquiv (Indicator AP) equivOfIndicatorAndEval
+
 end Eval
 
 
@@ -166,7 +190,21 @@ theorem coeInv_eq {ev: Eval AP} : EvalLike.coe (coeInv ev : E) = ev := by
   exact Function.surjInv_eq _ _
 -/
 
+noncomputable section Noncomputable
+
+instance : DecidableEq AP := Classical.typeDecidableEq AP
+
+instance fintypeOfCarrier : Fintype E := Fintype.ofInjective EvalLike.coe EvalLike.coe_injective
+
+end Noncomputable
+
+
+
 variable [DecidableEq AP]
+
+
+
+
 
 scoped instance (A: Finset AP) (a: AP) : Decidable (a ∈ A) := A.decidableMem a
 

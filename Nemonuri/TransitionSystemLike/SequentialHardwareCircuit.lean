@@ -99,6 +99,11 @@ theorem nonempty_iff_any_ne_zero : (Nonempty (AP n m k)) ↔ ((n ≠ 0) ∨ (m �
       · exact .intro (.outputs (.mk 0 lm1))
       · exact .intro (.registers (.mk 0 lm1))
 
+def combineBPred (fi: (Fin n) → Bool) (fo: (Fin m) → Bool) (fr: (Fin k) → Bool) (ap: AP n m k) : Bool :=
+  match ap with
+  | .inputs i => fi i
+  | .registers i => fr i
+  | .outputs i => fo i
 
 end AP
 
@@ -109,6 +114,38 @@ def labeling {n m k: ℕ} (sw: (Eval n k) → (Fin m) → Bool) (ev: Eval n k) (
   | .registers i => ev.registers.get i
   | .outputs i => sw ev i
 
+namespace Eval
+
+/-
+def ofFn {n m k: ℕ} (fn: (AP n m k) → Bool) : Eval n k :=
+  let inputs h1 : Vector Bool n := List.finRange n |>.map (fun n' => fn (.inputs n')) |>.toArray |> Vector.mk <| h1
+  let registers h2 : Vector Bool k := List.finRange k |>.map (fun n' => fn (.registers n')) |>.toArray |> Vector.mk <| h2
+  Eval.mk (inputs (by simp)) (registers (by simp))
+-/
+
+def ofFn {n k: ℕ} (fi: (Fin n) → Bool) (fr: (Fin k) → Bool) : Eval n k := Eval.mk (.ofFn fi) (.ofFn fr)
+
+/-
+theorem ofFn_labeling {n m k: ℕ} (sw: (Eval n k) → (Fin m) → Bool) (fi: (Fin n) → Bool) (fr: (Fin k) → Bool)
+  : let fn ev := AP.combineBPred fi (sw ev) fr; labeling sw = fn := by
+-/
+/-
+  refine funext ?_; intro ap
+  cases ap <;> rename_i i
+  · dsimp [labeling]
+    dsimp [ofFn, Vector.get]
+    rcases i with ⟨i, lm1⟩
+    simp
+  · unfold labeling
+    dsimp
+-/
+
+def ofAPBoolPred {n m k: ℕ} (bpred: AP n m k → Bool) : Eval n k :=
+  let fi (i: Fin n) := bpred (AP.inputs i)
+  let fr (i: Fin k) := bpred (AP.registers i)
+  Eval.ofFn fi fr
+
+end Eval
 
 end SequentialHardwareCircuit
 
@@ -173,9 +210,35 @@ instance {n m k: ℕ} : TransitionSystemLike (SequentialHardwareCircuit n m k) w
   coe_injective := toTransitionSystem_injective
 
 
-instance {n m k: ℕ} {shc: SequentialHardwareCircuit n m k} : TransitionSystem.ConcreteFinite (shc: TransitionSystem) :=
+
+
+
+section TransitionSystem
+
+open TransitionSystem
+
+variable {n m k: ℕ} {shc: SequentialHardwareCircuit n m k}
+
+instance : ConcreteFinite (shc: TransitionSystem) :=
   .mk inferInstance inferInstance inferInstance
 
+
+instance {n m k: ℕ} {shc: SequentialHardwareCircuit n m k} : IsStateSpaceValid (shc: TransitionSystem) := by
+  refine .intro Eval.ofAPBoolPred ?_
+  dsimp
+  intro bp
+  dsimp [TransitionSystem.labeling]
+  refine funext ?_
+  intro ap
+  cases ap <;> rename_i i
+  · dsimp [labeling, Eval.ofAPBoolPred, Eval.ofFn, Vector.get]
+    simp
+  · dsimp [labeling, Eval.ofAPBoolPred]
+  --dsimp [Eval.ofAPBoolPred]
+  --unfold TransitionSystem.labeling
+
+
+end TransitionSystem
 /-
 theorem toTransitionSystem_labeling_injective {n m k: ℕ} {shc: SequentialHardwareCircuit n m k} [NeZero m] : Function.Injective ((shc: TransitionSystem).L) := by
   dsimp

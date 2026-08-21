@@ -133,9 +133,9 @@ instance (priority := low) decidableEqOfLabelingQuotient : DecidableEq (Quotient
 
 end ConcreteFinite
 
-
+@[mk_iff]
 class inductive IsStateSpaceValid (ts: TransitionSystem) : Prop where
-  | intro (f: (ts.AP → Bool) → ts.S) (req: ∀(ev: ts.AP → Bool), ev = (ts.labeling (f ev)))
+  | intro (f: (ts.AP → Bool) → ts.S) (req: ∀(bp: ts.AP → Bool), (ts.labeling (f bp)) = bp)
 
 namespace IsStateSpaceValid
 
@@ -191,13 +191,15 @@ omit [ts.ConcreteFinite] [IsStateSpaceValid ts] in
 @[defeq] theorem evalStateKernel_eq_ker : Quotient ts.evalStateKernel = Quotient (Setoid.ker ts.evalStateToBoolPred) := rfl
 -/
 
+#check Set.SurjOn
+
 --set_option trace.Meta.synthInstance true in
 instance : EvalLike (Quotient ts.toLabelingSetoid) ts.AP where
   coe s := Quotient.liftOn s (Eval.mk ∘ ts.labeling) (by
-      intro s1 s2 lm1
-      change ts.LabelingEquiv s1 s2 at lm1
-      dsimp [LabelingEquiv] at lm1
-      simpa using lm1 )
+    intro s1 s2 lm1
+    change ts.LabelingEquiv s1 s2 at lm1
+    dsimp [LabelingEquiv] at lm1
+    simpa using lm1 )
   coe_injective s1 s2 := by
     cases s1 using Quotient.inductionOn
     cases s2 using Quotient.inductionOn
@@ -210,11 +212,30 @@ instance : EvalLike (Quotient ts.toLabelingSetoid) ts.AP where
   coe_surjective := by
     rintro ⟨ev⟩
     have lm1 : ts.IsStateSpaceValid := inferInstance
-    rcases lm1 with ⟨finv, lm2⟩
-    specialize lm2 ev
+    rcases lm1 with ⟨finv, lm1⟩
+    exists ts.toLabelingQuotient (finv ev)
+    simp [toLabelingQuotient]
+    specialize lm1 ev
+    exact lm1
+    --dsimp [Function.RightInverse, Function.LeftInverse] at lm2
+
+    --have lm2 := lm1.surjective
+    --refine funext ?_
+    --intro ap
+    --specialize lm1 ev
+    --exact lm1
+/-
+    simp [toLabelingQuotient]
+    simp [funext_iff] at lm2 ⊢
+    exact lm2 ev
+-/
+
+/-
+
     exists ts.toLabelingQuotient (finv ev)
     simp [toLabelingQuotient]
     exact lm2.symm
+-/
 /-
     simp
     obtain ⟨f, lm2⟩ := (inferInstance: ts.IsStateSpaceValid).surjection_exists
