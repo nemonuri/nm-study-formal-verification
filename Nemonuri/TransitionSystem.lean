@@ -42,7 +42,7 @@ def attachUnivToFinset (α: Type _) [Fintype α] : Finset α ↪o Finset (𝒰 �
   Finset.mapEmbedding (attachUniv α)
 -/
 
-open PropositionalLogics Formula SatRel IsSat
+open PropositionalLogics Formula
 
 structure TransitionSystem where
   /-- A set of states -/
@@ -60,6 +60,46 @@ structure TransitionSystem where
 
 namespace TransitionSystem
 
+def labeling (ts: TransitionSystem) (s: ts.S) : ts.AP → Bool := ts.L s
+
+def LabelingEquiv (ts: TransitionSystem) (s1 s2: ts.S) : Prop := ts.labeling s1 = ts.labeling s2
+
+section Labeling
+
+variable {ts: TransitionSystem} {s1 s2: ts.S}
+
+theorem labelingEquiv_iff_forall_ap : (ts.LabelingEquiv s1 s2) ↔ ∀(ap: ts.AP), ts.labeling s1 ap = ts.labeling s2 ap := by
+  dsimp [LabelingEquiv]
+  simp [funext_iff]
+
+namespace LabelingEquiv
+
+theorem equivalence : Equivalence ts.LabelingEquiv := by
+  constructor
+  · intro _; dsimp [LabelingEquiv]
+  · intro _ _ lm1;
+    dsimp [LabelingEquiv] at lm1 ⊢
+    exact lm1.symm
+  · dsimp [LabelingEquiv]
+    intro _ _ _ lm1 lm2
+    exact lm1.trans lm2
+
+end LabelingEquiv
+
+@[reducible]
+def toLabelingSetoid (ts: TransitionSystem) : Setoid ts.S where
+  r := ts.LabelingEquiv
+  iseqv := LabelingEquiv.equivalence
+
+
+def toLabelingQuotient (ts: TransitionSystem) (s: ts.S) : Quotient ts.toLabelingSetoid := Quotient.mk ts.toLabelingSetoid s
+
+
+
+end Labeling
+
+
+
 /-- `TS` is called finite if `S`, `Act`, and `AP` are finite. -/
 @[mk_iff]
 structure IsFinite (TS: TransitionSystem) : Prop where
@@ -75,6 +115,44 @@ class ConcreteFinite (TS: TransitionSystem) where
 attribute [reducible, instance] ConcreteFinite.fintypeS
 attribute [reducible, instance] ConcreteFinite.fintypeAct
 attribute [reducible, instance] ConcreteFinite.fintypeAP
+
+namespace ConcreteFinite
+
+variable {ts: TransitionSystem} [ConcreteFinite ts]
+
+
+
+instance (priority := low) decidableEqOfForallAPBool : DecidableEq (ts.AP → Bool) := Fintype.decidablePiFintype
+
+instance (priority := low) decidableLabelingEquiv : DecidableRel (ts.LabelingEquiv) :=
+  fun s1 s2 => decidable_of_iff (ts.labeling s1 = ts.labeling s2) (by dsimp [LabelingEquiv]; rfl)
+
+instance (priority := low) decidableEqOfLabelingQuotient : DecidableEq (Quotient ts.toLabelingSetoid) :=
+  @Quotient.decidableEq ts.S ts.toLabelingSetoid (inferInstanceAs (DecidableRel (ts.LabelingEquiv)))
+
+
+end ConcreteFinite
+
+
+class inductive IsStateSpaceValid (ts: TransitionSystem) : Prop where
+  | intro (f: (ts.AP → Bool) → ts.S) (req: ∀(ev: ts.AP → Bool), ev = (ts.labeling (f ev)))
+
+namespace IsStateSpaceValid
+
+
+variable {ts: TransitionSystem} [IsStateSpaceValid ts]
+
+/-
+theorem surjection_exists : ∃(f: ts.S → ts.AP → Bool), Function.Surjective f := by
+  have lm1 : ts.IsStateSpaceValid := inferInstance
+  rcases lm1 with ⟨f, lm1⟩
+  exists f
+-/
+
+end IsStateSpaceValid
+
+
+
 
 
 variable (ts: TransitionSystem)
@@ -93,7 +171,7 @@ macro_rules
 end Notation
 
 
-variable [ConcreteFinite ts]
+variable [ConcreteFinite ts] [IsStateSpaceValid ts]
 
 /-
 protected abbrev univ : Finset ts.AP := @Finset.univ _ (@ConcreteFinite.fintypeAP ts _)
@@ -101,6 +179,7 @@ protected abbrev univ : Finset ts.AP := @Finset.univ _ (@ConcreteFinite.fintypeA
 @[defeq] theorem univ_eq : ts.univ = Finset.univ := rfl
 -/
 
+/-
 /-- Not always injective -/
 def evalStateToBoolPred (s: ts.S) : ts.AP → Bool :=
   ts.L s
@@ -108,12 +187,17 @@ def evalStateToBoolPred (s: ts.S) : ts.AP → Bool :=
 @[reducible]
 def evalStateKernel : Setoid ts.S := Setoid.ker ts.evalStateToBoolPred
 
-omit [ts.ConcreteFinite] in
+omit [ts.ConcreteFinite] [IsStateSpaceValid ts] in
 @[defeq] theorem evalStateKernel_eq_ker : Quotient ts.evalStateKernel = Quotient (Setoid.ker ts.evalStateToBoolPred) := rfl
+-/
 
-
-instance : Eval.EvalLike (Quotient ts.evalStateKernel) ts.AP where
-  coe s := Quotient.liftOn s (Eval.mk ∘ ts.evalStateToBoolPred) (by simp)
+--set_option trace.Meta.synthInstance true in
+instance : EvalLike (Quotient ts.toLabelingSetoid) ts.AP where
+  coe s := Quotient.liftOn s (Eval.mk ∘ ts.labeling) (by
+      intro s1 s2 lm1
+      change ts.LabelingEquiv s1 s2 at lm1
+      dsimp [LabelingEquiv] at lm1
+      simpa using lm1 )
   coe_injective s1 s2 := by
     cases s1 using Quotient.inductionOn
     cases s2 using Quotient.inductionOn
@@ -121,8 +205,29 @@ instance : Eval.EvalLike (Quotient ts.evalStateKernel) ts.AP where
     intro lm1
     simp [funext_iff] at lm1
     apply Quotient.sound
-    simp
+    change ts.LabelingEquiv _ _
     ext x; exact lm1 x
+  coe_surjective := by
+    rintro ⟨ev⟩
+    have lm1 : ts.IsStateSpaceValid := inferInstance
+    rcases lm1 with ⟨finv, lm2⟩
+    specialize lm2 ev
+    exists ts.toLabelingQuotient (finv ev)
+    simp [toLabelingQuotient]
+    exact lm2.symm
+/-
+    simp
+    obtain ⟨f, lm2⟩ := (inferInstance: ts.IsStateSpaceValid).surjection_exists
+    obtain ⟨s, lm3⟩ := @lm2 ev
+    exists Quotient.mk ts.evalStateKernel s
+    simp
+    dsimp [evalStateToBoolPred]
+    simp only [funext_iff]
+    intro ap
+-/
+
+instance (priority := low) : Formula.HasEvalLike ts.AP where
+  Carrier := (Quotient ts.toLabelingSetoid)
 
 
 section Notation
@@ -130,7 +235,7 @@ section Notation
 syntax:51 " ⟦" term "⟧{" term "} " : term
 
 macro_rules
-  | `( ⟦ $s ⟧{ $ts } ) => ``( Quotient.mk (evalStateKernel $ts) $s )
+  | `( ⟦ $s ⟧{ $ts } ) => ``( toLabelingQuotient $ts $s )
 
 end Notation
 
@@ -149,21 +254,21 @@ end Notation
 
 
 @[scoped grind =]
-theorem isSat_iff [DecidableEq ts.AP] (p: Formula ts.AP) (s: ts.S) (sr: SatRel ts.AP)
-  : ⟦s⟧{ts} ⊨ₚ{sr} p ↔ 𝐿{ts}⸨s⸩ ⊨ₚ{sr} p := by
+theorem isSat_iff [DecidableEq ts.AP] (p: Formula ts.AP) (s: ts.S) [EvalLike.HasSatRel (Quotient ts.toLabelingSetoid) ts.AP] --(sr: SatRel ts.AP)
+  : ⟦s⟧{ts} ⊨ₚ p ↔ 𝐿{ts}⸨s⸩ ⊨ₚ p := by
   refine propext_iff.mp ?_
   refine congrFun ?_ p
-  refine congrArg (sr.IsSat) ?_
-  dsimp [Eval.EvalLike.coe]
-  dsimp [Eval.ofSubset]
+  refine congrArg _ ?_
+  dsimp [EvalLike.coe]
+  dsimp [EvalLike.ofSubset]
   refine congrArg Eval.mk ?_
   refine funext ?_
   intro ap
-  dsimp [evalStateToBoolPred]
+  dsimp [labeling]
   dsimp [evalStateToFinset]
   simp
 
-#print isSat_iff
+--#print isSat_iff
 
 /-!
 

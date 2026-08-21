@@ -205,9 +205,18 @@ instance : EvalLike (AP → Bool) AP where
 
 
 
-
-
 end EvalLike
+
+namespace Formula
+
+class HasEvalLike (AP: Type*) [Fintype AP] where
+  Carrier: Type*
+  [evalLike: EvalLike Carrier AP]
+
+attribute [reducible] HasEvalLike.Carrier
+attribute [reducible, instance] HasEvalLike.evalLike
+
+end Formula
 
 /-
 structure SatRelRaw (AP: Type _) [Fintype AP] where
@@ -568,14 +577,15 @@ def liftToEvalAt (E: Type _) (AP: Type _) [Fintype AP] [EvalLike E AP] [HasSatRe
         subst lm6
         exact And.intro lm5 lm7
 
-abbrev liftToEval [HasSatRel E AP] : Eval.SatRel AP := liftToEvalAt E AP
+open Formula in
+abbrev liftToEval (AP: Type _) [Fintype AP] [HasEvalLike AP] [HasSatRel (HasEvalLike.Carrier AP) AP] : Eval.SatRel AP := liftToEvalAt (HasEvalLike.Carrier AP) AP
 
 section Notation
 
 syntax:25 term:26 " ⊨ₚ " term:25 : term
 
 macro_rules
-  | `($μ ⊨ₚ $φ) => ``($μ ⊨ₚ{ HasSatRel.liftToEval } $φ )
+  | `($μ ⊨ₚ $φ) => ``($μ ⊨ₚ{ HasSatRel.liftToEval _ } $φ )
 
 end Notation
 
