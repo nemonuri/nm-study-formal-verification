@@ -2,6 +2,7 @@ module
 
 public import Mathlib.Data.Fintype.Basic
 public import Mathlib.Data.Fintype.Pi
+public import Mathlib.Data.Finite.Prod
 
 /-!
 
@@ -154,6 +155,7 @@ scoped instance [DecidableEq AP] : Fintype (AP → Bool) := Pi.instFintype
 
 instance toFintype [DecidableEq AP] : Fintype (Indicator AP) := inferInstanceAs (Fintype (AP → Bool))
 
+instance toFinite : Finite (Indicator AP) := letI := Classical.typeDecidableEq AP; Finite.of_fintype (Indicator AP)
 
 end Indicator
 
@@ -164,6 +166,16 @@ def equivOfIndicatorAndEval : Indicator AP ≃ Eval AP where
 
 instance toFintype [DecidableEq AP] : Fintype (Eval AP) := Fintype.ofEquiv (Indicator AP) equivOfIndicatorAndEval
 
+instance toFinite : Finite (Eval AP) := letI := Classical.typeDecidableEq AP; Finite.of_fintype (Eval AP)
+
+
+theorem subset_finite {ss: Set (Eval AP)} : ss.Finite := by
+  have lm1 : Finite (Eval AP) := toFinite
+  rw [← Set.finite_coe_iff]
+  exact Subtype.finite
+
+
+
 end Eval
 
 
@@ -172,7 +184,7 @@ end Eval
 class EvalLike (E: Type _) (AP: outParam <| Type _) [Fintype AP] where
   protected coe (e: E) : Eval AP
   coe_injective : Function.Injective coe
-  coe_surjective : Function.Surjective coe
+  --coe_surjective : Function.Surjective coe
 
 namespace EvalLike
 
@@ -190,6 +202,7 @@ theorem coeInv_eq {ev: Eval AP} : EvalLike.coe (coeInv ev : E) = ev := by
   exact Function.surjInv_eq _ _
 -/
 
+/-
 noncomputable section Noncomputable
 
 instance : DecidableEq AP := Classical.typeDecidableEq AP
@@ -197,13 +210,34 @@ instance : DecidableEq AP := Classical.typeDecidableEq AP
 instance fintypeOfCarrier : Fintype E := Fintype.ofInjective EvalLike.coe EvalLike.coe_injective
 
 end Noncomputable
+-/
+
+
+
+instance finiteOfCarrier : Finite E := Finite.of_injective EvalLike.coe EvalLike.coe_injective
+
+instance coe_finite : Finite (E → (Eval AP)) := Pi.finite
+
+instance toFinite : Finite (EvalLike E AP) := by
+  let invMk (e: EvalLike E AP) : E → (Eval AP) := e.coe
+  refine Finite.of_injective invMk ?_
+  subst invMk
+  rintro ⟨el1_1, el1_2⟩ ⟨el2_1, el2_2⟩
+  simp
+  intro lm1
+  congr
+
+
+def RangeAt (E AP: Type _) [Fintype AP] [EvalLike E AP] : Set (Eval AP) := Set.range (@EvalLike.coe E AP _ _)
+
+theorem rangeAt_finite : (RangeAt E AP).Finite := Eval.subset_finite
+
+
+
 
 
 
 variable [DecidableEq AP]
-
-
-
 
 
 scoped instance (A: Finset AP) (a: AP) : Decidable (a ∈ A) := A.decidableMem a
@@ -234,12 +268,12 @@ theorem ofSubset_surjective : Function.Surjective (@ofSubset AP _ _) := by
 instance : EvalLike (Finset AP) AP where
   coe := ofSubset
   coe_injective := ofSubset_injective
-  coe_surjective := ofSubset_surjective
+  --coe_surjective := ofSubset_surjective
 
 instance : EvalLike (AP → Bool) AP where
   coe := Eval.mk
   coe_injective := by intro _ _; simp
-  coe_surjective := by rintro ⟨a⟩; exists a
+  --coe_surjective := by rintro ⟨a⟩; exists a
 
 
 
