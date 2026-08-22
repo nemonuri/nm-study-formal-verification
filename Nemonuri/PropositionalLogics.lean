@@ -64,6 +64,12 @@ def hasAtom : Formula AP → Bool
   | .neg p => hasAtom p
   | .and p1 p2 => (hasAtom p1) || (hasAtom p2)
 
+@[simp]
+theorem and_hasAtom_eq_false_iff_hasAtom_eq_false_and {p1 p2: Formula AP}
+  : ((p1.and p2).hasAtom = .false) ↔ (p1.hasAtom = false) ∧ (p2.hasAtom = false) := by
+  simp [hasAtom]
+
+
 
 def collectAtom [DecidableEq AP] : Formula AP → Finset AP
   | .true => ∅
@@ -96,6 +102,52 @@ theorem hasAtom_eq_false_of_ap_empty [IsEmpty AP] {p: Formula AP} : p.hasAtom = 
   exact (inferInstance : IsEmpty AP).false ap
 
 
+def evalToBool? (p: Formula AP) : Option Bool := do
+  match p with
+  | .true => return .true
+  | .atom _ => .none
+  | .neg p => return !(← p.evalToBool?)
+  | .and p1 p2 => return (← p1.evalToBool?) && (← p2.evalToBool?)
+
+theorem evalToBool?_isSome_of_hasAtom_eq_false (p: Formula AP) (req: p.hasAtom = .false) : p.evalToBool?.isSome = .true := by
+  rcases p with _ | ap | p | ⟨p1, p2⟩
+  · dsimp [evalToBool?]
+  · dsimp [hasAtom] at req
+    simp at req
+  · dsimp [hasAtom] at req
+    dsimp [evalToBool?]
+    cases lm1: p.evalToBool?
+    · simp
+      have lm2 := p.evalToBool?_isSome_of_hasAtom_eq_false req
+      simp [lm1] at lm2
+    · simp
+  · dsimp [hasAtom] at req
+    dsimp [evalToBool?]
+    simp at req
+    rcases req with ⟨req1, req2⟩
+    cases lm1: p1.evalToBool?
+    · have lm2 := p1.evalToBool?_isSome_of_hasAtom_eq_false req1
+      simp [lm1] at lm2
+    · simp
+      cases lm2: p2.evalToBool?
+      · have lm3 := p2.evalToBool?_isSome_of_hasAtom_eq_false req2
+        simp [lm2] at lm3
+      · simp
+
+def evalToBool (p: Formula AP) (req: p.hasAtom = .false) : Bool :=
+  match lm1: p.evalToBool? with
+  | .some val => val
+  | .none => absurd lm1 (by
+      have lm2 := p.evalToBool?_isSome_of_hasAtom_eq_false req
+      simp [lm1] at lm2 )
+
+theorem evalToBool_eq_iff_evalToBool?_eq_some {p: Formula AP} (req: p.hasAtom = .false) {b: Bool}
+  : (p.evalToBool req = b) ↔ (p.evalToBool? = .some b) := by
+  have lm1 := p.evalToBool?_isSome_of_hasAtom_eq_false req
+  dsimp [evalToBool]
+  split <;> (rename_i lm2; simp [lm2] at lm1)
+  rw [lm2]
+  exact Option.some_inj.symm
 
 
 /-
@@ -209,6 +261,73 @@ def mk (f: AP → Bool) : Indicator AP := f
 def fn (ind: Indicator AP) : AP → Bool := ind
 
 
+def evalFormulaToBool (ind: Indicator AP) (p: Formula AP) : Bool :=
+  match p with
+  | .true => .true
+  | .atom ap => ind.fn ap
+  | .neg p => !(ind.evalFormulaToBool p)
+  | .and p1 p2 => (ind.evalFormulaToBool p1) && (ind.evalFormulaToBool p2)
+
+
+open Formula in
+theorem evalFormulaToBool_eq_evalToBool_of_ap_empty [IsEmpty AP] {ind: Indicator AP} {p: Formula AP}
+  : ind.evalFormulaToBool p = p.evalToBool (p.hasAtom_eq_false_of_ap_empty) := by
+  have lm1 := p.hasAtom_eq_false_of_ap_empty
+  have lm2 := p.evalToBool?_isSome_of_hasAtom_eq_false lm1 |> Option.isSome_iff_exists.mp
+  rcases lm2 with ⟨val, lm2⟩
+  rcases p with _ | ap | p | ⟨p1, p2⟩
+  · dsimp [evalFormulaToBool, evalToBool, evalToBool?]
+  · revert ap; simp only [IsEmpty.forall_iff]
+  · dsimp [evalFormulaToBool]
+    have lm3 := @evalFormulaToBool_eq_evalToBool_of_ap_empty _ ind p |>.symm
+    rewrite [p.evalToBool_eq_iff_evalToBool?_eq_some] at lm3
+    have lm4 := lm2
+    dsimp [evalToBool?] at lm4
+    simp [lm3] at lm4
+    symm
+    rw [p.neg.evalToBool_eq_iff_evalToBool?_eq_some, lm2, lm4]
+    simp
+  · obtain ⟨lm1_1, lm1_2⟩ := and_hasAtom_eq_false_iff_hasAtom_eq_false_and.mp lm1
+    clear lm1
+    have lm3_1 := @evalFormulaToBool_eq_evalToBool_of_ap_empty _ ind p1 |>.symm
+    have lm3_2 := @evalFormulaToBool_eq_evalToBool_of_ap_empty _ ind p2 |>.symm
+    rewrite [evalToBool_eq_iff_evalToBool?_eq_some] at lm3_1 lm3_2
+    have lm4 := lm2
+    dsimp [evalToBool?] at lm4
+    rewrite [lm3_1, lm3_2] at lm4
+    simp at lm4
+    dsimp [evalFormulaToBool]
+    symm
+    rw [lm4, evalToBool_eq_iff_evalToBool?_eq_some]
+    exact lm2
+
+
+
+
+
+
+
+
+/-
+    have lm3 := @evalFormulaToBool_eq_evalToBool_of_ap_empty _ ind p |>.symm
+    rewrite [p.evalToBool_eq_iff_evalToBool?_eq_some] at lm3
+    symm
+    rw [p.neg.evalToBool_eq_iff_evalToBool?_eq_some, lm2]
+-/
+/-
+    simp
+    have lm3 := @evalFormulaToBool_eq_evalToBool_of_ap_empty _ ind p
+    refine Eq.trans lm3 ?_
+    obtain ⟨_, lm4⟩ := p.evalToBool?_isSome_of_hasAtom_eq_false lm1 |> Option.isSome_iff_exists.mp
+    dsimp [evalToBool] at lm3
+    split at lm3 <;> (rename_i lm5; simp [lm4] at lm5)
+-/
+
+    --dsimp [evalToBool]
+
+
+
+
 scoped instance [DecidableEq AP] : Fintype (AP → Bool) := Pi.instFintype
 
 instance toFintype [DecidableEq AP] : Fintype (Indicator AP) := inferInstanceAs (Fintype (AP → Bool))
@@ -278,6 +397,28 @@ instance : CoeOut E (Eval AP) where coe := EvalLike.coe
 
 def toIndicator (e: E) : Eval.Indicator AP := ((e: Eval AP) : AP → Bool)
 
+def toEvalFormulaToBool (e: E) (p: Formula AP) : Bool := (toIndicator e).evalFormulaToBool p
+
+structure AreEvalToTrue (e: E) (p: Formula AP) : Prop where
+  intro :: eq_true : toEvalFormulaToBool e p = .true
+
+namespace AreEvalToTrue
+
+variable {e: E} {p: Formula AP}
+
+theorem eq_true_iff : (toEvalFormulaToBool e p = .true) ↔ (AreEvalToTrue e p) := by
+  constructor
+  · intro lm1
+    exact .intro lm1
+  · rintro ⟨lm1⟩
+    exact lm1
+
+end AreEvalToTrue
+
+abbrev AreEvalToTrueAt (E AP: Type _) [Fintype AP] [EvalLike E AP] : E → Formula AP → Prop := AreEvalToTrue
+
+@[defeq]
+theorem areEvalToTrueAt_eq_areEvalToTrue : AreEvalToTrueAt E AP = AreEvalToTrue := rfl
 
 
 instance finite_of_carrier : Finite E := Finite.of_injective EvalLike.coe EvalLike.coe_injective
@@ -418,10 +559,10 @@ instance : FunLike (SatRel AP) (Eval AP) (Formula AP → Prop) where
 
 @[mk_iff]
 structure IsSatRelAt (AP: Type _) [Fintype AP] (C: Type _) (eval: C → AP → Bool) (rel: C → Formula AP → Prop) : Prop where
-  true : ∀μ, rel μ (.true)
-  atom (a: AP) : ∀μ, rel μ (.atom a) ↔ (eval μ a = .true)
-  neg (x: Formula AP) : ∀μ, rel μ (¬ₚx) ↔ (¬rel μ x)
-  and (x y: Formula AP) : ∀μ, rel μ (x ∧ₚ y) ↔ (rel μ x ∧ rel μ y)
+  true (μ: C) : rel μ (.true)
+  atom (μ: C) (a: AP) : rel μ (.atom a) ↔ (eval μ a = .true)
+  neg (μ: C) (x: Formula AP) : rel μ (¬ₚx) ↔ (¬rel μ x)
+  and (μ: C) (x y: Formula AP) : rel μ (x ∧ₚ y) ↔ (rel μ x ∧ rel μ y)
 
 namespace IsSatRelAt
 
@@ -429,7 +570,148 @@ variable {AP: Type _} [Fintype AP]
          {C: Type _} {eval: C → AP → Bool} {rel: C → Formula AP → Prop}
          {C2: Type _} {eval2: C2 → AP → Bool} {rel2: C2 → Formula AP → Prop}
 
+theorem of_carrier_empty [IsEmpty C] : IsSatRelAt AP C eval rel := by constructor <;> simp
+
+open EvalLike Eval.Indicator in
+theorem of_eq_areEvalToTrue [EvalLike C AP] (req: rel = AreEvalToTrue) : IsSatRelAt AP C toIndicator rel := by
+  simp only [funext_iff, ← AreEvalToTrue.eq_true_iff] at req
+  dsimp [toEvalFormulaToBool] at req
+  constructor
+  · intro c
+    specialize req c Formula.true
+    dsimp [evalFormulaToBool] at req
+    simpa using req
+  · intro c ap
+    specialize req c (Formula.atom ap)
+    dsimp [evalFormulaToBool, Eval.Indicator.fn] at req
+    exact req |> propext_iff.mp
+  · intro c p
+    have lm1 := req c p
+    have lm2 := req c p.neg
+    dsimp [evalFormulaToBool, Eval.Indicator.fn] at lm2
+    rw [lm2, lm1]
+    simp
+  · intro c p1 p2
+    have lm1 := req c p1
+    have lm2 := req c p2
+    have lm3 := req c (p1.and p2)
+    dsimp [evalFormulaToBool, Eval.Indicator.fn] at lm3
+    simp at lm3
+    rw [lm3, lm2, lm1]
+
+open EvalLike Eval.Indicator in
+theorem to_eq_areEvalToTrue_at [EvalLike C AP] (h: IsSatRelAt AP C toIndicator rel) (c: C) (p: Formula AP) : rel c p ↔ AreEvalToTrue c p := by
+  simp only [← AreEvalToTrue.eq_true_iff, toEvalFormulaToBool]
+  obtain ⟨lm1_true, lm1_atom, lm1_neg, lm1_and⟩ := id h
+  rcases p with _ | ap | p | ⟨p1, p2⟩
+  · simp [evalFormulaToBool]
+    exact lm1_true c
+  · dsimp [evalFormulaToBool, Eval.Indicator.fn]
+    exact lm1_atom c ap
+  · have lm2 := h.to_eq_areEvalToTrue_at c p
+    simp only [← AreEvalToTrue.eq_true_iff, toEvalFormulaToBool] at lm2
+    have lm3 := lm1_neg c p
+    dsimp [evalFormulaToBool, Eval.Indicator.fn]
+    rw [lm3, lm2]
+    simp
+  · have lm2_1 := h.to_eq_areEvalToTrue_at c p1
+    have lm2_2 := h.to_eq_areEvalToTrue_at c p2
+    simp only [← AreEvalToTrue.eq_true_iff, toEvalFormulaToBool] at lm2_1 lm2_2
+    simp [evalFormulaToBool]
+    rw [← lm2_1, ← lm2_2]
+    have lm3 := lm1_and c p1 p2
+    exact lm3
+
+open EvalLike in
+theorem to_eq_areEvalToTrue [EvalLike C AP] (h: IsSatRelAt AP C toIndicator rel) : rel = AreEvalToTrue := by
+  simp only [funext_iff, propext_iff]
+  exact h.to_eq_areEvalToTrue_at
+
+open EvalLike in
+theorem eq_areEvalToTrue_iff [EvalLike C AP] : (IsSatRelAt AP C toIndicator rel) ↔ (rel = AreEvalToTrue) :=
+  ⟨to_eq_areEvalToTrue, of_eq_areEvalToTrue⟩
+
+
+
+/-
+open EvalLike Eval.Indicator in
+theorem iff_iff_toEvalFormulaToBool_eq_true [EvalLike C AP]
+  : (∀c p, rel c p ↔ toEvalFormulaToBool c p = .true) ↔ IsSatRelAt AP C toIndicator rel := by
+  constructor
+  · exact of_iff_toEvalFormulaToBool_eq_true
+  · intro lm1 c p
+    have lm1_1 := lm1
+    dsimp [toEvalFormulaToBool]
+    rcases lm1 with ⟨lm1_true, lm1_atom, lm1_neg, lm1_and⟩
+    rcases p with _ | ap | p | ⟨p1, p2⟩
+    · simp [evalFormulaToBool]
+      exact lm1_true c
+    · dsimp [evalFormulaToBool, Eval.Indicator.fn]
+      exact lm1_atom c ap
+    · dsimp [evalFormulaToBool, Eval.Indicator.fn]
+      have lm2 := lm1_neg c p
+-/
+
+
+
+  --dsimp [EvalToFormulaSetAt] at req
+  --simp [Set.ext_iff] at req
+
+/-
+theorem of_ap_empty_at [IsEmpty AP] (req1: ∀(c: C), rel c .true) : IsSatRelAt AP C eval rel := by
+  constructor
+  · exact req1
+  · intro _; simp only [IsEmpty.forall_iff]
+  · intro c p
+    rcases p with _ | ap | p | ⟨p1, p2⟩
+    · simp [req1]; revert c
+-/
+
 def SetOfValidFormula (_: IsSatRelAt AP C eval rel) : Set (Formula AP) := { p: Formula AP | ∃(c: C), rel c p }
+
+
+/-
+open EvalLike in
+theorem rangeAt_eq_iff_valid_formula_eq_of_ap_empty [IsEmpty AP]
+  [EvalLike C AP] [EvalLike C2 AP] (req1: IsSatRelAt AP C toIndicator rel) (req2: IsSatRelAt AP C2 toIndicator rel2)
+  : (RangeAt C AP = RangeAt C2 AP) ↔ (req1.SetOfValidFormula = req2.SetOfValidFormula) := by
+  have lm1 := fun ev1 => @Eval.all_eq_of_ap_empty AP _ _ ev1 (default: Eval AP)
+  dsimp [SetOfValidFormula]
+  unfold toIndicator at req1 req2
+  simp [lm1, DFunLike.coe] at req1 req2
+  rcases req1 with ⟨req1_true, req1_atom, req1_neg, req1_and⟩
+  rcases req2 with ⟨req2_true, req2_atom, req2_neg, req2_and⟩
+  simp at req1_atom req2_atom
+  clear req1_atom req2_atom
+  dsimp [RangeAt]
+  simp [Set.ext_iff]
+  constructor
+  · intro lm2 p
+    specialize lm2 (default: Eval AP)
+    simp [lm1] at lm2
+-/
+/-
+    constructor
+    · rintro ⟨c, lm3⟩
+      specialize lm2 (c: Eval AP)
+      simp at lm2
+      rcases lm2 with ⟨c2, lm2⟩
+-/
+
+
+/-
+  constructor
+  · intro lm2
+    dsimp [RangeAt] at lm2
+    dsimp [SetOfValidFormula]
+    simp [Set.ext_iff] at lm2 ⊢
+    intro p
+    constructor
+    · rintro ⟨c, lm3⟩
+      specialize lm2 (c: Eval AP)
+      simp at lm2
+      rcases lm2 with ⟨c2, lm2⟩
+-/
 
 /-
 open EvalLike in
@@ -742,7 +1024,7 @@ class HasSatRel (E: Type _) (AP: Type _) [Fintype AP] [EvalLike E AP] where
 
 namespace HasSatRel
 
-
+/-
 def liftToEvalAt (E: Type _) (AP: Type _) [Fintype AP] [EvalLike E AP] [HasSatRel E AP] : Eval.SatRel AP where
   rel ev p := (∃(e: E), ((e: Eval AP) = ev) ∧ (HasSatRel.rel e p)) /-(∀(e: E), ((e: Eval AP) ≠ ev)) ∨ -/
   valid := by
@@ -807,7 +1089,7 @@ def liftToEvalAt (E: Type _) (AP: Type _) [Fintype AP] [EvalLike E AP] [HasSatRe
         replace lm6 := Eq.trans lm4 lm6.symm |> lm2.eq_iff.mp
         subst lm6
         exact And.intro lm5 lm7
-
+-/
 open Formula in
 abbrev liftToEval (AP: Type _) [Fintype AP] [HasEvalLike AP] [HasSatRel (HasEvalLike.Carrier AP) AP] : Eval.SatRel AP := liftToEvalAt (HasEvalLike.Carrier AP) AP
 
