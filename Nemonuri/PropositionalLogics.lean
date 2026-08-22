@@ -302,9 +302,21 @@ theorem evalFormulaToBool_eq_evalToBool_of_ap_empty [IsEmpty AP] {ind: Indicator
     exact lm2
 
 
+structure AreEvalToTrue (ind: Indicator AP) (p: Formula AP) : Prop where
+  intro :: eq_true : evalFormulaToBool ind p = .true
 
+namespace AreEvalToTrue
 
+variable {ind: Indicator AP} {p: Formula AP}
 
+theorem eq_true_iff : (evalFormulaToBool ind p = .true) ↔ (AreEvalToTrue ind p) := by
+  constructor
+  · intro lm1
+    exact .intro lm1
+  · rintro ⟨lm1⟩
+    exact lm1
+
+end AreEvalToTrue
 
 
 
@@ -395,30 +407,15 @@ variable {E: Type _} {AP: Type _} [Fintype AP] [EvalLike E AP]
 
 instance : CoeOut E (Eval AP) where coe := EvalLike.coe
 
-def toIndicator (e: E) : Eval.Indicator AP := ((e: Eval AP) : AP → Bool)
+abbrev toIndicator (e: E) : Eval.Indicator AP := ((e: Eval AP) : AP → Bool)
 
-def toEvalFormulaToBool (e: E) (p: Formula AP) : Bool := (toIndicator e).evalFormulaToBool p
+--def toEvalFormulaToBool (e: E) (p: Formula AP) : Bool := (toIndicator e).evalFormulaToBool p
 
-structure AreEvalToTrue (e: E) (p: Formula AP) : Prop where
-  intro :: eq_true : toEvalFormulaToBool e p = .true
 
-namespace AreEvalToTrue
-
-variable {e: E} {p: Formula AP}
-
-theorem eq_true_iff : (toEvalFormulaToBool e p = .true) ↔ (AreEvalToTrue e p) := by
-  constructor
-  · intro lm1
-    exact .intro lm1
-  · rintro ⟨lm1⟩
-    exact lm1
-
-end AreEvalToTrue
-
-abbrev AreEvalToTrueAt (E AP: Type _) [Fintype AP] [EvalLike E AP] : E → Formula AP → Prop := AreEvalToTrue
+abbrev AreEvalToTrueAt (E AP: Type _) [Fintype AP] [EvalLike E AP] : E → Formula AP → Prop := Eval.Indicator.AreEvalToTrue ∘ toIndicator
 
 @[defeq]
-theorem areEvalToTrueAt_eq_areEvalToTrue : AreEvalToTrueAt E AP = AreEvalToTrue := rfl
+theorem areEvalToTrueAt_eq_areEvalToTrue {e: E} {p: Formula AP} : AreEvalToTrueAt E AP e p = (toIndicator e).AreEvalToTrue p := rfl
 
 
 instance finite_of_carrier : Finite E := Finite.of_injective EvalLike.coe EvalLike.coe_injective
@@ -518,20 +515,14 @@ instance : EvalLike (AP → Bool) AP where
   coe_injective := by intro _ _; simp
   --coe_surjective := by rintro ⟨a⟩; exists a
 
+instance (priority := 10) : EvalLike (Eval AP) AP where
+  coe := id
+  coe_injective := Function.injective_id
 
 
 end EvalLike
 
-namespace Formula
 
-class HasEvalLike (AP: Type*) [Fintype AP] where
-  Carrier: Type*
-  [evalLike: EvalLike Carrier AP]
-
-attribute [reducible] HasEvalLike.Carrier
-attribute [reducible, instance] HasEvalLike.evalLike
-
-end Formula
 
 /-
 structure SatRelRaw (AP: Type _) [Fintype AP] where
@@ -573,9 +564,8 @@ variable {AP: Type _} [Fintype AP]
 theorem of_carrier_empty [IsEmpty C] : IsSatRelAt AP C eval rel := by constructor <;> simp
 
 open EvalLike Eval.Indicator in
-theorem of_eq_areEvalToTrue [EvalLike C AP] (req: rel = AreEvalToTrue) : IsSatRelAt AP C toIndicator rel := by
-  simp only [funext_iff, ← AreEvalToTrue.eq_true_iff] at req
-  dsimp [toEvalFormulaToBool] at req
+theorem of_eq_areEvalToTrue [EvalLike C AP] (req: rel = AreEvalToTrueAt C AP) : IsSatRelAt AP C toIndicator rel := by
+  simp only [funext_iff, areEvalToTrueAt_eq_areEvalToTrue, ← AreEvalToTrue.eq_true_iff] at req
   constructor
   · intro c
     specialize req c Formula.true
@@ -600,8 +590,8 @@ theorem of_eq_areEvalToTrue [EvalLike C AP] (req: rel = AreEvalToTrue) : IsSatRe
     rw [lm3, lm2, lm1]
 
 open EvalLike Eval.Indicator in
-theorem to_eq_areEvalToTrue_at [EvalLike C AP] (h: IsSatRelAt AP C toIndicator rel) (c: C) (p: Formula AP) : rel c p ↔ AreEvalToTrue c p := by
-  simp only [← AreEvalToTrue.eq_true_iff, toEvalFormulaToBool]
+theorem to_eq_areEvalToTrue_at [EvalLike C AP] (h: IsSatRelAt AP C toIndicator rel) (c: C) (p: Formula AP) : rel c p ↔ AreEvalToTrueAt C AP c p := by
+  simp only [areEvalToTrueAt_eq_areEvalToTrue, ← AreEvalToTrue.eq_true_iff]
   obtain ⟨lm1_true, lm1_atom, lm1_neg, lm1_and⟩ := id h
   rcases p with _ | ap | p | ⟨p1, p2⟩
   · simp [evalFormulaToBool]
@@ -609,26 +599,26 @@ theorem to_eq_areEvalToTrue_at [EvalLike C AP] (h: IsSatRelAt AP C toIndicator r
   · dsimp [evalFormulaToBool, Eval.Indicator.fn]
     exact lm1_atom c ap
   · have lm2 := h.to_eq_areEvalToTrue_at c p
-    simp only [← AreEvalToTrue.eq_true_iff, toEvalFormulaToBool] at lm2
+    simp only [areEvalToTrueAt_eq_areEvalToTrue, ← AreEvalToTrue.eq_true_iff] at lm2
     have lm3 := lm1_neg c p
     dsimp [evalFormulaToBool, Eval.Indicator.fn]
     rw [lm3, lm2]
     simp
   · have lm2_1 := h.to_eq_areEvalToTrue_at c p1
     have lm2_2 := h.to_eq_areEvalToTrue_at c p2
-    simp only [← AreEvalToTrue.eq_true_iff, toEvalFormulaToBool] at lm2_1 lm2_2
+    simp only [areEvalToTrueAt_eq_areEvalToTrue, ← AreEvalToTrue.eq_true_iff] at lm2_1 lm2_2
     simp [evalFormulaToBool]
     rw [← lm2_1, ← lm2_2]
     have lm3 := lm1_and c p1 p2
     exact lm3
 
 open EvalLike in
-theorem to_eq_areEvalToTrue [EvalLike C AP] (h: IsSatRelAt AP C toIndicator rel) : rel = AreEvalToTrue := by
+theorem to_eq_areEvalToTrue [EvalLike C AP] (h: IsSatRelAt AP C toIndicator rel) : rel = AreEvalToTrueAt C AP := by
   simp only [funext_iff, propext_iff]
   exact h.to_eq_areEvalToTrue_at
 
 open EvalLike in
-theorem eq_areEvalToTrue_iff [EvalLike C AP] : (IsSatRelAt AP C toIndicator rel) ↔ (rel = AreEvalToTrue) :=
+theorem eq_areEvalToTrue_iff [EvalLike C AP] : (IsSatRelAt AP C toIndicator rel) ↔ (rel = AreEvalToTrueAt C AP) :=
   ⟨to_eq_areEvalToTrue, of_eq_areEvalToTrue⟩
 
 
@@ -762,27 +752,28 @@ theorem rangeAt_eq_iff_valid_formula_eq
 
 end IsSatRelAt
 
-namespace Eval
-
-abbrev IsSatRel {AP: Type _} [Fintype AP] (rel: Eval AP → Formula AP → Prop) : Prop := IsSatRelAt AP (Eval AP) DFunLike.coe rel
 
 
-structure SatRel (AP: Type _) [Fintype AP] where
-  rel : Eval AP → Formula AP → Prop
+abbrev IsSatRel {E AP: Type _} [Fintype AP] [EvalLike E AP] (rel: E → Formula AP → Prop) : Prop := IsSatRelAt AP E EvalLike.toIndicator rel
+
+
+structure SatRel (E AP: Type _) [Fintype AP] [EvalLike E AP] where
+  rel : E → Formula AP → Prop
   valid: IsSatRel rel
-
-instance {AP: Type _} [Fintype AP] : FunLike (SatRel AP) (Eval AP) (Formula AP → Prop) where
-  coe sr := sr.rel
-  coe_injective := by
-    rintro ⟨rel1⟩ ⟨rel2⟩
-    simp
 
 
 namespace SatRel
 
+open EvalLike
 
-variable {AP: Type _} [Fintype AP] (sr: SatRel AP) (μ: Eval AP)
+variable {E AP: Type _} [Fintype AP] [EvalLike E AP] (sr: SatRel E AP) (μ: E)
 
+
+instance : FunLike (SatRel E AP) E (Formula AP → Prop) where
+  coe sr := sr.rel
+  coe_injective := by
+    rintro ⟨rel1⟩ ⟨rel2⟩
+    simp
 
 theorem app_eq_raw_app
   : sr μ = sr.rel μ :=
@@ -811,7 +802,7 @@ theorem true_intro
 
 @[scoped grind =]
 theorem atom_iff (a: AP)
-  : μ ⊨ₚ{sr} (.atom a) ↔ μ a = .true := by
+  : μ ⊨ₚ{sr} (.atom a) ↔ (toIndicator μ) a = .true := by
   simp only [IsSat, app_eq_raw_app]
   rw [sr.valid.atom]
 
@@ -857,7 +848,7 @@ end IsSat
 
 
 /-- `p1` `p2` are semantically equivalent -/
-def SemEquiv (p1 p2: Formula AP) : Prop := ∀(μ: Eval AP), (μ ⊨ₚ{sr} p1) ↔ (μ ⊨ₚ{sr} p2)
+def SemEquiv (p1 p2: Formula AP) : Prop := ∀(μ: E), (μ ⊨ₚ{sr} p1) ↔ (μ ⊨ₚ{sr} p2)
 
 
 section Notation
@@ -870,7 +861,7 @@ macro_rules
 end Notation
 
 @[scoped grind =]
-theorem semEquiv_iff (p1 p2: Formula AP) : sr.SemEquiv p1 p2 ↔ (∀(μ: Eval AP), (μ ⊨ₚ{sr} p1) ↔ (μ ⊨ₚ{sr} p2)) := by rfl
+theorem semEquiv_iff (p1 p2: Formula AP) : sr.SemEquiv p1 p2 ↔ (∀(μ: E), (μ ⊨ₚ{sr} p1) ↔ (μ ⊨ₚ{sr} p2)) := by rfl
 
 namespace SemEquiv
 
@@ -992,9 +983,9 @@ theorem iterOr_nil : ⋁ₚ ([]: List (Formula AP)) ≡ₚ{sr} (.false) := by
 
 end SemEquiv
 
-def IsSatisfiable (p: Formula AP) : Prop := ∃(μ: Eval AP), μ ⊨ₚ{sr} p
+def IsSatisfiable (p: Formula AP) : Prop := ∃(μ: E), μ ⊨ₚ{sr} p
 
-def IsValid (p: Formula AP) : Prop := ∀(μ: Eval AP), μ ⊨ₚ{sr} p
+def IsValid (p: Formula AP) : Prop := ∀(μ: E), μ ⊨ₚ{sr} p
 
 abbrev IsUnsatisfiable (p: Formula AP) : Prop := ¬(sr.IsSatisfiable p)
 
@@ -1005,147 +996,56 @@ theorem unsatisfiable_iff_neg_valid (p: Formula AP)
   simp only [IsSat.neg_iff]
 
 
+protected def default : SatRel E AP where
+  rel := AreEvalToTrueAt E AP
+  valid := IsSatRelAt.of_eq_areEvalToTrue rfl
+
+
+instance toUnique : Unique (SatRel E AP) where
+  default := SatRel.default
+  uniq := by
+    rintro ⟨rel, valid⟩
+    dsimp [SatRel.default]
+    simp
+    dsimp [IsSatRel] at valid
+    exact valid.to_eq_areEvalToTrue
+
+
 end SatRel
 
-end Eval
 
-namespace EvalLike
+namespace Formula
 
-variable {E: Type _} {AP: Type _} [Fintype AP] [EvalLike E AP]
+class HasEvalLike (AP: Type*) [Fintype AP] where
+  Carrier: Type*
+  [evalLike: EvalLike Carrier AP]
 
-def toBoolPred (e: E) : AP → Bool := (e: Eval AP)
+attribute [reducible] HasEvalLike.Carrier
+attribute [reducible, instance] HasEvalLike.evalLike
 
-abbrev IsSatRel (rel: E → Formula AP → Prop) : Prop := IsSatRelAt AP E toBoolPred rel
+namespace HasEvalLike
 
+def toSatRel (AP: Type*) [Fintype AP] [HasEvalLike AP] : SatRel (Carrier AP) AP :=
+  (inferInstance: Unique (SatRel (Carrier AP) AP)).toInhabited.default
 
-class HasSatRel (E: Type _) (AP: Type _) [Fintype AP] [EvalLike E AP] where
-  rel : E → Formula AP → Prop
-  valid : IsSatRel rel
-
-namespace HasSatRel
-
-/-
-def liftToEvalAt (E: Type _) (AP: Type _) [Fintype AP] [EvalLike E AP] [HasSatRel E AP] : Eval.SatRel AP where
-  rel ev p := (∃(e: E), ((e: Eval AP) = ev) ∧ (HasSatRel.rel e p)) /-(∀(e: E), ((e: Eval AP) ≠ ev)) ∨ -/
-  valid := by
-    have lm1 := @HasSatRel.valid E AP _ _ _
-    rcases lm1 with ⟨lm1_true, lm1_atom, lm1_neg, lm1_and⟩
-    have lm2 := @EvalLike.coe_injective E AP _ _
-    have lm3 := @EvalLike.coe_surjective E AP _ _
-    constructor
-    · intro ev
-      by_contra lm4
-      simp at lm4
-      obtain ⟨e, lm5⟩ := @lm3 ev
-      specialize lm4 e lm5
-      specialize lm1_true e
-      exact lm4 lm1_true
-    · intro a ev
-      obtain ⟨e, lm4⟩ := @lm3 ev
-      dsimp [toBoolPred] at lm1_atom
-      specialize lm1_atom a e
-      rewrite [lm4] at lm1_atom
-      rw [← lm1_atom]
-      constructor
-      · rintro ⟨e2, lm5, lm6⟩
-        replace lm5 := Eq.trans lm4 lm5.symm |> lm2.eq_iff.mp
-        rw [lm5]
-        exact lm6
-      · intro lm5
-        exists e
-    · intro p ev
-      obtain ⟨e, lm4⟩ := @lm3 ev
-      specialize lm1_neg p e
-      constructor
-      · simp
-        intro e2 lm5 lm6 e3 lm7
-        replace lm5 := Eq.trans lm4 lm5.symm |> lm2.eq_iff.mp
-        subst lm5
-        replace lm7 := Eq.trans lm4 lm7.symm |> lm2.eq_iff.mp
-        subst lm7
-        exact lm1_neg.mp lm6
-      · simp
-        intro lm5
-        specialize lm5 e lm4
-        exists e
-        simp [lm4]
-        exact lm1_neg.mpr lm5
-    · intro p1 p2 ev
-      specialize lm1_and p1 p2
-      constructor
-      · simp
-        intro e lm4 lm5
-        by_contra lm6
-        simp at lm6
-        specialize lm6 e lm4
-        specialize lm1_and e
-        obtain ⟨lm1_and_1, lm1_and_2⟩ := lm1_and.mp lm5; clear lm1_and
-        exact lm6 lm1_and_1 e lm4 lm1_and_2
-      · simp
-        intro e lm4 lm5 e2 lm6 lm7
-        exists e
-        simp [lm4]
-        rw [lm1_and e]
-        replace lm6 := Eq.trans lm4 lm6.symm |> lm2.eq_iff.mp
-        subst lm6
-        exact And.intro lm5 lm7
--/
-open Formula in
-abbrev liftToEval (AP: Type _) [Fintype AP] [HasEvalLike AP] [HasSatRel (HasEvalLike.Carrier AP) AP] : Eval.SatRel AP := liftToEvalAt (HasEvalLike.Carrier AP) AP
 
 section Notation
 
 syntax:25 term:26 " ⊨ₚ " term:25 : term
 
 macro_rules
-  | `($μ ⊨ₚ $φ) => ``($μ ⊨ₚ{ HasSatRel.liftToEval _ } $φ )
+  | `($μ ⊨ₚ $φ) => ``($μ ⊨ₚ{ toSatRel _ } $φ )
 
 end Notation
 
-/-
-      rcases lm3 with ⟨⟨e, lm3⟩, lm4⟩
-      specialize lm4 e lm3
-      specialize lm1_true e
-      exact lm4 lm1_true
-    · intro ap ev
-      specialize lm1_atom ap
-      dsimp [toBoolPred] at lm1_atom
-      constructor
-      · intro lm3
-        rcases lm3 with lm3 | lm3
-        · have := lm2.left
--/
-/-
-    have lm1 := @HasSatRel.valid E AP _ _ _
-    rcases lm1 with ⟨lm1_true, lm1_atom, lm1_neg, lm1_and⟩
-    have lm2 := @EvalLike.coe_injective E AP _ _
-    constructor
-    · intro ev
-      by_contra lm3
-      simp at lm3
-      rcases lm3 with ⟨lm3, lm4⟩
-      rcases lm3 with ⟨e⟩
-      specialize lm4 e
--/
+end HasEvalLike
 
-/-
-  ∃(prop: Prop), (Option.some prop = (do let e: E ← Function.partialInv (EvalLike.coe) ev; return HasSatRel.rel e p)) ∧ prop
--/
-/-
-  valid := by
-    have lm1 := @EvalLike.coe_injective E AP _ _
-    have lm2 := Function.partialInv_left lm1
-    simp
-    dsimp [Eval.IsSatRel, DFunLike.coe]
-    constructor
-    · intro ev
--/
-    --simp [Option.bind_eq_some_iff]
+end Formula
 
 
-end HasSatRel
 
-end EvalLike
+
+
 
 /-
 class HasSatRelAt {AP: Type _} [Fintype AP] (μ: Eval AP) (p: Formula AP) where
