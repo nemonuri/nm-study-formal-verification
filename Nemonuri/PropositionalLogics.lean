@@ -43,6 +43,61 @@ namespace Formula
 
 variable {AP: Type _} [Fintype AP]
 
+instance toNonempty : Nonempty (Formula AP) := .intro .true
+
+theorem ne_atom_of_empty_ap [IsEmpty AP] {p: Formula AP} {ap: AP} : (p ≠ .atom ap) := by
+  intro lm1
+  cases p <;> try simp at lm1
+  exact (inferInstance: IsEmpty AP).false ap
+
+theorem exists_eq_atom_iff_nonempty : (∃(p: Formula AP), ∃(ap: AP), p = .atom ap) ↔ Nonempty AP := by
+  constructor
+  · rintro ⟨p, ap, lm1⟩
+    exact .intro ap
+  · rintro ⟨ap⟩
+    exists .atom ap
+    exists ap
+
+def hasAtom : Formula AP → Bool
+  | .true => .false
+  | .atom _ => .true
+  | .neg p => hasAtom p
+  | .and p1 p2 => (hasAtom p1) || (hasAtom p2)
+
+
+def collectAtom [DecidableEq AP] : Formula AP → Finset AP
+  | .true => ∅
+  | .atom ap => {ap}
+  | .neg p => collectAtom p
+  | .and p1 p2 => (collectAtom p1) ∪ (collectAtom p2)
+
+
+theorem hasAtom_eq_true_iff_collectAtom_nonempty [DecidableEq AP] {p: Formula AP}
+  : p.hasAtom = .true ↔ p.collectAtom.Nonempty := by
+  rcases p with _ | ap | p | ⟨p1, p2⟩
+  · dsimp [hasAtom, collectAtom]; simp
+  · dsimp [hasAtom, collectAtom]; simp
+  · dsimp [hasAtom, collectAtom]
+    exact @p.hasAtom_eq_true_iff_collectAtom_nonempty _
+  · dsimp [hasAtom, collectAtom]
+    simp
+    have lm1 := @p1.hasAtom_eq_true_iff_collectAtom_nonempty _
+    have lm2 := @p2.hasAtom_eq_true_iff_collectAtom_nonempty _
+    rw [lm1, lm2]
+
+
+theorem hasAtom_eq_false_of_ap_empty [IsEmpty AP] {p: Formula AP} : p.hasAtom = .false := by
+  by_contra lm1
+  simp at lm1
+  let deqAP : DecidableEq AP := Classical.typeDecidableEq AP
+  have lm2 := p.hasAtom_eq_true_iff_collectAtom_nonempty
+  replace lm2 := lm2.mp lm1 |> Finset.nonempty_def.mp
+  rcases lm2 with ⟨ap, lm2⟩
+  exact (inferInstance : IsEmpty AP).false ap
+
+
+
+
 /-
 protected def mk' (AP: Type _) [Fintype AP] (x: FormulaRaw AP) (h: IsFormula AP x) : Formula AP := @Formula.mk AP _ x h
 
@@ -144,6 +199,9 @@ theorem app_eq_eval_app (μ: Eval AP) (a: AP) : μ a = μ.eval a := by rfl
 
 abbrev Indicator (AP: Type _) [Fintype AP] : Type _ := AP → Bool
 
+@[defeq]
+theorem indicator_def : Indicator AP = (AP → Bool) := rfl
+
 namespace Indicator
 
 def mk (f: AP → Bool) : Indicator AP := f
@@ -157,20 +215,44 @@ instance toFintype [DecidableEq AP] : Fintype (Indicator AP) := inferInstanceAs 
 
 instance toFinite : Finite (Indicator AP) := letI := Classical.typeDecidableEq AP; Finite.of_fintype (Indicator AP)
 
-end Indicator
+instance toNonempty : Nonempty (Indicator AP) := inferInstanceAs (Nonempty (AP → Bool))
+
+instance uniqueOfIsEmpty [IsEmpty AP] : Unique (Indicator AP) := Pi.uniqueOfIsEmpty (fun _ => Bool)
 
 
-def equivOfIndicatorAndEval : Indicator AP ≃ Eval AP where
+def forallRightEquiv (α: Sort _) : (α → Indicator AP) ≃ (α → AP → Bool) where
+  toFun x := x
+  invFun x := x
+
+@[simps]
+def forallRightEquivOfEquiv {Ind: Sort _} (eqv: Indicator AP ≃ Ind) (α: Sort _) : (α → Indicator AP) ≃ (α → Ind) where
+  toFun f a := eqv (f a)
+  invFun f a := eqv.symm (f a)
+  left_inv := by intro _; simp
+  right_inv := by intro _; simp
+
+def equivToEval : Indicator AP ≃ Eval AP where
   toFun := Eval.mk
   invFun := Eval.eval
 
-instance toFintype [DecidableEq AP] : Fintype (Eval AP) := Fintype.ofEquiv (Indicator AP) equivOfIndicatorAndEval
 
-instance toFinite : Finite (Eval AP) := letI := Classical.typeDecidableEq AP; Finite.of_fintype (Eval AP)
+end Indicator
+
+
+instance toFintype [DecidableEq AP] : Fintype (Eval AP) := Fintype.ofEquiv (Indicator AP) Indicator.equivToEval
+
+instance to_finite : Finite (Eval AP) := letI := Classical.typeDecidableEq AP; Finite.of_fintype (Eval AP)
+
+instance to_nonempty : Nonempty (Eval AP) := Equiv.nonempty Indicator.equivToEval.symm
+
+instance uniqueOfAPEmpty [IsEmpty AP] : Unique (Eval AP) := Equiv.unique Indicator.equivToEval.symm
+
+
+theorem all_eq_of_ap_empty [IsEmpty AP] {ev1 ev2: Eval AP} : ev1 = ev2 := (inferInstance: Unique (Eval AP)).instSubsingleton.allEq ev1 ev2
 
 
 theorem subset_finite {ss: Set (Eval AP)} : ss.Finite := by
-  have lm1 : Finite (Eval AP) := toFinite
+  have lm1 : Finite (Eval AP) := to_finite
   rw [← Set.finite_coe_iff]
   exact Subtype.finite
 
@@ -194,31 +276,15 @@ variable {E: Type _} {AP: Type _} [Fintype AP] [EvalLike E AP]
 
 instance : CoeOut E (Eval AP) where coe := EvalLike.coe
 
-/-
-noncomputable def coeInv (ev: Eval AP) : E := Function.surjInv coe_surjective ev
-
-theorem coeInv_eq {ev: Eval AP} : EvalLike.coe (coeInv ev : E) = ev := by
-  dsimp [coeInv]
-  exact Function.surjInv_eq _ _
--/
-
-/-
-noncomputable section Noncomputable
-
-instance : DecidableEq AP := Classical.typeDecidableEq AP
-
-instance fintypeOfCarrier : Fintype E := Fintype.ofInjective EvalLike.coe EvalLike.coe_injective
-
-end Noncomputable
--/
+def toIndicator (e: E) : Eval.Indicator AP := ((e: Eval AP) : AP → Bool)
 
 
 
-instance finiteOfCarrier : Finite E := Finite.of_injective EvalLike.coe EvalLike.coe_injective
+instance finite_of_carrier : Finite E := Finite.of_injective EvalLike.coe EvalLike.coe_injective
 
 instance coe_finite : Finite (E → (Eval AP)) := Pi.finite
 
-instance toFinite : Finite (EvalLike E AP) := by
+instance to_finite : Finite (EvalLike E AP) := by
   let invMk (e: EvalLike E AP) : E → (Eval AP) := e.coe
   refine Finite.of_injective invMk ?_
   subst invMk
@@ -228,10 +294,46 @@ instance toFinite : Finite (EvalLike E AP) := by
   congr
 
 
+instance coeUniqueOfAPEmpty [IsEmpty AP] : Unique (E → (Eval AP)) := Pi.unique
+
+
+theorem coe_eq_of_ap_empty [IsEmpty AP] {E2: Type _} [EvalLike E2 AP] {e: E} (e2: E2) : (e: Eval AP) = (e2: Eval AP) := Eval.all_eq_of_ap_empty
+
+
+
 def RangeAt (E AP: Type _) [Fintype AP] [EvalLike E AP] : Set (Eval AP) := Set.range (@EvalLike.coe E AP _ _)
 
 theorem rangeAt_finite : (RangeAt E AP).Finite := Eval.subset_finite
 
+theorem rangeAt_eq_empty_of_carrier_empty [IsEmpty E] : (RangeAt E AP) = ∅ := by
+  dsimp [RangeAt]
+  rw [Set.range_eq_empty_iff]
+  exact inferInstance
+
+theorem rangeAt_eq_empty_iff_carrier_empty : ((RangeAt E AP) = ∅) ↔ (IsEmpty E) := by
+  constructor
+  · intro lm1
+    dsimp [RangeAt] at lm1
+    exact Set.range_eq_empty_iff.mp lm1
+  · exact @rangeAt_eq_empty_of_carrier_empty E AP _ _
+
+
+theorem rangeAt_eq_singleton_of_carrier_nonempty_and_ap_empty [Nonempty E] [IsEmpty AP]
+  : (RangeAt E AP) = {(default: Eval AP)} := by
+  dsimp [RangeAt, Inhabited.default, Eval.Indicator.equivToEval]
+  simp only [Set.range_eq_singleton_iff]
+  intro c
+  exact Eval.all_eq_of_ap_empty
+
+
+theorem rangeAt_empty_or_singleton_of_ap_empty [IsEmpty AP]
+  : ((RangeAt E AP) = ∅) ∨ ((RangeAt E AP) = {(default: Eval AP)}) := by
+  have lm1 := isEmpty_or_nonempty E
+  rcases lm1 with lm1 | lm1
+  · have lm2 := rangeAt_eq_empty_iff_carrier_empty.mpr lm1
+    exact Or.inl lm2
+  · have lm2 := @rangeAt_eq_singleton_of_carrier_nonempty_and_ap_empty E AP _ _ _ _
+    exact Or.inr lm2
 
 
 
@@ -315,11 +417,68 @@ instance : FunLike (SatRel AP) (Eval AP) (Formula AP → Prop) where
 -/
 
 @[mk_iff]
-structure IsSatRelAt (AP: Type _) [Fintype AP] (F: Type _) (eval: F → AP → Bool) (rel: F → Formula AP → Prop) : Prop where
+structure IsSatRelAt (AP: Type _) [Fintype AP] (C: Type _) (eval: C → AP → Bool) (rel: C → Formula AP → Prop) : Prop where
   true : ∀μ, rel μ (.true)
   atom (a: AP) : ∀μ, rel μ (.atom a) ↔ (eval μ a = .true)
   neg (x: Formula AP) : ∀μ, rel μ (¬ₚx) ↔ (¬rel μ x)
   and (x y: Formula AP) : ∀μ, rel μ (x ∧ₚ y) ↔ (rel μ x ∧ rel μ y)
+
+namespace IsSatRelAt
+
+variable {AP: Type _} [Fintype AP]
+         {C: Type _} {eval: C → AP → Bool} {rel: C → Formula AP → Prop}
+         {C2: Type _} {eval2: C2 → AP → Bool} {rel2: C2 → Formula AP → Prop}
+
+def SetOfValidFormula (_: IsSatRelAt AP C eval rel) : Set (Formula AP) := { p: Formula AP | ∃(c: C), rel c p }
+
+/-
+open EvalLike in
+theorem rangeAt_eq_iff_valid_formula_eq
+  [EvalLike C AP] [EvalLike C2 AP] (req1: IsSatRelAt AP C toIndicator rel) (req2: IsSatRelAt AP C2 toIndicator rel2)
+  : (RangeAt C AP = RangeAt C2 AP) ↔ (req1.SetOfValidFormula = req2.SetOfValidFormula) := by
+  --unfold toIndicator at req1 req2
+  constructor
+  · intro lm1
+    dsimp [RangeAt] at lm1
+    dsimp [SetOfValidFormula]
+    simp [Set.ext_iff] at lm1 ⊢
+    intro p
+    constructor
+    · rintro ⟨c, lm2⟩
+      specialize lm1 (c: Eval AP)
+      simp at lm1
+      rcases lm1 with ⟨c2, lm3⟩
+      exists c2
+      unfold toIndicator at req1 req2
+      rcases req1 with ⟨req1_true, req1_atom, req1_neg, req1_and⟩
+      replace req1_true := req1_true c
+      replace req1_atom := fun a => req1_atom a c
+      replace req1_neg := fun a => req1_neg a c
+      replace req1_and := fun a1 a2 => req1_and a1 a2 c
+      rcases req2 with ⟨req2_true, req2_atom, req2_neg, req2_and⟩
+      replace req2_true := req2_true c2
+      replace req2_atom := fun a => req2_atom a c2
+      replace req2_neg := fun a => req2_neg a c2
+      replace req2_and := fun a1 a2 => req2_and a1 a2 c2
+      have lm4 := isEmpty_or_nonempty AP
+      rcases lm4 with lm4 | lm4
+      · simp only [IsEmpty.forall_iff] at req1_atom req2_atom
+        clear req1_atom req2_atom
+-/
+      --rcases req2 with ⟨req2_true, req2_atom, req2_neg, req2_and⟩
+/-
+    rcases req1 with ⟨req1_true, req1_atom, req1_neg, req1_and⟩
+    rcases req2 with ⟨req2_true, req2_atom, req2_neg, req2_and⟩
+    constructor
+    · rintro ⟨c, lm2⟩
+      specialize req1_true c
+      specialize req1_neg p c
+      specialize lm1 c
+      simp at lm1
+-/
+
+
+end IsSatRelAt
 
 namespace Eval
 
