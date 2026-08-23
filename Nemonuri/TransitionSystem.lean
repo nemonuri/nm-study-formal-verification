@@ -219,9 +219,10 @@ instance : EvalLike (Quotient ts.toLabelingSetoid) ts.AP where
     intro ap
 -/
 
+/-
 instance (priority := low) : Formula.HasEvalLike ts.AP where
   Carrier := (Quotient ts.toLabelingSetoid)
-
+-/
 
 section Notation
 
@@ -249,12 +250,15 @@ end Notation
 @[scoped grind =]
 theorem isSat_iff [DecidableEq ts.AP] (p: Formula ts.AP) (s: ts.S)
   : ⟦s⟧{ts} ⊨ₚ p ↔ 𝐿{ts}⸨s⸩ ⊨ₚ p := by
+  dsimp [SatRel.IsSat, DFunLike.coe, SatRel.defaultAt, Inhabited.default, SatRel.default]
+  --dsimp [SatRel.defaultAt, Inhabited.default, SatRel.default, SatRel.IsSat ]
   refine propext_iff.mp ?_
   refine congrFun ?_ p
   refine congrArg _ ?_
-  dsimp [EvalLike.coe]
+  dsimp [EvalLike.toIndicator, DFunLike.coe, EvalLike.coe]
+  dsimp [toLabelingQuotient]
   dsimp [EvalLike.ofSubset]
-  refine congrArg Eval.mk ?_
+  --refine congrArg Eval.mk ?_
   refine funext ?_
   intro ap
   dsimp [labeling]
