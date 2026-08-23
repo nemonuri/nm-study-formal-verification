@@ -47,15 +47,15 @@ open PropositionalLogics Formula
 
 structure TransitionSystem where
   /-- A set of states -/
-  S: Type _
+  S: Type*
   /-- A set of actions -/
-  Act: Type _
+  Act: Type*
   /-- A transition relation -/
   tr: S → Act → S → Prop
   /-- a set of initial states -/
   I: Set S
   /-- a set of atomic propositions -/
-  AP: Type _
+  AP: Type*
   /-- a labeling function -/
   L: S → AP → Bool --𝒫 (.univ : Set AP)
 

@@ -7,9 +7,10 @@ public import Nemonuri.TransitionSystem
 
 namespace Nemonuri
 
-class TransitionSystemLike (α: Type _) where
-  protected coe: α → TransitionSystem
+class TransitionSystemLike.{u} (α: Type u) where
+  protected coe: α → TransitionSystem.{u}
   coe_injective: Function.Injective coe
+
 
 attribute [coe, reducible] TransitionSystemLike.coe
 
