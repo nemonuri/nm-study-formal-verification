@@ -93,34 +93,47 @@ instance toFintype : Fintype (sty.AtomicProp) := Fintype.ofEquiv (SubProd sty) e
 
 end AtomicProp
 
-/-
+
 @[reducible]
-def toIndicatorLike [Fintype Var] [Fintype Val] [DecidableEq Val] (sty: StandardType EC Var Val) [sty.DecidableSafe] : PropositionalLogics.EvalLike EC (sty.AtomicProp) where
+def toIndicatorLike
+  [Fintype Var] [Fintype Val] [DecidableEq Val] (sty: StandardType EC Var Val) [sty.DecidableSafe] (req: Function.Injective (sty.indicateAtomicProp))
+  : PropositionalLogics.EvalLike EC (sty.AtomicProp) where
   coe ec := sty.indicateAtomicProp ec |> .mk
   coe_injective := by
--/
+    intro _ _
+    simp
+    exact req.eq_iff.mp
 
+section Cond
 
+variable [Fintype Var] [Fintype Val] [DecidableEq Val]
 
-inductive IsCond (sty: StandardType EC Var Val) : List (Var × Set Val) → Prop where
-  | nil : IsCond sty []
-  | cons (v: Var) (D: Set Val) (req1: sty.IsSafe v D) (fml: List (Var × Set Val)) (req2: IsCond sty fml) : IsCond sty ((v, D) :: fml)
+open PropositionalLogics
+
+inductive IsCond (sty: StandardType EC Var Val) [sty.DecidableSafe] : Formula sty.AtomicProp → Prop where
+  | nil : IsCond sty (.true)
+  | cons (ap: sty.AtomicProp) (fml: Formula sty.AtomicProp) : IsCond sty (Formula.and (.atom ap) fml)
 
 attribute [simp] IsCond.nil
+
+end Cond
 
 end StandardType
 
 
-structure Cond (EC Var Val: Type*) [EvalLike EC Var Val] (sty: StandardType EC Var Val) where
-  formula: List (Var × Set Val)
-  valid (ec: EC) : sty.IsCond formula
+open PropositionalLogics in
+structure Cond (EC Var Val: Type*) [EvalLike EC Var Val] [Fintype Var] [Fintype Val] [DecidableEq Val] (sty: StandardType EC Var Val) [sty.DecidableSafe] where
+  formula: Formula sty.AtomicProp
+  valid : sty.IsCond formula
 
 
-class CondLike (CC EC Var Val: Type*) [EvalLike EC Var Val] where
+class CondLike (CC EC Var Val: Type*) [EvalLike EC Var Val] [Fintype Var] [Fintype Val] [DecidableEq Val] where
   standardType: StandardType EC Var Val
+  [decidableSafe: standardType.DecidableSafe]
   toCond: CC → Cond EC Var Val standardType
   toCond_Injective: Function.Injective toCond
 
+attribute [implicit_reducible, instance] CondLike.decidableSafe
 
 end ProgramGraph
 
@@ -132,7 +145,7 @@ end ProgramGraph
 
 
 open ProgramGraph in
-structure ProgramGraph (CC EC Var Val: Type*) [EvalLike EC Var Val] [CondLike CC EC Var Val] where
+structure ProgramGraph (CC EC Var Val: Type*) [EvalLike EC Var Val] [Fintype Var] [Fintype Val] [DecidableEq Val] [CondLike CC EC Var Val] where
   Loc: Type*
   Act: Type*
   effect: Act → EC → EC
@@ -149,16 +162,20 @@ structure ProgramGraph (CC EC Var Val: Type*) [EvalLike EC Var Val] [CondLike CC
 
 namespace ProgramGraph
 
-variable {CC EC Var Val: Type*} [EvalLike EC Var Val] [CondLike CC EC Var Val]
+variable {CC EC Var Val: Type*} [EvalLike EC Var Val] [Fintype Var] [Fintype Val] [DecidableEq Val] [cl: CondLike CC EC Var Val]
 
 def Loc0 (pg: ProgramGraph CC EC Var Val) : Set (pg.Loc) := { l | pg.loc0 l }
 
+open PropositionalLogics in
 @[reducible]
-def toTransitionSystem (pg: ProgramGraph CC EC Var Val) : TransitionSystem where
+def toTransitionSystem (pg: ProgramGraph CC EC Var Val) (req: Function.Injective ((cl.standardType).indicateAtomicProp)) : TransitionSystem where
   S := pg.Loc × EC
   Act := pg.Act
-  I := { ⟨l, η⟩ | (l ∈ pg.Loc0) ∧ }
+  I := { ⟨l, η⟩ | (l ∈ pg.Loc0) ∧ (let ind := (cl.standardType).toIndicatorLike req; @SatRel.IsSat EC (cl.standardType).AtomicProp _ ind (@SatRel.defaultAt EC _ _ ind) η pg.g0.formula ) }
+  AP := pg.Loc ⊕ CC
 
+
+--/-(η ⊨ₚ{ @SatRel.defaultAt EC (cl.standardType).AtomicProp (inferInstance: Fintype (cl.standardType).AtomicProp) ((cl.standardType).toIndicatorLike req) } pg.g0 )-/
 
 end ProgramGraph
 
