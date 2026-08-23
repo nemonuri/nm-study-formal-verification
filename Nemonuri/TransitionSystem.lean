@@ -133,26 +133,6 @@ instance (priority := low) decidableEqOfLabelingQuotient : DecidableEq (Quotient
 
 end ConcreteFinite
 
-@[mk_iff]
-class inductive IsStateSpaceValid (ts: TransitionSystem) : Prop where
-  | intro (f: (ts.AP → Bool) → ts.S) (req: ∀(bp: ts.AP → Bool), (ts.labeling (f bp)) = bp)
-
-namespace IsStateSpaceValid
-
-
-variable {ts: TransitionSystem} [IsStateSpaceValid ts]
-
-/-
-theorem surjection_exists : ∃(f: ts.S → ts.AP → Bool), Function.Surjective f := by
-  have lm1 : ts.IsStateSpaceValid := inferInstance
-  rcases lm1 with ⟨f, lm1⟩
-  exists f
--/
-
-end IsStateSpaceValid
-
-
-
 
 
 variable (ts: TransitionSystem)
@@ -171,7 +151,7 @@ macro_rules
 end Notation
 
 
-variable [ConcreteFinite ts] [IsStateSpaceValid ts]
+variable [ConcreteFinite ts]
 
 /-
 protected abbrev univ : Finset ts.AP := @Finset.univ _ (@ConcreteFinite.fintypeAP ts _)
@@ -191,7 +171,6 @@ omit [ts.ConcreteFinite] [IsStateSpaceValid ts] in
 @[defeq] theorem evalStateKernel_eq_ker : Quotient ts.evalStateKernel = Quotient (Setoid.ker ts.evalStateToBoolPred) := rfl
 -/
 
-#check Set.SurjOn
 
 --set_option trace.Meta.synthInstance true in
 instance : EvalLike (Quotient ts.toLabelingSetoid) ts.AP where
@@ -209,14 +188,7 @@ instance : EvalLike (Quotient ts.toLabelingSetoid) ts.AP where
     apply Quotient.sound
     change ts.LabelingEquiv _ _
     ext x; exact lm1 x
-  coe_surjective := by
-    rintro ⟨ev⟩
-    have lm1 : ts.IsStateSpaceValid := inferInstance
-    rcases lm1 with ⟨finv, lm1⟩
-    exists ts.toLabelingQuotient (finv ev)
-    simp [toLabelingQuotient]
-    specialize lm1 ev
-    exact lm1
+
     --dsimp [Function.RightInverse, Function.LeftInverse] at lm2
 
     --have lm2 := lm1.surjective
@@ -275,7 +247,7 @@ end Notation
 
 
 @[scoped grind =]
-theorem isSat_iff [DecidableEq ts.AP] (p: Formula ts.AP) (s: ts.S) [EvalLike.HasSatRel (Quotient ts.toLabelingSetoid) ts.AP] --(sr: SatRel ts.AP)
+theorem isSat_iff [DecidableEq ts.AP] (p: Formula ts.AP) (s: ts.S)
   : ⟦s⟧{ts} ⊨ₚ p ↔ 𝐿{ts}⸨s⸩ ⊨ₚ p := by
   refine propext_iff.mp ?_
   refine congrFun ?_ p

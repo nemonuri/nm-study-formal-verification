@@ -1011,9 +1011,21 @@ instance toUnique : Unique (SatRel E AP) where
     exact valid.to_eq_areEvalToTrue
 
 
+def defaultAt (E AP: Type _) [Fintype AP] [EvalLike E AP] : SatRel E AP :=
+  (inferInstance: Unique (SatRel E AP)).toInhabited.default
+
+section Notation
+
+syntax:25 term:26 " ⊨ₚ " term:25 : term
+
+macro_rules
+  | `($μ ⊨ₚ $φ) => ``($μ ⊨ₚ{ defaultAt _ _ } $φ )
+
+end Notation
+
 end SatRel
 
-
+/-
 namespace Formula
 
 class HasEvalLike (AP: Type*) [Fintype AP] where
@@ -1029,19 +1041,12 @@ def toSatRel (AP: Type*) [Fintype AP] [HasEvalLike AP] : SatRel (Carrier AP) AP 
   (inferInstance: Unique (SatRel (Carrier AP) AP)).toInhabited.default
 
 
-section Notation
 
-syntax:25 term:26 " ⊨ₚ " term:25 : term
-
-macro_rules
-  | `($μ ⊨ₚ $φ) => ``($μ ⊨ₚ{ toSatRel _ } $φ )
-
-end Notation
 
 end HasEvalLike
 
 end Formula
-
+-/
 
 
 
