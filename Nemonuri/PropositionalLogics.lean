@@ -264,6 +264,10 @@ def mk (f: AP → Bool) : Indicator AP := f
 
 def fn (ind: Indicator AP) : AP → Bool := ind
 
+@[defeq, simp]
+theorem mk_fn_eq {f: AP → Bool} : (mk f).fn = f := rfl
+
+
 
 def evalFormulaToBool (ind: Indicator AP) (p: Formula AP) : Bool :=
   match p with
@@ -386,7 +390,6 @@ theorem ofFinset_toFinset_leftInverse : Function.LeftInverse (@ofFinset AP _ _) 
 
 theorem ofFinset_toFinset_rightInverse : Function.RightInverse (@ofFinset AP _ _) toFinset := by
   dsimp [Function.RightInverse, Function.LeftInverse, ofFinset, toFinset]
-  dsimp [Indicator, fn, mk]
   simp
 
 @[simps]

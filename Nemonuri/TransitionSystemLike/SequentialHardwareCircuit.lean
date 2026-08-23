@@ -40,79 +40,6 @@ def vectorProdEquiv (n k: ℕ) : State n k ≃ (List.Vector Bool n × List.Vecto
 
 instance toFintype {n k: ℕ} : Fintype (State n k) := Fintype.ofEquiv _ (vectorProdEquiv n k).symm
 
-#check Eq.refl
-#check HEq.subst
-
-/-
-theorem _root_.Vector.size_eq_of_heq {α: Type _} {n1 n2: ℕ} {v1: Vector α n1} {v2: Vector α n2} (req: v1 ≍ v2)
-  : n1 = n2 := by
-  let Spec (T: Type _) (x: T) : Prop := ∃(n: ℕ), ∃(h: T = Vector α n), ((cast h x).size = n1 ∧ n ≠ n2)
-  have lm2 : Spec _ v1 := by
-    simp [Spec]
-    exists n1
-    simp
-    exact lm1
-  have lm3 := req.subst lm2
-  subst Spec
-  simp at lm3
-  obtain ⟨n, ⟨lm3_1, lm3_2⟩, lm4⟩ := lm3
-  dsimp [Vector.size] at lm3_2
--/
-
-
-
-
-
-/-
-  let Spec (T: Type _) (x: T) : Prop := ∃!(n: ℕ), ∃(h: T = Vector α n), ((cast h x).size = n1)
-  have lm1 : Spec _ v1 := by
-    simp [Spec, ExistsUnique]
-    exists n1
-    constructor
-    · exists rfl
-    · intro n lm1 lm2
-      dsimp [Vector.size] at lm2
-      exact lm2
-  have lm2 := req.subst lm1
-  subst Spec
-  simp [ExistsUnique] at lm2
-  obtain ⟨n, ⟨lm2_1, lm2_2⟩, lm3⟩ := lm2
-  have lm4 := lm3 n2 rfl
-  dsimp [Vector.size] at lm4
-  have lm5 := type_eq_of_heq req
-  have lm6 := lm3 n1 lm5.symm
-  dsimp [Vector.size] at lm6
-  simp at lm6
--/
-  --simp [ExistsUnique] at lm1
-
-
-/-
-  have lm1 := Eq.refl v2.size
-  conv at lm1 => rhs; dsimp [Vector.size]
-  have lm2 : v1.size = n2 := @req.subst
--/
-
-  --by_contra lm1
-  --obtain ⟨lm4, lm5⟩ := heq_iff_exists_cast_eq.mp req.symm
-  --have lm3 := congrArg (Vector.size) lm2
-  --dsimp [Vector.size] at lm3
-  --rewrite [Vector.ext_iff] at lm2
-  --rewrite [heq_iff_exists_cast_eq] at req
-
-  --have lm1 := type_eq_of_heq req
-  --have := req.
-  --have := Vector.ext
-/-
-  rcases v1 with ⟨⟨l1⟩, lm1⟩
-  rcases v2 with ⟨⟨l2⟩, lm2⟩
-  revert lm1 lm2
-  simp
-  intro lm1 lm2 req
--/
-  --have lm3 := type_eq_of_heq req
-
-
 end State
 
 
@@ -221,21 +148,26 @@ def ofAPBoolPred {n m k: ℕ} (bpred: AtomicProp n m k → Bool) : State n k :=
 
 end State
 
-structure Indexed (n m k: ℕ) where
+
+end SequentialHardwareCircuit
+
+
+open SequentialHardwareCircuit in
+structure SequentialHardwareCircuit (n m k: ℕ) where
   initialRegisters: Vector Bool k
   outputFn : (State n k) → (Fin m) → Bool
   registerFn : (State n k) → (Fin k) → Bool
 
-namespace Indexed
+namespace SequentialHardwareCircuit
 
 variable {n m k: ℕ}
 
 @[mk_iff]
-inductive Transition (shcI: Indexed n m k) : (State n k) → Act → (State n k) → Prop where
+inductive Transition (shcI: SequentialHardwareCircuit n m k) : (State n k) → Act → (State n k) → Prop where
   | intro (s1: State n k) (s2i: Vector Bool n) : Transition shcI s1 .τ (State.mk s2i (Vector.ofFn (shcI.registerFn s1)))
 
 @[reducible]
-def toTransitionSystem (shcI: Indexed n m k) : TransitionSystem where
+def toTransitionSystem (shcI: SequentialHardwareCircuit n m k) : TransitionSystem where
   S := State n k
   Act := Act
   I := { s: State n k | s.registers = shcI.initialRegisters }
@@ -272,132 +204,7 @@ theorem toTransitionSystem_injective : Function.Injective (@toTransitionSystem n
     simp at lm1
     exact lm1
 
-end Indexed
 
-end SequentialHardwareCircuit
-
-
-open SequentialHardwareCircuit in
-structure SequentialHardwareCircuit where --(n m k: ℕ)
-  inputLength : ℕ
-  registerLength : ℕ
-  outputLength : ℕ
-  indexed : Indexed inputLength registerLength outputLength
-  --initialRegisters: Vector Bool registerLength
-  --outputFn : (State inputLength registerLength) → (Fin outputLength) → Bool
-  --registerFn : (State inputLength registerLength) → (Fin registerLength) → Bool
-
-
-namespace SequentialHardwareCircuit
-
-#check type_eq_of_heq
-
-@[reducible]
-def toTransitionSystem (shc: SequentialHardwareCircuit) : TransitionSystem := shc.indexed.toTransitionSystem
-
-
-/-
-theorem toTransitionSystem_injective : Function.Injective (toTransitionSystem) := by
-  intro shc1 shc2 lm1
-  dsimp [toTransitionSystem] at lm1
-  dsimp [Indexed.toTransitionSystem] at lm1
-  simp at lm1
-  revert lm1
-  simp
-  intro lm1 lm2 lm3 lm4 lm5
-  have lm6 := type_eq_of_heq lm2
--/
-  --have lm2 := Indexed.toTransitionSystem_injective.eq_iff.mp lm1
-  --have lm2 := fun n m k => @Indexed.toTransitionSystem_injective n m k
-  --dsimp [Function.Injective] at lm2
-  --dsimp [Indexed.toTransitionSystem] at lm1
-/-
-  rcases shc1 with ⟨n1, m1, k1, shcI1⟩
-  rcases shc2 with ⟨n2, m2, k2, shcI2⟩
-  simp at lm1 ⊢
--/
-
-
---def toLabeling {n m k: ℕ} (shc: SequentialHardwareCircuit n m k) (s: Eval n k) (ap: Subtype (shc.apFilter · = .true)) : Bool := labeling shc.outputFn s ap.val
-
-/-
-@[mk_iff]
-inductive Transition (shc: SequentialHardwareCircuit) : (State shc.inputLength shc.registerLength) → Act → (State shc.inputLength shc.registerLength) → Prop where
-  | intro (s1: State shc.inputLength shc.registerLength) (s2i: Vector Bool shc.inputLength) : Transition shc s1 .τ (State.mk s2i (Vector.ofFn (shc.registerFn s1)))
-
-
-@[reducible]
-def toTransitionSystem (shc: SequentialHardwareCircuit) : TransitionSystem where
-  S := State shc.inputLength shc.registerLength
-  Act := Act
-  I := { s: State shc.inputLength shc.registerLength | s.registers = shc.initialRegisters }
-  AP := AtomicProp shc.inputLength shc.outputLength shc.registerLength
-  L := labeling shc.outputFn
-  tr := shc.Transition
-
-
-theorem toTransitionSystem_injective : Function.Injective (toTransitionSystem) := by
-  --rintro ⟨n1, m1, k1, ir1, of1, rf1⟩ ⟨n2, m2, k2, ir2, of2, rf2⟩
-  intro shc1 shc2
-  simp [toTransitionSystem]
-  intro lm1 lm2 lm3 lm4 lm5
-  rewrite [heq_iff_exists_cast_eq] at lm3
-  rcases lm3 with ⟨lm6, lm3⟩
-  rewrite [Set.ext_iff] at lm3
-  simp at lm3
-  let st1 : State shc2.inputLength shc2.registerLength := .mk default shc2.initialRegisters
-  specialize lm3 st1
-  subst st1
-  simp at lm3
-  dsimp [cast] at lm3
-/-
-  rewrite [heq_iff_exists_cast_eq] at lm2
-  rcases lm2 with ⟨lm6, lm2⟩
-  simp only [funext_iff] at lm2
-  simp at lm2
--/
-/-
-
-  rcases ir1 with ⟨⟨ir1_l⟩, ir1_s⟩
-  rcases ir2 with ⟨⟨ir2_l⟩, ir2_s⟩
-  revert lm2 lm3 ir1_s ir2_s
-  simp
-  intro ir1_s ir2_s lm2 lm3
-  unfold labeling at lm5
--/
-
-
-  --rintro ⟨n1, m1, k1, ir1, of1, rf1⟩ ⟨n2, m2, k2, ir2, of2, rf2⟩
-
-  --intro lm1 lm2 lm3 lm4 lm5
-/-
-
-
-  refine ⟨?_, ?_, ?_⟩
-  · clear lm1 lm3
-    simp [Set.ext_iff] at lm2
-    have lm2_1 := lm2 ⟨default, ir1⟩
-    simp at lm2_1
-    exact lm2_1
-  · clear lm1 lm2
-    simp only [funext_iff]
-    intro s oi
-    simp only [funext_iff] at lm3
-    specialize lm3 s (AP.outputs oi)
-    dsimp [labeling] at lm3
-    exact lm3
-  · clear lm2 lm3
-    simp only [funext_iff]
-    intro s ri
-    simp only [funext_iff] at lm1
-    specialize lm1 s .τ (Eval.mk default (Vector.ofFn (rf1 s)))
-    simp [transition_iff] at lm1
-    rewrite [Vector.ext_iff] at lm1
-    simp at lm1
-    specialize lm1 ri.val ri.isLt
-    simp at lm1
-    exact lm1
--/
 
 @[simp]
 instance {n m k: ℕ} : TransitionSystemLike (SequentialHardwareCircuit n m k) where
@@ -417,18 +224,14 @@ variable {n m k: ℕ} {shc: SequentialHardwareCircuit n m k}
 instance : ConcreteFinite (shc: TransitionSystem) :=
   .mk inferInstance inferInstance inferInstance
 
---instance : Fintype ((shc: TransitionSystem).AP) := inferInstance
 
-/-
---set_option trace.Meta.synthInstance true in
 open PropositionalLogics in
-theorem labeling_valid (s: Eval n k)
+theorem labeling_valid (s: State n k)
   : let ts := (shc: TransitionSystem)
-    --let : EvalLike (Quotient ts.toLabelingSetoid) (AP n m k) := inferInstanceAs (EvalLike (Quotient ts.toLabelingSetoid) ts.AP)
     𝐿{ts}⸨s⸩ = (
-      (Finset.image AP.inputs { xᵢ: Fin n | ts.labeling s (.inputs xᵢ) = .true }) ∪
-      (Finset.image AP.registers { rᵢ: Fin k | ts.labeling s (.registers rᵢ) = .true }) ∪
-      (Finset.image AP.outputs { yᵢ: Fin m | shc.outputFn s yᵢ = .true  })
+      (({ xᵢ: Fin n | ts.labeling s (.inputs xᵢ) = .true }: Finset _).image .inputs) ∪
+      (({ rᵢ: Fin k | ts.labeling s (.registers rᵢ) = .true }: Finset _).image .registers) ∪
+      (({ yᵢ: Fin m | shc.outputFn s yᵢ = .true }: Finset _).image .outputs)
     )
   := by
   extract_lets ts
@@ -436,10 +239,10 @@ theorem labeling_valid (s: Eval n k)
   dsimp [evalStateToFinset, TransitionSystem.labeling]
   intro ap
   subst ts
-  dsimp at ap ⊢
-  --revert ap
-  --simp --[TransitionSystemLike.coe]
--/
+  dsimp [Indicator.toFinset] at ap ⊢
+  simp
+  rcases ap with i | i | i <;> (dsimp [labeling]; simp)
+
 
 end TransitionSystem
 /-
@@ -468,7 +271,7 @@ instance {n m k: ℕ} {shc: SequentialHardwareCircuit n m k} : Eval.EvalLike (sh
     · dsimp [labeling] at lm1
     --have := AP.outputs default
 -/
--/
+
 end SequentialHardwareCircuit
 
 end Nemonuri

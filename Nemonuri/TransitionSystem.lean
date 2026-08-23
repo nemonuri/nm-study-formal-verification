@@ -44,7 +44,7 @@ def attachUnivToFinset (α: Type _) [Fintype α] : Finset α ↪o Finset (𝒰 �
 
 open PropositionalLogics Formula
 
-@[ext]
+
 structure TransitionSystem where
   /-- A set of states -/
   S: Type _
