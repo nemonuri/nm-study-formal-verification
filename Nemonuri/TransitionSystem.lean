@@ -235,7 +235,7 @@ end Notation
 
 
 /-- Not always injective -/
-def evalStateToFinset (s: ts.S) : Finset (ts.AP) := { ap : ts.AP | ts.L s ap = .true }
+def evalStateToFinset (s: ts.S) : Finset (ts.AP) := { ap : ts.AP | ts.labeling s ap = .true }
 
 section Notation
 
@@ -251,21 +251,21 @@ end Notation
 theorem isSat_iff [DecidableEq ts.AP] (p: Formula ts.AP) (s: ts.S)
   : ⟦s⟧{ts} ⊨ₚ p ↔ 𝐿{ts}⸨s⸩ ⊨ₚ p := by
   dsimp [SatRel.IsSat, DFunLike.coe, SatRel.defaultAt, Inhabited.default, SatRel.default]
-  --dsimp [SatRel.defaultAt, Inhabited.default, SatRel.default, SatRel.IsSat ]
   refine propext_iff.mp ?_
   refine congrFun ?_ p
   refine congrArg _ ?_
-  dsimp [EvalLike.toIndicator, DFunLike.coe, EvalLike.coe]
+  dsimp [EvalLike.toIndicator, EvalLike.coe]
   dsimp [toLabelingQuotient]
   dsimp [EvalLike.ofSubset]
-  --refine congrArg Eval.mk ?_
+  refine DFunLike.ext'_iff.mp ?_
+  refine congrArg Eval.mk ?_
   refine funext ?_
   intro ap
-  dsimp [labeling]
   dsimp [evalStateToFinset]
+  dsimp [labeling]
   simp
 
---#print isSat_iff
+
 
 /-!
 

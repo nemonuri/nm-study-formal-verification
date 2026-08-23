@@ -222,22 +222,20 @@ variable {n m k: ℕ} {shc: SequentialHardwareCircuit n m k}
 instance : ConcreteFinite (shc: TransitionSystem) :=
   .mk inferInstance inferInstance inferInstance
 
+--instance : Fintype ((shc: TransitionSystem).AP) := inferInstance
 
-instance {n m k: ℕ} {shc: SequentialHardwareCircuit n m k} : IsStateSpaceValid (shc: TransitionSystem) := by
-  refine .intro Eval.ofAPBoolPred ?_
-  dsimp
-  intro bp
-  dsimp [TransitionSystem.labeling]
-  refine funext ?_
-  intro ap
-  cases ap <;> rename_i i
-  · dsimp [labeling, Eval.ofAPBoolPred, Eval.ofFn, Vector.get]
-    simp
-  · dsimp [labeling, Eval.ofAPBoolPred]
-  --dsimp [Eval.ofAPBoolPred]
-  --unfold TransitionSystem.labeling
-
-
+/-
+set_option trace.Meta.synthInstance true in
+open PropositionalLogics in
+theorem labeling_valid (s: Eval n k)
+  : let ts := (shc: TransitionSystem)
+    let : EvalLike (Quotient ts.toLabelingSetoid) (AP n m k) := inferInstanceAs (EvalLike (Quotient ts.toLabelingSetoid) ts.AP)
+    𝐿{ts}⸨s⸩ = (
+      (Finset.image AP.inputs { xᵢ: Fin n | ts.labeling s (.inputs xᵢ) = .true }) ∪
+      (Finset.image AP.registers { rᵢ: Fin k | ts.labeling s (.registers rᵢ) = .true }) ∪
+      (Finset.image AP.outputs { yᵢ: Fin m | ⟦s⟧{ts} ⊨ₚ ((.atom (AP.outputs yᵢ : AP n m k))) })
+    )
+-/
 end TransitionSystem
 /-
 theorem toTransitionSystem_labeling_injective {n m k: ℕ} {shc: SequentialHardwareCircuit n m k} [NeZero m] : Function.Injective ((shc: TransitionSystem).L) := by
