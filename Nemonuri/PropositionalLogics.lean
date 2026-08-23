@@ -249,12 +249,16 @@ instance : FunLike (Eval AP) AP Bool where
 
 theorem app_eq_eval_app (μ: Eval AP) (a: AP) : μ a = μ.eval a := by rfl
 
+end Eval
+
 abbrev Indicator (AP: Type _) [Fintype AP] : Type _ := AP → Bool
 
 @[defeq]
-theorem indicator_def : Indicator AP = (AP → Bool) := rfl
+theorem indicator_def {AP: Type _} [Fintype AP] : Indicator AP = (AP → Bool) := rfl
 
 namespace Indicator
+
+variable {AP: Type _} [Fintype AP]
 
 def mk (f: AP → Bool) : Indicator AP := f
 
@@ -367,8 +371,40 @@ def equivToEval : Indicator AP ≃ Eval AP where
   invFun := Eval.eval
 
 
+def toFinset (ind: Indicator AP) : Finset AP := { ap: AP | ind.fn ap = .true }
+
+section OfFinset
+
+variable [DecidableEq AP]
+
+def ofFinset (fs: Finset AP) : Indicator AP := .mk (fun ap => decide (ap ∈ fs))
+
+theorem ofFinset_toFinset_leftInverse : Function.LeftInverse (@ofFinset AP _ _) toFinset := by
+  dsimp [Function.LeftInverse, ofFinset, toFinset]
+  dsimp [Indicator, fn, mk]
+  simp
+
+theorem ofFinset_toFinset_rightInverse : Function.RightInverse (@ofFinset AP _ _) toFinset := by
+  dsimp [Function.RightInverse, Function.LeftInverse, ofFinset, toFinset]
+  dsimp [Indicator, fn, mk]
+  simp
+
+@[simps]
+def equivToFinset : Indicator AP ≃ Finset AP where
+  toFun := toFinset
+  invFun := ofFinset
+  left_inv := ofFinset_toFinset_leftInverse
+  right_inv := ofFinset_toFinset_rightInverse
+
+
+end OfFinset
+
 end Indicator
 
+
+namespace Eval
+
+variable {AP: Type _} [Fintype AP]
 
 instance toFintype [DecidableEq AP] : Fintype (Eval AP) := Fintype.ofEquiv (Indicator AP) Indicator.equivToEval
 
@@ -407,12 +443,12 @@ variable {E: Type _} {AP: Type _} [Fintype AP] [EvalLike E AP]
 
 instance : CoeOut E (Eval AP) where coe := EvalLike.coe
 
-abbrev toIndicator (e: E) : Eval.Indicator AP := ((e: Eval AP) : AP → Bool)
+abbrev toIndicator (e: E) : Indicator AP := ((e: Eval AP) : AP → Bool)
 
 --def toEvalFormulaToBool (e: E) (p: Formula AP) : Bool := (toIndicator e).evalFormulaToBool p
 
 
-abbrev AreEvalToTrueAt (E AP: Type _) [Fintype AP] [EvalLike E AP] : E → Formula AP → Prop := Eval.Indicator.AreEvalToTrue ∘ toIndicator
+abbrev AreEvalToTrueAt (E AP: Type _) [Fintype AP] [EvalLike E AP] : E → Formula AP → Prop := Indicator.AreEvalToTrue ∘ toIndicator
 
 @[defeq]
 theorem areEvalToTrueAt_eq_areEvalToTrue {e: E} {p: Formula AP} : AreEvalToTrueAt E AP e p = (toIndicator e).AreEvalToTrue p := rfl
@@ -458,7 +494,7 @@ theorem rangeAt_eq_empty_iff_carrier_empty : ((RangeAt E AP) = ∅) ↔ (IsEmpty
 
 theorem rangeAt_eq_singleton_of_carrier_nonempty_and_ap_empty [Nonempty E] [IsEmpty AP]
   : (RangeAt E AP) = {(default: Eval AP)} := by
-  dsimp [RangeAt, Inhabited.default, Eval.Indicator.equivToEval]
+  dsimp [RangeAt, Inhabited.default, Indicator.equivToEval]
   simp only [Set.range_eq_singleton_iff]
   intro c
   exact Eval.all_eq_of_ap_empty
@@ -479,7 +515,7 @@ theorem rangeAt_empty_or_singleton_of_ap_empty [IsEmpty AP]
 
 variable [DecidableEq AP]
 
-
+/-
 scoped instance (A: Finset AP) (a: AP) : Decidable (a ∈ A) := A.decidableMem a
 
 def ofSubset (A: Finset AP) : Eval AP := ⟨fun a => decide (a ∈ A)⟩
@@ -503,12 +539,13 @@ theorem ofSubset_surjective : Function.Surjective (@ofSubset AP _ _) := by
   refine congrArg _ ?_
   refine funext ?_; intro ap
   simp
+-/
 
-
+open Indicator in
 instance : EvalLike (Finset AP) AP where
-  coe := ofSubset
-  coe_injective := ofSubset_injective
-  --coe_surjective := ofSubset_surjective
+  coe := Eval.mk ∘ Indicator.fn ∘ equivToFinset.symm
+  coe_injective := by intro _ _; simp [Indicator.fn]
+
 
 instance : EvalLike (AP → Bool) AP where
   coe := Eval.mk
@@ -563,7 +600,7 @@ variable {AP: Type _} [Fintype AP]
 
 theorem of_carrier_empty [IsEmpty C] : IsSatRelAt AP C eval rel := by constructor <;> simp
 
-open EvalLike Eval.Indicator in
+open EvalLike Indicator in
 theorem of_eq_areEvalToTrue [EvalLike C AP] (req: rel = AreEvalToTrueAt C AP) : IsSatRelAt AP C toIndicator rel := by
   simp only [funext_iff, areEvalToTrueAt_eq_areEvalToTrue, ← AreEvalToTrue.eq_true_iff] at req
   constructor
@@ -573,35 +610,35 @@ theorem of_eq_areEvalToTrue [EvalLike C AP] (req: rel = AreEvalToTrueAt C AP) : 
     simpa using req
   · intro c ap
     specialize req c (Formula.atom ap)
-    dsimp [evalFormulaToBool, Eval.Indicator.fn] at req
+    dsimp [evalFormulaToBool, Indicator.fn] at req
     exact req |> propext_iff.mp
   · intro c p
     have lm1 := req c p
     have lm2 := req c p.neg
-    dsimp [evalFormulaToBool, Eval.Indicator.fn] at lm2
+    dsimp [evalFormulaToBool, Indicator.fn] at lm2
     rw [lm2, lm1]
     simp
   · intro c p1 p2
     have lm1 := req c p1
     have lm2 := req c p2
     have lm3 := req c (p1.and p2)
-    dsimp [evalFormulaToBool, Eval.Indicator.fn] at lm3
+    dsimp [evalFormulaToBool, Indicator.fn] at lm3
     simp at lm3
     rw [lm3, lm2, lm1]
 
-open EvalLike Eval.Indicator in
+open EvalLike Indicator in
 theorem to_eq_areEvalToTrue_at [EvalLike C AP] (h: IsSatRelAt AP C toIndicator rel) (c: C) (p: Formula AP) : rel c p ↔ AreEvalToTrueAt C AP c p := by
   simp only [areEvalToTrueAt_eq_areEvalToTrue, ← AreEvalToTrue.eq_true_iff]
   obtain ⟨lm1_true, lm1_atom, lm1_neg, lm1_and⟩ := id h
   rcases p with _ | ap | p | ⟨p1, p2⟩
   · simp [evalFormulaToBool]
     exact lm1_true c
-  · dsimp [evalFormulaToBool, Eval.Indicator.fn]
+  · dsimp [evalFormulaToBool, Indicator.fn]
     exact lm1_atom c ap
   · have lm2 := h.to_eq_areEvalToTrue_at c p
     simp only [areEvalToTrueAt_eq_areEvalToTrue, ← AreEvalToTrue.eq_true_iff] at lm2
     have lm3 := lm1_neg c p
-    dsimp [evalFormulaToBool, Eval.Indicator.fn]
+    dsimp [evalFormulaToBool, Indicator.fn]
     rw [lm3, lm2]
     simp
   · have lm2_1 := h.to_eq_areEvalToTrue_at c p1
@@ -624,7 +661,7 @@ theorem eq_areEvalToTrue_iff [EvalLike C AP] : (IsSatRelAt AP C toIndicator rel)
 
 
 /-
-open EvalLike Eval.Indicator in
+open EvalLike Indicator in
 theorem iff_iff_toEvalFormulaToBool_eq_true [EvalLike C AP]
   : (∀c p, rel c p ↔ toEvalFormulaToBool c p = .true) ↔ IsSatRelAt AP C toIndicator rel := by
   constructor
@@ -636,9 +673,9 @@ theorem iff_iff_toEvalFormulaToBool_eq_true [EvalLike C AP]
     rcases p with _ | ap | p | ⟨p1, p2⟩
     · simp [evalFormulaToBool]
       exact lm1_true c
-    · dsimp [evalFormulaToBool, Eval.Indicator.fn]
+    · dsimp [evalFormulaToBool, Indicator.fn]
       exact lm1_atom c ap
-    · dsimp [evalFormulaToBool, Eval.Indicator.fn]
+    · dsimp [evalFormulaToBool, Indicator.fn]
       have lm2 := lm1_neg c p
 -/
 

@@ -44,6 +44,7 @@ def attachUnivToFinset (α: Type _) [Fintype α] : Finset α ↪o Finset (𝒰 �
 
 open PropositionalLogics Formula
 
+@[ext]
 structure TransitionSystem where
   /-- A set of states -/
   S: Type _
@@ -58,7 +59,11 @@ structure TransitionSystem where
   /-- a labeling function -/
   L: S → AP → Bool --𝒫 (.univ : Set AP)
 
+--attribute [simp low] TransitionSystem.S TransitionSystem.Act
+
 namespace TransitionSystem
+
+
 
 def labeling (ts: TransitionSystem) (s: ts.S) : ts.AP → Bool := ts.L s
 
@@ -235,7 +240,7 @@ end Notation
 
 
 /-- Not always injective -/
-def evalStateToFinset (s: ts.S) : Finset (ts.AP) := { ap : ts.AP | ts.labeling s ap = .true }
+def evalStateToFinset (s: ts.S) : Finset (ts.AP) := (Indicator.mk (ts.labeling s)).toFinset
 
 section Notation
 
@@ -256,14 +261,13 @@ theorem isSat_iff [DecidableEq ts.AP] (p: Formula ts.AP) (s: ts.S)
   refine congrArg _ ?_
   dsimp [EvalLike.toIndicator, EvalLike.coe]
   dsimp [toLabelingQuotient]
-  dsimp [EvalLike.ofSubset]
   refine DFunLike.ext'_iff.mp ?_
   refine congrArg Eval.mk ?_
   refine funext ?_
   intro ap
-  dsimp [evalStateToFinset]
+  dsimp [evalStateToFinset, Indicator.fn, Indicator.mk]
   dsimp [labeling]
-  simp
+  simp [Indicator.ofFinset_toFinset_leftInverse.eq]
 
 
 

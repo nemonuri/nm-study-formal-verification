@@ -114,8 +114,9 @@ def ts : TransitionSystem where
 instance : ConcreteFinite ts := .mk inferInstance inferInstance inferInstance
 
 
+
 example : 𝐿{ts}⸨{ x := 0, r := 0 }⸩ = { .y } := by
-  refine Finset.ext ?_; intro ap; dsimp [evalStateToFinset]
+  refine Finset.ext ?_; intro ap; dsimp [evalStateToFinset, TransitionSystem.labeling]
   simp only [Finset.mem_filter, Finset.mem_univ, Finset.mem_singleton]
   rw [true_and]
   cases lm1: ap <;> dsimp [labeling', labeling]
@@ -127,21 +128,21 @@ example : 𝐿{ts}⸨{ x := 0, r := 0 }⸩ = { .y } := by
     simp only [Bool.bne_false, Bool.not_false]
 
 example : 𝐿{ts}⸨{ x := 0, r := 1 }⸩ = ∅ := by
-  refine Finset.ext ?_; intro ap; dsimp [evalStateToFinset]
+  refine Finset.ext ?_; intro ap; dsimp [evalStateToFinset, TransitionSystem.labeling]
   simp
   cases lm1: ap <;> dsimp [labeling', labeling]
   · dsimp [«λᵧ»]
     simp
 
 example : 𝐿{ts}⸨{ x := 1, r := 0 }⸩ = { .x } := by
-  refine Finset.ext ?_; intro ap; dsimp [evalStateToFinset]
+  refine Finset.ext ?_; intro ap; dsimp [evalStateToFinset, TransitionSystem.labeling]
   simp
   cases lm1: ap <;> dsimp [labeling', labeling]
   · simp
   · dsimp [«λᵧ»]; simp
 
 example : 𝐿{ts}⸨{ x := 1, r := 1 }⸩ = { .x, .y } := by
-  refine Finset.ext ?_; intro ap; dsimp [evalStateToFinset]
+  refine Finset.ext ?_; intro ap; dsimp [evalStateToFinset, TransitionSystem.labeling]
   simp
   cases lm1: ap <;> dsimp [labeling', labeling]
   · simp
