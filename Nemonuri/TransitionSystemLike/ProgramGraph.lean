@@ -50,6 +50,16 @@ theorem isSafe_iff {sty: StandardType EC Var Val} {var: Var} {D: Set Val}
 
 abbrev DecidableSafe (sty: StandardType EC Var Val) : Type _ := (v: Var) → (D: Set Val) → Decidable (sty.IsSafe v D)
 
+namespace DecidableSafe
+
+@[reducible]
+def of_iff {sty: StandardType EC Var Val} (dec: ∀(var: Var) (D: Set Val), Decidable (∀ (val: Val), ((val ∈ D) → (val ∈ sty.dom var))))
+  : sty.DecidableSafe :=
+  fun _ _ => decidable_of_iff' _ sty.isSafe_iff
+
+end DecidableSafe
+
+
 
 structure AtomicProp (sty: StandardType EC Var Val) where
   var: Var
@@ -72,7 +82,14 @@ def indicateAtomicProp_injective (sty: StandardType EC Var Val) : Function.Injec
 namespace AtomicProp
 
 variable {EC Var Val: Type*} [EvalLike EC Var Val]
-         [Fintype Var] [Fintype Val] [DecidableEq Val]
+
+theorem valid_iff {sty: StandardType EC Var Val} {ap: sty.AtomicProp}
+  : sty.IsSafe ap.var { val | ap.indicate val = .true } ↔ (∀(val: Val), (ap.indicate val = .true) → (val ∈ sty.dom ap.var)) := by
+  rw [sty.isSafe_iff]
+  simp
+
+
+variable [Fintype Var] [Fintype Val] [DecidableEq Val]
          {sty: StandardType EC Var Val} [sty.DecidableSafe]
 
 abbrev SubProd (sty: StandardType EC Var Val) : Type _ := { x: (Var × (Val → Bool)) // sty.IsSafe x.fst { val | x.snd val = .true } }
@@ -115,11 +132,56 @@ variable [Fintype Var] [Fintype Val] [DecidableEq Val]
 
 open PropositionalLogics
 
+
 inductive IsCond (sty: StandardType EC Var Val) [sty.DecidableSafe] : Formula sty.AtomicProp → Prop where
   | nil : IsCond sty (.true)
   | cons (ap: sty.AtomicProp) (fml: Formula sty.AtomicProp) (req: sty.IsCond fml) : IsCond sty (Formula.and (.atom ap) fml)
 
 attribute [simp] IsCond.nil
+
+variable {sty: StandardType EC Var Val} [sty.DecidableSafe]
+
+namespace IsCond
+
+@[simp]
+theorem and_iff {ap: sty.AtomicProp} {fml: Formula sty.AtomicProp}
+  : sty.IsCond (Formula.and (.atom ap) fml) ↔ sty.IsCond fml := by
+  constructor
+  · intro lm1
+    cases lm1
+    assumption
+  · intro lm1
+    exact .cons ap fml lm1
+
+theorem of_atomTuple {as: List sty.AtomicProp} : sty.IsCond (Formula.atomTuple as) := by
+  rcases as with _ | ⟨hd, tl⟩
+  · dsimp [Formula.atomTuple, Formula.iterAnd]
+    exact .nil
+  · dsimp [Formula.atomTuple, Formula.iterAnd]
+    refine .cons _ _ ?_
+    have lm1 := @of_atomTuple tl
+    dsimp [Formula.atomTuple] at lm1
+    exact lm1
+
+end IsCond
+
+
+theorem isCond_iff_exists_atomTuple {fml: Formula sty.AtomicProp}
+  : sty.IsCond fml ↔ ∃as, Formula.atomTuple as = fml := by
+  constructor
+  · intro lm1
+    induction lm1
+    · exists []
+    · rename_i ap fml req lm1
+      obtain ⟨as, lm1⟩ := lm1
+      exists (ap :: as)
+      dsimp [Formula.atomTuple] at lm1 ⊢
+      dsimp [Formula.iterAnd]
+      simpa using lm1
+  · rintro ⟨as, lm1⟩
+    rw [lm1.symm]
+    exact IsCond.of_atomTuple
+
 
 end Cond
 
@@ -130,6 +192,18 @@ open PropositionalLogics in
 structure Cond (EC Var Val: Type*) [EvalLike EC Var Val] [Fintype Var] [Fintype Val] [DecidableEq Val] (sty: StandardType EC Var Val) [sty.DecidableSafe] where
   formula: Formula sty.AtomicProp
   valid : sty.IsCond formula
+
+namespace Cond
+
+variable {EC Var Val: Type*}  [EvalLike EC Var Val] [Fintype Var] [Fintype Val] [DecidableEq Val] {sty: StandardType EC Var Val} [sty.DecidableSafe]
+
+open PropositionalLogics in
+def ofAtoms (as: List sty.AtomicProp) : Cond EC Var Val sty where
+  formula := Formula.atomTuple as
+  valid := StandardType.IsCond.of_atomTuple
+
+
+end Cond
 
 
 class CondLike (CC EC Var Val: Type*) [EvalLike EC Var Val] [Fintype Var] [Fintype Val] [DecidableEq Val] where

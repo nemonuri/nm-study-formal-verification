@@ -2,6 +2,7 @@ module
 
 public import Nemonuri.TransitionSystemLike.ProgramGraph
 public import Nemonuri.Examples.BeverageVendingMachine
+public import Nemonuri.PropositionalLogics.Tactic
 
 /-!
 
@@ -157,12 +158,16 @@ example : transitionSystem.tr (Loc.start, State.mk 2 2) Act.refill (Loc.start, S
   refine .intro _ _ Guard.true _ _ ?_ ?_
   · dsimp
     exact .refill
-  · dsimp [ProgramGraph.CondLike.standardType, ProgramGraph.CondLike.toCond,
+  · dsimp [ProgramGraph.CondLike.toCond, Guard.toFormula]
+    simp [pl_simp]
+/-
+    dsimp [ProgramGraph.CondLike.standardType, ProgramGraph.CondLike.toCond,
            SatRel.IsSat, SatRel.defaultAt, Inhabited.default, SatRel.default, DFunLike.coe,
            EvalLike.toIndicator, EvalLike.coe]
     simp only [← Indicator.AreEvalToTrue.eq_true_iff]
     dsimp [Guard.toFormula]
     dsimp [Indicator.evalFormulaToBool]
+-/
 
 open PropositionalLogics in
 example : transitionSystem.tr (Loc.select, State.mk 1 2) Act.sget (Loc.start, State.mk 0 2) := by
@@ -172,16 +177,24 @@ example : transitionSystem.tr (Loc.select, State.mk 1 2) Act.sget (Loc.start, St
   exists Guard.nsoda_gt_zero
   refine ⟨?_, ?_, ?_⟩
   · exact .sget
-  · dsimp [ProgramGraph.CondLike.standardType, ProgramGraph.CondLike.toCond,
+  · dsimp [ProgramGraph.CondLike.toCond, Guard.toFormula]
+    simp [pl_simp]
+    dsimp [EvalLike.coe]
+    dsimp [ProgramGraph.StandardType.indicateAtomicProp, ProgramGraph.EvalLike.coe, DFunLike.coe]
+    dsimp [State.eval]
+    simp
+/-
+    dsimp [ProgramGraph.CondLike.standardType, ProgramGraph.CondLike.toCond,
            SatRel.IsSat, SatRel.defaultAt, Inhabited.default, SatRel.default, DFunLike.coe,
            EvalLike.toIndicator, EvalLike.coe]
     simp only [← Indicator.AreEvalToTrue.eq_true_iff]
     dsimp [Guard.toFormula]
     dsimp [Indicator.evalFormulaToBool, Indicator.fn]
     simp
-    dsimp [ProgramGraph.StandardType.indicateAtomicProp, ProgramGraph.EvalLike.coe, DFunLike.coe]
+    dsimp [ProgramGraph.StandardType.indicateAtomicProp, ProgramGraph.EvalLike.coe, DFunLike.coe, Indicator.mk]
     dsimp [State.eval]
     simp
+-/
   · dsimp [effect]
 
 
