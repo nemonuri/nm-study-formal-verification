@@ -43,6 +43,11 @@ variable {EC Var Val: Type*} [EvalLike EC Var Val]
 
 def IsSafe (sty: StandardType EC Var Val) (v: Var) (D: Set Val) : Prop := D ⊆ sty.dom v
 
+
+theorem isSafe_iff {sty: StandardType EC Var Val} {var: Var} {D: Set Val}
+  : IsSafe sty var D ↔ (∀(val: Val), (val ∈ D) → (val ∈ sty.dom var)) := by
+  simp [IsSafe, Set.subset_def]
+
 abbrev DecidableSafe (sty: StandardType EC Var Val) : Type _ := (v: Var) → (D: Set Val) → Decidable (sty.IsSafe v D)
 
 

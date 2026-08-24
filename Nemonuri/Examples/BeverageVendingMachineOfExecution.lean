@@ -16,7 +16,7 @@ public import Nemonuri.Executions.Specs.Basic
 
 @[expose] public section
 
-namespace Examples.Executions
+namespace Examples.BeverageVendingMachines.Executions
 
 open Nemonuri TransitionSystem ExecutionFragmentSpec
 
@@ -165,6 +165,6 @@ theorem ϱ_not_execution (x: ϱ) : ¬(ts.IsExecution x) := fun lm1 => lm1.maxima
 end Proof3
 
 
-end Examples.Executions
+end Examples.BeverageVendingMachines.Executions
 
 end

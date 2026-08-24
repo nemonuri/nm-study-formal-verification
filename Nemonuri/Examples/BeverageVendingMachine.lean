@@ -15,7 +15,7 @@ public import Cslib.Foundations.Semantics.LTS.Notation
 
 @[expose] public section
 
-namespace Examples
+namespace Examples.BeverageVendingMachines
 
 open Nemonuri TransitionSystem
 
@@ -98,6 +98,6 @@ example : 𝐿{ts}⸨.select⸩ = { .paid } := by
 
 
 
-end Examples
+end Examples.BeverageVendingMachines
 
 end
