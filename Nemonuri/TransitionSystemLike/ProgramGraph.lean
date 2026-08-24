@@ -192,9 +192,12 @@ def toTransitionSystem (pg: ProgramGraph CC EC Var Val) : TransitionSystem where
   tr := pg.Transition
   L := pg.labeling
 
-#print toTransitionSystem
 
---/-(η ⊨ₚ{ @SatRel.defaultAt EC (cl.standardType).AtomicProp (inferInstance: Fintype (cl.standardType).AtomicProp) ((cl.standardType).toIndicatorLike req) } pg.g0 )-/
+theorem toTransitionSystem_Injective : Function.Injective (@toTransitionSystem CC EC Var Val _ _ _ _ _) := by
+  intro pg1 pg2 --lm1
+  simp [toTransitionSystem]
+  intro lm1 lm2 lm3 lm4 lm5 lm6
+
 
 end ProgramGraph
 
