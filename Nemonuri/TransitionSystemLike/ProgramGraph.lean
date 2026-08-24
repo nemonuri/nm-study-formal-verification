@@ -145,9 +145,7 @@ end ProgramGraph
 
 
 open ProgramGraph in
-structure ProgramGraph (CC EC Var Val: Type*) [EvalLike EC Var Val] [Fintype Var] [Fintype Val] [DecidableEq Val] [CondLike CC EC Var Val] where
-  Loc: Type*
-  [decidableEqOfLoc: DecidableEq Loc]
+structure ProgramGraph (CC EC Var Val Loc: Type*) [EvalLike EC Var Val] [Fintype Var] [Fintype Val] [DecidableEq Val] [CondLike CC EC Var Val] [DecidableEq Loc] where
   Act: Type*
   effect: Act → EC → EC
   ctr: Loc → CC → Act → Loc → Prop
@@ -163,19 +161,20 @@ structure ProgramGraph (CC EC Var Val: Type*) [EvalLike EC Var Val] [Fintype Var
 
 namespace ProgramGraph
 
-variable {CC EC Var Val: Type*} [EvalLike EC Var Val] [Fintype Var] [Fintype Val] [DecidableEq Val] [cl: CondLike CC EC Var Val]
+variable {CC EC Var Val Loc: Type*} [EvalLike EC Var Val] [Fintype Var] [Fintype Val] [DecidableEq Val] [cl: CondLike CC EC Var Val] [DecidableEq Loc]
 
-instance (pg: ProgramGraph CC EC Var Val) : DecidableEq (pg.Loc) := pg.decidableEqOfLoc
+protected abbrev Loc (_: ProgramGraph CC EC Var Val Loc) : Type _ := Loc
 
-def Loc0 (pg: ProgramGraph CC EC Var Val) : Set (pg.Loc) := { l | pg.loc0 l }
+def Loc0 (pg: ProgramGraph CC EC Var Val Loc) : Set (Loc) := { l | pg.loc0 l }
 
-inductive Transition (pg: ProgramGraph CC EC Var Val) : (pg.Loc × EC) → pg.Act → (pg.Loc × EC) → Prop where
-  | intro (l1 l2: pg.Loc) (g: CC) (act: pg.Act) (η: EC) (req1: pg.ctr l1 g act l2)
+@[mk_iff]
+inductive Transition (pg: ProgramGraph CC EC Var Val Loc) : (Loc × EC) → pg.Act → (Loc × EC) → Prop where
+  | intro (l1 l2: Loc) (g: CC) (act: pg.Act) (η: EC) (req1: pg.ctr l1 g act l2)
           (req2: ⟦η⟧ ⊨ₚ⟦ cl.standardType.indicateAtomicProp ⟧ (cl.toCond g).formula)
       : Transition pg ⟨l1, η⟩ act ⟨l2, pg.effect act η⟩
 
 open PropositionalLogics in
-def labeling (pg: ProgramGraph CC EC Var Val) (s: pg.Loc × EC) (ap: pg.Loc ⊕ CC) : Bool :=
+def labeling (s: Loc × EC) (ap: Loc ⊕ CC) : Bool :=
   let ⟨l, η⟩ := s
   match ap with
   | .inl l2 => decide (l = l2)
@@ -184,19 +183,29 @@ def labeling (pg: ProgramGraph CC EC Var Val) (s: pg.Loc × EC) (ap: pg.Loc ⊕ 
 
 open PropositionalLogics in
 @[reducible]
-def toTransitionSystem (pg: ProgramGraph CC EC Var Val) : TransitionSystem where
-  S := pg.Loc × EC
+def toTransitionSystem (pg: ProgramGraph CC EC Var Val Loc) : TransitionSystem where
+  S := Loc × EC
   Act := pg.Act
   I := { ⟨l, η⟩ | (l ∈ pg.Loc0) ∧ (⟦η⟧ ⊨ₚ⟦ cl.standardType.indicateAtomicProp ⟧ pg.g0.formula) }
-  AP := pg.Loc ⊕ CC
+  AP := Loc ⊕ CC
   tr := pg.Transition
-  L := pg.labeling
+  L := labeling
 
-
-theorem toTransitionSystem_Injective : Function.Injective (@toTransitionSystem CC EC Var Val _ _ _ _ _) := by
-  intro pg1 pg2 --lm1
+open PropositionalLogics in
+theorem toTransitionSystem_Injective : Function.Injective (@toTransitionSystem CC EC Var Val Loc _ _ _ _ _ _) := by
+  rintro ⟨A1, ef1, ctr1, loc01, g01⟩ ⟨A2, ef2, ctr2, loc02, g02⟩
   simp [toTransitionSystem]
-  intro lm1 lm2 lm3 lm4 lm5 lm6
+  intro lm1 lm2 lm3
+  subst lm1
+  simp at lm2 ⊢
+  simp [funext_iff, transition_iff] at lm2
+  simp [Set.ext_iff, ProgramGraph.Loc0, SatRel.IsSat, SatRel.defaultAt, Inhabited.default,
+        DFunLike.coe, SatRel.default, EvalLike.AreEvalToTrueAt, EvalLike.toIndicator,
+        ← Indicator.AreEvalToTrue.eq_true_iff] at lm3 lm2
+  refine ⟨?_, ?_, ?_, ?_⟩
+  · simp only [funext_iff]
+    intro act ec
+
 
 
 end ProgramGraph
