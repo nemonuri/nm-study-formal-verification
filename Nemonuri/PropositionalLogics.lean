@@ -3,6 +3,7 @@ module
 public import Mathlib.Data.Fintype.Basic
 public import Mathlib.Data.Fintype.Pi
 public import Mathlib.Data.Finite.Prod
+public import Mathlib.Data.Setoid.Basic
 
 /-!
 
@@ -559,6 +560,15 @@ instance (priority := 10) : EvalLike (Eval AP) AP where
   coe := id
   coe_injective := Function.injective_id
 
+omit [DecidableEq AP] in
+@[reducible]
+def ofKerLift (toInd: E → AP → Bool) : EvalLike (Quotient (Setoid.ker toInd)) AP where
+  coe qe := Setoid.kerLift toInd qe |> Eval.mk
+  coe_injective := by
+    have lm1 := @Setoid.kerLift_injective _ _ toInd
+    intro _ _
+    simp
+    exact lm1.eq_iff.mp
 
 end EvalLike
 
@@ -1066,6 +1076,12 @@ syntax:25 term:26 " ⊨ₚ{ " term ", " term ", " term ", " term " }" term:25 : 
 
 macro_rules
   | `($μ ⊨ₚ{ $EC , $AP , $ft , $el } $φ) => ``( @IsSat $EC $AP $ft $el (@defaultAt $EC $AP $ft $el) $μ $φ )
+
+
+syntax:25 term:26 " ⊨ₚ⟦ " term " ⟧ "  term:25 : term
+
+macro_rules
+  | `($μ ⊨ₚ⟦ $toInd ⟧ $φ) => ``( $μ ⊨ₚ{ _, _, _, EvalLike.ofKerLift $toInd } $φ )
 
 end Notation
 
