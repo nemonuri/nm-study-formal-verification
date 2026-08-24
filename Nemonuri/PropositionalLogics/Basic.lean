@@ -234,7 +234,7 @@ macro_rules
 
 end Notation
 
-def atomTuple (as: List AP) : Formula AP := iterAnd (as.map (Formula.atom))
+def atomTuple (as: List AP) : Formula AP := ⋀ₚ (as.map (Formula.atom))
 
 end Formula
 

@@ -189,6 +189,7 @@ end StandardType
 
 
 open PropositionalLogics in
+@[ext]
 structure Cond (EC Var Val: Type*) [EvalLike EC Var Val] [Fintype Var] [Fintype Val] [DecidableEq Val] (sty: StandardType EC Var Val) [sty.DecidableSafe] where
   formula: Formula sty.AtomicProp
   valid : sty.IsCond formula
@@ -197,10 +198,45 @@ namespace Cond
 
 variable {EC Var Val: Type*}  [EvalLike EC Var Val] [Fintype Var] [Fintype Val] [DecidableEq Val] {sty: StandardType EC Var Val} [sty.DecidableSafe]
 
-open PropositionalLogics in
+open PropositionalLogics
+
 def ofAtoms (as: List sty.AtomicProp) : Cond EC Var Val sty where
   formula := Formula.atomTuple as
   valid := StandardType.IsCond.of_atomTuple
+
+def ofAtomsRec (as: List sty.AtomicProp) : Cond EC Var Val sty :=
+  match as with
+  | [] => ⟨.true, StandardType.IsCond.nil⟩
+  | a :: as => ⟨Formula.and (.atom a) ((ofAtomsRec as).formula), StandardType.IsCond.and_iff.mpr (ofAtomsRec as).valid⟩
+
+theorem ofAtoms_eq_ofAtomsRec_at (as: List sty.AtomicProp) : ofAtoms as = ofAtomsRec as := by
+  rcases as with _ | ⟨a, as⟩
+  · dsimp [ofAtoms, ofAtomsRec, Formula.atomTuple, Formula.iterAnd]
+  · dsimp [ofAtoms, ofAtomsRec, Formula.atomTuple, Formula.iterAnd]
+    simp
+    have lm1 := ofAtoms_eq_ofAtomsRec_at as
+    dsimp [ofAtoms, Formula.atomTuple, Formula.iterAnd] at lm1
+    rw [← lm1]
+
+theorem ofAtoms_eq_ofAtomsRec : @ofAtoms = @ofAtomsRec := by
+  simp only [funext_iff]
+  intro _ _ _ _ _ _ _ _ _
+  exact ofAtoms_eq_ofAtomsRec_at
+
+
+theorem ofAtoms_inj {as1 as2: List sty.AtomicProp} (req: ofAtoms as1 = ofAtoms as2) : as1 = as2 := by
+  simp only [ofAtoms_eq_ofAtomsRec] at req
+  rcases as1 with _ | ⟨a1, as1⟩
+  <;> rcases as2 with _ | ⟨a2, as2⟩
+  <;> simp [ofAtomsRec] at req
+  · rfl
+  · rcases req with ⟨lm1, lm2⟩
+    simp [lm1]
+    refine ofAtoms_inj ?_
+    simp only [ofAtoms_eq_ofAtomsRec]
+    exact Cond.ext lm2
+
+theorem ofAtoms_eq_iff_eq {as1 as2: List sty.AtomicProp} : (ofAtoms as1 = ofAtoms as2) ↔ (as1 = as2) := ⟨ofAtoms_inj, congrArg ofAtoms⟩
 
 
 end Cond

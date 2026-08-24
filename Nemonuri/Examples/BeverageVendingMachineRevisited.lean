@@ -82,45 +82,29 @@ open ProgramGraph
 instance : Inhabited Var := ⟨.nsoda⟩
 
 attribute [local simp] standardType StandardType.isSafe_iff in
-def toFormula (g: Guard) : Formula standardType.AtomicProp :=
+def toFormula (g: Guard) : ProgramGraph.Cond State Var Val standardType  :=
   match g with
-  | .true => .true
-  | .nsoda_gt_zero => .atom ⟨.nsoda, fun val => val.val.val > 0, by simp⟩ ∧ₚ .true
-  | .nbeer_gt_zero => .atom ⟨.nbeer, fun val => val.val.val > 0, by simp⟩ ∧ₚ .true
+  | .true => .ofAtoms []
+  | .nsoda_gt_zero => .ofAtoms [⟨.nsoda, fun val => val.val.val > 0, by simp⟩]
+  | .nbeer_gt_zero => .ofAtoms [⟨.nbeer, fun val => val.val.val > 0, by simp⟩]
   | .nsoda_eq_zero_and_nbeer_eq_zero =>
     let ap1 : standardType.AtomicProp := ⟨.nsoda, fun val => val.val.val = 0, by simp⟩
     let ap2 : standardType.AtomicProp := ⟨.nbeer, fun val => val.val.val = 0, by simp⟩
-    (.atom (ap1)) ∧ₚ (.atom (ap2)) ∧ₚ .true
+    .ofAtoms [ap1, ap2]
 
-
-theorem toFormula_is_cond (g: Guard) : standardType.IsCond (toFormula g) := by
-  cases g
-  · simp [toFormula]
-  · refine .cons _ _ ?_; simp
-  · refine .cons _ _ ?_; simp
-  · refine .cons _ _ ?_
-    refine .cons _ _ ?_
-    simp
 
 theorem toFormula_injective : Function.Injective toFormula := by
   intro g1 g2 lm1
-  cases g1 <;> cases g2 <;> simp <;> simp [toFormula] at lm1
+  cases g1 <;> cases g2 <;> simp <;> simp [toFormula, Cond.ofAtoms_eq_iff_eq] at lm1
 
 
 instance : ProgramGraph.CondLike Guard State Var Val where
   standardType := standardType
-  toCond g := .mk (g.toFormula) g.toFormula_is_cond
-  toCond_Injective := by
-    intro _ _
-    simp
-    exact toFormula_injective.eq_iff.mp
+  toCond := toFormula
+  toCond_Injective := toFormula_injective
 
-attribute [local simp] StandardType.isSafe_iff in
-def initial : ProgramGraph.Cond State Var Val standardType where
-  formula := (.atom (⟨.nsoda, fun val => val.val.val = 2, by simp [standardType]⟩)) ∧ₚ .true
-  valid := by
-    refine .cons _ _ ?_
-    simp
+
+def initial : ProgramGraph.Cond State Var Val standardType := .ofAtoms [⟨.nsoda, fun val => val.val.val = 2, by simp [standardType, StandardType.isSafe_iff]⟩]
 
 end Guard
 
@@ -158,7 +142,7 @@ example : transitionSystem.tr (Loc.start, State.mk 2 2) Act.refill (Loc.start, S
   refine .intro _ _ Guard.true _ _ ?_ ?_
   · dsimp
     exact .refill
-  · dsimp [ProgramGraph.CondLike.toCond, Guard.toFormula]
+  · dsimp [ProgramGraph.CondLike.toCond, Guard.toFormula, ProgramGraph.Cond.ofAtoms, Formula.atomTuple, Formula.iterAnd]
     simp [pl_simp]
 /-
     dsimp [ProgramGraph.CondLike.standardType, ProgramGraph.CondLike.toCond,
@@ -177,7 +161,7 @@ example : transitionSystem.tr (Loc.select, State.mk 1 2) Act.sget (Loc.start, St
   exists Guard.nsoda_gt_zero
   refine ⟨?_, ?_, ?_⟩
   · exact .sget
-  · dsimp [ProgramGraph.CondLike.toCond, Guard.toFormula]
+  · dsimp [ProgramGraph.CondLike.toCond, Guard.toFormula, ProgramGraph.Cond.ofAtoms, Formula.atomTuple, Formula.iterAnd]
     simp [pl_simp]
     dsimp [EvalLike.coe]
     dsimp [ProgramGraph.StandardType.indicateAtomicProp, ProgramGraph.EvalLike.coe, DFunLike.coe]
