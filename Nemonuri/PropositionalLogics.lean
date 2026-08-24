@@ -1061,6 +1061,12 @@ syntax:25 term:26 " ⊨ₚ " term:25 : term
 macro_rules
   | `($μ ⊨ₚ $φ) => ``($μ ⊨ₚ{ defaultAt _ _ } $φ )
 
+
+syntax:25 term:26 " ⊨ₚ{ " term ", " term ", " term ", " term " }" term:25 : term
+
+macro_rules
+  | `($μ ⊨ₚ{ $EC , $AP , $ft , $el } $φ) => ``( @IsSat $EC $AP $ft $el (@defaultAt $EC $AP $ft $el) $μ $φ )
+
 end Notation
 
 end SatRel

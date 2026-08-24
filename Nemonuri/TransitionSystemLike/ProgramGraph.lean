@@ -147,6 +147,7 @@ end ProgramGraph
 open ProgramGraph in
 structure ProgramGraph (CC EC Var Val: Type*) [EvalLike EC Var Val] [Fintype Var] [Fintype Val] [DecidableEq Val] [CondLike CC EC Var Val] where
   Loc: Type*
+  [decidableEqOfLoc: DecidableEq Loc]
   Act: Type*
   effect: Act → EC → EC
   ctr: Loc → CC → Act → Loc → Prop
@@ -164,16 +165,38 @@ namespace ProgramGraph
 
 variable {CC EC Var Val: Type*} [EvalLike EC Var Val] [Fintype Var] [Fintype Val] [DecidableEq Val] [cl: CondLike CC EC Var Val]
 
+instance (pg: ProgramGraph CC EC Var Val) : DecidableEq (pg.Loc) := pg.decidableEqOfLoc
+
 def Loc0 (pg: ProgramGraph CC EC Var Val) : Set (pg.Loc) := { l | pg.loc0 l }
+
+inductive Transition (pg: ProgramGraph CC EC Var Val) (req: Function.Injective ((cl.standardType).indicateAtomicProp)) : (pg.Loc × EC) → pg.Act → (pg.Loc × EC) → Prop where
+  | intro (l1 l2: pg.Loc) (g: CC) (act: pg.Act) (η: EC) (req1: pg.ctr l1 g act l2)
+          (req2: η ⊨ₚ{ EC , (cl.standardType).AtomicProp , _ , (cl.standardType).toIndicatorLike req } (cl.toCond g).formula)
+      : Transition pg req ⟨l1, η⟩ act ⟨l2, pg.effect act η⟩
+
+open PropositionalLogics in
+def labeling (pg: ProgramGraph CC EC Var Val) (s: pg.Loc × EC) (ap: pg.Loc ⊕ CC) : Bool :=
+  let ⟨l, η⟩ := s
+  match ap with
+  | .inl l2 => decide (l = l2)
+  | .inr g => (Indicator.mk (cl.standardType.indicateAtomicProp η)).evalFormulaToBool (cl.toCond g).formula
+
 
 open PropositionalLogics in
 @[reducible]
-def toTransitionSystem (pg: ProgramGraph CC EC Var Val) (req: Function.Injective ((cl.standardType).indicateAtomicProp)) : TransitionSystem where
-  S := pg.Loc × EC
-  Act := pg.Act
-  I := { ⟨l, η⟩ | (l ∈ pg.Loc0) ∧ (let ind := (cl.standardType).toIndicatorLike req; @SatRel.IsSat EC (cl.standardType).AtomicProp _ ind (@SatRel.defaultAt EC _ _ ind) η pg.g0.formula ) }
-  AP := pg.Loc ⊕ CC
+def toTransitionSystem (pg: ProgramGraph CC EC Var Val) (req: Function.Injective ((cl.standardType).indicateAtomicProp)) : TransitionSystem :=
+  let ind := (cl.standardType).toIndicatorLike req
+  let Cap := (cl.standardType).AtomicProp
+  {
+    S := pg.Loc × EC
+    Act := pg.Act
+    I := { ⟨l, η⟩ | (l ∈ pg.Loc0) ∧ (η ⊨ₚ{ EC , Cap , _ , ind } pg.g0.formula) }
+    AP := pg.Loc ⊕ CC
+    tr := pg.Transition req
+    L := pg.labeling
+  }
 
+#print toTransitionSystem
 
 --/-(η ⊨ₚ{ @SatRel.defaultAt EC (cl.standardType).AtomicProp (inferInstance: Fintype (cl.standardType).AtomicProp) ((cl.standardType).toIndicatorLike req) } pg.g0 )-/
 
