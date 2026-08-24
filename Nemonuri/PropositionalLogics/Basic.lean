@@ -1025,14 +1025,26 @@ theorem dist_and (p1 p2 p3: Formula AP)
   : p1 ∧ₚ (p2 ∨ₚ p3) ≡ₚ{sr} (p1 ∧ₚ p2) ∨ₚ (p1 ∧ₚ p3) := by
   grind
 
-@[scoped grind .]
+@[scoped grind =]
 theorem iterAnd_nil : ⋀ₚ ([]: List (Formula AP)) ≡ₚ{sr} (.true) := by
   unfold Formula.iterAnd
   rfl
 
 @[scoped grind .]
+theorem iterAnd_cons (p: Formula AP) (ps: List (Formula AP))
+  : ⋀ₚ (p :: ps) ≡ₚ{sr} (p ∧ₚ (⋀ₚ ps)) := by
+  dsimp [Formula.iterAnd]
+  rfl
+
+@[scoped grind =]
 theorem iterOr_nil : ⋁ₚ ([]: List (Formula AP)) ≡ₚ{sr} (.false) := by
   unfold Formula.iterOr
+  rfl
+
+@[scoped grind .]
+theorem iterOr_cons (p: Formula AP) (ps: List (Formula AP))
+  : ⋁ₚ (p :: ps) ≡ₚ{sr} (p ∨ₚ (⋁ₚ ps)) := by
+  dsimp [Formula.iterOr]
   rfl
 
 end SemEquiv
@@ -1090,96 +1102,35 @@ macro_rules
 end Notation
 
 
+namespace IsSat
+
+open scoped SemEquiv
+
+theorem iterAnd_nil : μ ⊨ₚ{sr} ⋀ₚ ([]: List (Formula AP)) := by
+  grind
+
+
+theorem iterAnd_cons (p: Formula AP) (ps: List (Formula AP))
+  : (μ ⊨ₚ{sr} ⋀ₚ (p :: ps)) ↔ (μ ⊨ₚ{sr} (p ∧ₚ (⋀ₚ ps))) := by
+  have lm1 := SemEquiv.iterAnd_cons sr p ps
+  grind
+
+
+theorem iterOr_nil : ⋁ₚ ([]: List (Formula AP)) ≡ₚ{sr} (.false) := by
+  unfold Formula.iterOr
+  rfl
+
+
+theorem iterOr_cons (p: Formula AP) (ps: List (Formula AP))
+  : ⋁ₚ (p :: ps) ≡ₚ{sr} (p ∨ₚ (⋁ₚ ps)) := by
+  dsimp [Formula.iterOr]
+  rfl
+
+end IsSat
 
 
 end SatRel
 
-/-
-namespace Formula
-
-class HasEvalLike (AP: Type*) [Fintype AP] where
-  Carrier: Type*
-  [evalLike: EvalLike Carrier AP]
-
-attribute [reducible] HasEvalLike.Carrier
-attribute [reducible, instance] HasEvalLike.evalLike
-
-namespace HasEvalLike
-
-def toSatRel (AP: Type*) [Fintype AP] [HasEvalLike AP] : SatRel (Carrier AP) AP :=
-  (inferInstance: Unique (SatRel (Carrier AP) AP)).toInhabited.default
-
-
-
-
-end HasEvalLike
-
-end Formula
--/
-
-
-
-
-
-/-
-class HasSatRelAt {AP: Type _} [Fintype AP] (μ: Eval AP) (p: Formula AP) where
-  satRel: SatRel AP
-
-
-section Notation
-
-syntax:25 term:26 " ⊨ₚ " term:25 : term
-
-macro_rules
-  | `($μ ⊨ₚ $φ) => ``($μ ⊨ₚ{ HasSatRelAt.satRel $μ $φ } $φ )
-
-end Notation
-
-
-namespace HasSatRelAt
-
-variable {E AP: Type _} [Fintype AP] [EvalLike E AP]
--/
-
-
-/-
-instance ofEvalLike (e: E) (p: Formula AP) : HasSatRelAt (e: Eval AP) p where
-  satRel := {
-    rel :=
-    valid := _
-  }
--/
-
-
-
-
-/-
-class SatRelLike (SR: Type _) (E: Type _) (AP: outParam <| Type _) [Fintype AP] [EvalLike E AP] where
-  toRel : SR → E → Formula AP → Prop
-  valid (sr: SR) : IsSatRel AP (fun ev => toRel sr (EvalLike.coeInv ev))
--/
-/-
-  true (sr: SR) : ∀μ, toRel sr μ (.true)
-  atom (sr: SR) (a: AP) : ∀μ, toRel sr μ (.atom a) ↔ ((μ: Eval AP) a = .true)
-  neg (sr: SR) (x: Formula AP) : ∀μ, toRel sr μ (¬ₚx) ↔ (¬toRel sr μ x)
-  and (sr: SR) (x y: Formula AP) : ∀μ, toRel sr μ (x ∧ₚ y) ↔ (toRel sr μ x ∧ toRel sr μ y)
--/
-
-/-
-namespace SatRelLike
-
-variable {SR E AP: Type _} [Fintype AP] [EvalLike E AP] [SatRelLike SR E AP]
-
-
-def toSatRel (sr: SR) : SatRel AP where
-  rel ev := toRel sr (EvalLike.coeInv ev : E)
-  valid := SatRelLike.valid sr
-
-#print toSatRel
-
-
-end SatRelLike
--/
 
 end Nemonuri.PropositionalLogics
 

@@ -13,6 +13,12 @@ attribute [pl_simp] true_intro atom_iff neg_iff false_iff and_iff or_iff imp_iff
 
 end SatRel.IsSat
 
+namespace SatRel.SemEquiv
+
+--attribute [pl_simp] iterAnd_nil iterAnd_cons semEquiv_iff
+
+end SatRel.SemEquiv
+
 attribute [pl_simp] EvalLike.toIndicator_def
 
 attribute [pl_simp low] Indicator.mk_fn_eq Indicator.mk_eq
