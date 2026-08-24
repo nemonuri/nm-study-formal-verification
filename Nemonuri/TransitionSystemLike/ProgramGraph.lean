@@ -117,7 +117,7 @@ open PropositionalLogics
 
 inductive IsCond (sty: StandardType EC Var Val) [sty.DecidableSafe] : Formula sty.AtomicProp → Prop where
   | nil : IsCond sty (.true)
-  | cons (ap: sty.AtomicProp) (fml: Formula sty.AtomicProp) : IsCond sty (Formula.and (.atom ap) fml)
+  | cons (ap: sty.AtomicProp) (fml: Formula sty.AtomicProp) (req: sty.IsCond fml) : IsCond sty (Formula.and (.atom ap) fml)
 
 attribute [simp] IsCond.nil
 
@@ -174,6 +174,7 @@ instance (pg: ProgramGraph CC EC Var Val) : DecidableEq (pg.Loc) := pg.decidable
 
 def Loc0 (pg: ProgramGraph CC EC Var Val) : Set (pg.Loc) := { l | pg.loc0 l }
 
+@[mk_iff]
 inductive Transition (pg: ProgramGraph CC EC Var Val) : (pg.Loc × EC) → pg.Act → (pg.Loc × EC) → Prop where
   | intro (l1 l2: pg.Loc) (g: CC) (act: pg.Act) (η: EC) (req1: pg.ctr l1 g act l2)
           (req2: ⟦η⟧ ⊨ₚ⟦ cl.standardType.indicateAtomicProp ⟧ (cl.toCond g).formula)
