@@ -284,11 +284,22 @@ instance (pg: ProgramGraph CC EC Var Val) : DecidableEq (pg.Loc) := pg.decidable
 
 def Loc0 (pg: ProgramGraph CC EC Var Val) : Set (pg.Loc) := { l | pg.loc0 l }
 
-@[mk_iff]
-inductive Transition (pg: ProgramGraph CC EC Var Val) : (pg.Loc × EC) → pg.Act → (pg.Loc × EC) → Prop where
+--@[mk_iff]
+inductive Transition (pg: ProgramGraph CC EC Var Val) : pg.Loc → EC → pg.Act → pg.Loc → EC → Prop where
   | intro (l1 l2: pg.Loc) (g: CC) (act: pg.Act) (η: EC) (req1: pg.ctr l1 g act l2)
           (req2: ⟦η⟧ ⊨ₚ⟦ cl.standardType.indicateAtomicProp ⟧ (cl.toCond g).formula)
-      : Transition pg ⟨l1, η⟩ act ⟨l2, pg.effect act η⟩
+      : Transition pg l1 η act l2 (pg.effect act η)
+
+
+theorem Transition.of_exists
+  {pg: ProgramGraph CC EC Var Val} {l1 l2: pg.Loc} {act: pg.Act} {η: EC}
+  (req: ∃(g: CC), (pg.ctr l1 g act l2) ∧ (⟦η⟧ ⊨ₚ⟦ cl.standardType.indicateAtomicProp ⟧ (cl.toCond g).formula))
+  : pg.Transition l1 η act l2 (pg.effect act η) := by
+  rcases req with ⟨g, req1, req2⟩
+  exact .intro l1 l2 g act η req1 req2
+
+  --refine .intro l1 l2 g act η ?_ ?_
+  --·
 
 open PropositionalLogics in
 def labeling (pg: ProgramGraph CC EC Var Val) (s: pg.Loc × EC) (ap: pg.Loc ⊕ CC) : Bool :=
@@ -305,7 +316,7 @@ def toTransitionSystem (pg: ProgramGraph CC EC Var Val) : TransitionSystem where
   Act := pg.Act
   I := { ⟨l, η⟩ | (l ∈ pg.Loc0) ∧ (⟦η⟧ ⊨ₚ⟦ cl.standardType.indicateAtomicProp ⟧ pg.g0.formula) }
   AP := pg.Loc ⊕ CC
-  tr := pg.Transition
+  tr s1 act s2 := pg.Transition s1.fst s1.snd act s2.fst s2.snd
   L := pg.labeling
 
 /-

@@ -148,10 +148,10 @@ theorem example1 : transitionSystem.tr (Loc.start, State.mk 2 2) Act.refill (Loc
 open PropositionalLogics in
 theorem example2 : transitionSystem.tr (Loc.select, State.mk 1 2) Act.sget (Loc.start, State.mk 0 2) := by
   dsimp [transitionSystem]
-  rw [ProgramGraph.transition_iff]
+  refine ProgramGraph.transition_of ?_
   simp
   exists Guard.nsoda_gt_zero
-  refine ⟨?_, ?_, ?_⟩
+  refine ⟨?_, ?_⟩
   · exact .sget
   · dsimp [ProgramGraph.CondLike.toCond, Guard.toFormula, ProgramGraph.Cond.ofAtoms]
     simp [pl_simp]
@@ -159,8 +159,6 @@ theorem example2 : transitionSystem.tr (Loc.select, State.mk 1 2) Act.sget (Loc.
     dsimp [ProgramGraph.StandardType.indicateAtomicProp, ProgramGraph.EvalLike.coe, DFunLike.coe]
     dsimp [State.eval]
     simp
-  · dsimp [effect]
-
 
 
 end Examples.BeverageVendingMachines.Revisited
