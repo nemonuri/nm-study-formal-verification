@@ -236,6 +236,20 @@ end Notation
 
 def atomTuple (as: List AP) : Formula AP := ⋀ₚ (as.map (Formula.atom))
 
+@[defeq]
+theorem iterAnd_nil : (⋀ₚ ([]: List (Formula AP))) = .true := rfl
+
+@[defeq]
+theorem iterAnd_cons {x: Formula AP} {xs: List (Formula AP)} : (⋀ₚ (x :: xs)) = (x ∧ₚ (⋀ₚ xs)) := rfl
+
+@[defeq]
+theorem atomTuple_nil : atomTuple ([]: List AP) = .true := by
+  dsimp [atomTuple, iterAnd_nil]
+
+@[defeq]
+theorem atomTuple_cons {a: AP} {as: List AP} : atomTuple (a::as) = ((.atom a) ∧ₚ (.atomTuple as)) := by
+  dsimp [atomTuple, iterAnd_cons]
+
 end Formula
 
 
@@ -1101,7 +1115,7 @@ macro_rules
 
 end Notation
 
-
+/-
 namespace IsSat
 
 open scoped SemEquiv
@@ -1127,7 +1141,7 @@ theorem iterOr_cons (p: Formula AP) (ps: List (Formula AP))
   rfl
 
 end IsSat
-
+-/
 
 end SatRel
 

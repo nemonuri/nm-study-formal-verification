@@ -7,17 +7,19 @@ public import Nemonuri.PropositionalLogics.Basic
 
 namespace Nemonuri.PropositionalLogics
 
+namespace Formula
+
+attribute [pl_simp] iterAnd_nil iterAnd_cons atomTuple_nil atomTuple_cons
+
+end Formula
+
+
 namespace SatRel.IsSat
 
 attribute [pl_simp] true_intro atom_iff neg_iff false_iff and_iff or_iff imp_iff_imp
 
 end SatRel.IsSat
 
-namespace SatRel.SemEquiv
-
---attribute [pl_simp] iterAnd_nil iterAnd_cons semEquiv_iff
-
-end SatRel.SemEquiv
 
 attribute [pl_simp] EvalLike.toIndicator_def
 

@@ -137,51 +137,29 @@ def programGraph : ProgramGraph Guard State Var Val where
 def transitionSystem : TransitionSystem := programGraph.toTransitionSystem
 
 open PropositionalLogics in
-example : transitionSystem.tr (Loc.start, State.mk 2 2) Act.refill (Loc.start, State.mk 2 2) := by
+theorem example1 : transitionSystem.tr (Loc.start, State.mk 2 2) Act.refill (Loc.start, State.mk 2 2) := by
   dsimp [transitionSystem]
   refine .intro _ _ Guard.true _ _ ?_ ?_
   · dsimp
     exact .refill
-  · dsimp [ProgramGraph.CondLike.toCond, Guard.toFormula, ProgramGraph.Cond.ofAtoms, Formula.atomTuple, Formula.iterAnd]
+  · dsimp [ProgramGraph.CondLike.toCond, Guard.toFormula, ProgramGraph.Cond.ofAtoms]
     simp [pl_simp]
-/-
-    dsimp [ProgramGraph.CondLike.standardType, ProgramGraph.CondLike.toCond,
-           SatRel.IsSat, SatRel.defaultAt, Inhabited.default, SatRel.default, DFunLike.coe,
-           EvalLike.toIndicator, EvalLike.coe]
-    simp only [← Indicator.AreEvalToTrue.eq_true_iff]
-    dsimp [Guard.toFormula]
-    dsimp [Indicator.evalFormulaToBool]
--/
 
 open PropositionalLogics in
-example : transitionSystem.tr (Loc.select, State.mk 1 2) Act.sget (Loc.start, State.mk 0 2) := by
+theorem example2 : transitionSystem.tr (Loc.select, State.mk 1 2) Act.sget (Loc.start, State.mk 0 2) := by
   dsimp [transitionSystem]
   rw [ProgramGraph.transition_iff]
   simp
   exists Guard.nsoda_gt_zero
   refine ⟨?_, ?_, ?_⟩
   · exact .sget
-  · dsimp [ProgramGraph.CondLike.toCond, Guard.toFormula, ProgramGraph.Cond.ofAtoms, Formula.atomTuple, Formula.iterAnd]
+  · dsimp [ProgramGraph.CondLike.toCond, Guard.toFormula, ProgramGraph.Cond.ofAtoms]
     simp [pl_simp]
     dsimp [EvalLike.coe]
     dsimp [ProgramGraph.StandardType.indicateAtomicProp, ProgramGraph.EvalLike.coe, DFunLike.coe]
     dsimp [State.eval]
     simp
-/-
-    dsimp [ProgramGraph.CondLike.standardType, ProgramGraph.CondLike.toCond,
-           SatRel.IsSat, SatRel.defaultAt, Inhabited.default, SatRel.default, DFunLike.coe,
-           EvalLike.toIndicator, EvalLike.coe]
-    simp only [← Indicator.AreEvalToTrue.eq_true_iff]
-    dsimp [Guard.toFormula]
-    dsimp [Indicator.evalFormulaToBool, Indicator.fn]
-    simp
-    dsimp [ProgramGraph.StandardType.indicateAtomicProp, ProgramGraph.EvalLike.coe, DFunLike.coe, Indicator.mk]
-    dsimp [State.eval]
-    simp
--/
   · dsimp [effect]
-
-
 
 
 
