@@ -1,6 +1,7 @@
 module
 
 public import Nemonuri.TransitionSystemLike.Basic
+public import Nemonuri.PropositionalLogics.Tactic
 
 /-!
 
@@ -284,7 +285,7 @@ instance (pg: ProgramGraph CC EC Var Val) : DecidableEq (pg.Loc) := pg.decidable
 
 def Loc0 (pg: ProgramGraph CC EC Var Val) : Set (pg.Loc) := { l | pg.loc0 l }
 
---@[mk_iff]
+@[mk_iff]
 inductive Transition (pg: ProgramGraph CC EC Var Val) : pg.Loc → EC → pg.Act → pg.Loc → EC → Prop where
   | intro (l1 l2: pg.Loc) (g: CC) (act: pg.Act) (η: EC) (req1: pg.ctr l1 g act l2)
           (req2: ⟦η⟧ ⊨ₚ⟦ cl.standardType.indicateAtomicProp ⟧ (cl.toCond g).formula)
@@ -318,6 +319,88 @@ def toTransitionSystem (pg: ProgramGraph CC EC Var Val) : TransitionSystem where
   AP := pg.Loc ⊕ CC
   tr s1 act s2 := pg.Transition s1.fst s1.snd act s2.fst s2.snd
   L := pg.labeling
+
+
+inductive OfLoc.{u1, u2, u3, u4, u5, u6}
+  (CC: Type u1) (EC: Type u2) (Var: Type u3) (Val: Type u4) [EvalLike EC Var Val] [Fintype Var] [Fintype Val] [DecidableEq Val] [CondLike CC EC Var Val] : Type u5 → Type _ where
+  | mk (pg: ProgramGraph.{u1, u2, u3, u4, u5, u6} CC EC Var Val) : OfLoc CC EC Var Val pg.Loc
+
+
+
+namespace OfLoc
+
+universe u1 u2 u3 u4 u5
+variable {CC: Type u1} {EC: Type u2} {Var: Type u3} {Val: Type u4} [EvalLike EC Var Val] [Fintype Var] [Fintype Val] [DecidableEq Val] [CondLike CC EC Var Val] {Loc: Type u5}
+
+
+def toTransitionSystem (pgl: OfLoc CC EC Var Val Loc) : TransitionSystem := pgl.casesOn (fun pg => pg.toTransitionSystem)
+
+/-
+#check funext_iff
+
+instance : TransitionSystemLike (OfLoc CC EC Var Val Loc) where
+  coe pgl := pgl.toTransitionSystem
+  coe_injective := by
+    rintro ⟨pg1⟩
+    intro pgl2 lm1
+    rcases pg1 with ⟨Loc, Act1, effect1, ctr1, Loc01, g01⟩
+    dsimp at pgl2
+    rcases pgl2 with ⟨pg2⟩
+    dsimp [toTransitionSystem] at lm1
+    simp [ProgramGraph.toTransitionSystem] at lm1
+    rcases lm1 with ⟨lm1, lm2, lm3, lm4⟩
+    subst lm1
+    simp [funext_iff, labeling] at lm4; clear lm4
+    simp [Set.ext_iff] at lm3
+    congr
+    · simp [funext_iff, transition_iff] at lm2
+      simp only [funext_iff]
+      intro act ec
+      replace lm2 := fun l1 l2 => lm2 l1 ec act l2 ec
+      conv at lm2 => ext; ext; rw [← not_iff_not]
+      simp at lm2
+-/
+
+
+    --simp [funext_iff, transition_iff, StandardType.indicateAtomicProp] at lm2
+
+    --simp [Set.ext_iff] at lm3
+    --simp at lm2 lm3 lm4
+
+
+
+    --dsimp [Function.Injective toTransitionSystem]
+
+
+
+/-
+
+
+def toTransitionSystem.{u6} (pgl: OfLoc.{u1, u2, u3, u4, u5, u6} CC EC Var Val Loc) : TransitionSystem := match pgl with | .mk pg => pg.toTransitionSystem
+
+
+
+instance toTransitionSystemLike.{u6} : TransitionSystemLike.{_} (OfLoc.{u1, u2, u3, u4, u5, u6} CC EC Var Val Loc) where
+  coe pgl := pgl.toTransitionSystem
+-/
+
+end OfLoc
+
+/-
+instance toTransitionSystemLike {Loc} : TransitionSystemLike (OfLoc CC EC Var Val Loc) where
+  coe := fun ⟨pg⟩ => pg.toTransitionSystem
+  coe_injective := by
+-/
+
+/-
+abbrev KernelQuotient (CC EC Var Val: Type*) [EvalLike EC Var Val] [Fintype Var] [Fintype Val] [DecidableEq Val] [CondLike CC EC Var Val] : Type _ := Quotient (Setoid.ker (toTransitionSystem : ProgramGraph CC EC Var Val → TransitionSystem))
+
+def toKernelQuotient (pg: ProgramGraph CC EC Var Val) : KernelQuotient CC EC Var Val :=
+  Quotient.mk (Setoid.ker toTransitionSystem) pg
+
+
+instance : TransitionSystemLike (KernelQuotient CC EC Var Val)
+-/
 
 /-
 open PropositionalLogics in

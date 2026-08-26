@@ -45,17 +45,17 @@ def attachUnivToFinset (α: Type _) [Fintype α] : Finset α ↪o Finset (𝒰 �
 open PropositionalLogics Formula
 
 
-structure TransitionSystem where
+structure TransitionSystem.{u1, u2, u3} where
   /-- A set of states -/
-  S: Type*
+  S: Type u1
   /-- A set of actions -/
-  Act: Type*
+  Act: Type u2
   /-- A transition relation -/
   tr: S → Act → S → Prop
   /-- a set of initial states -/
   I: Set S
   /-- a set of atomic propositions -/
-  AP: Type*
+  AP: Type u3
   /-- a labeling function -/
   L: S → AP → Bool --𝒫 (.univ : Set AP)
 
