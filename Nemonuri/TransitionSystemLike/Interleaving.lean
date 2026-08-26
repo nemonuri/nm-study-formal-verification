@@ -27,6 +27,7 @@ namespace Interleaving
 
 variable {Act AP: Type _} {ts1 ts2: TransitionSystem}
 
+@[mk_iff]
 inductive Transition (il: Interleaving Act AP ts1 ts2) : ts1.S → ts2.S → Act → ts1.S → ts2.S → Prop where
   | fst (s₁1: ts1.S) (a₁: ts1.Act) (s₁2: ts1.S) (req: s₁1 ─⌞a₁⌟→{ts1} s₁2) (s₂: ts2.S) : Transition il s₁1 s₂ (il.toAct1 a₁) s₁2 s₂
   | snd (s₂1: ts2.S) (a₂: ts2.Act) (s₂2: ts2.S) (req: s₂1 ─⌞a₂⌟→{ts2} s₂2) (s₁: ts1.S) : Transition il s₁ s₂1 (il.toAct2 a₂) s₁ s₂2
@@ -40,6 +41,7 @@ def toTransitionSystem (il: Interleaving Act AP ts1 ts2) : TransitionSystem wher
   L s ap := il.labeling s.fst s.snd ap.val
   tr s1 a s2 := Transition il s1.fst s1.snd a s2.fst s2.snd
 
+--set_option pp.notation false in
 /-
 theorem toTransitionSystem_injective : Function.Injective (@toTransitionSystem Act AP ts1 ts2) := by
   rintro ⟨ac1_1, ap1_1, ac2_1, ap2_1, lb1, lm_lb1⟩
@@ -47,12 +49,16 @@ theorem toTransitionSystem_injective : Function.Injective (@toTransitionSystem A
   simp [toTransitionSystem]
   intro lm1 lm2 lm3 lm4
   simp [Set.Elem] at lm1 lm2
--/
-/-
   refine ⟨?_, ?_, ?_, ?_⟩
   · refine Function.Embedding.ext ?_
     intro act1
+    dsimp [TransitionSystem.labeling] at lm_lb1
+    have (eq := lm5) T1 := { x // (∃ y, ac1_1 y = x) ∨ ∃ y, ac2_1 y = x }
+    have (eq := lm6) t1 : T1 := cast lm5.symm ⟨ac1_1 act1, by simp⟩
+    --have lm7 := lm5.trans lm1
+    --subst lm7
 -/
+
 
 
 end Interleaving
