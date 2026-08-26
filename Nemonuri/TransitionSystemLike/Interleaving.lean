@@ -42,6 +42,7 @@ def toTransitionSystem (il: Interleaving Act AP ts1 ts2) : TransitionSystem wher
   tr s1 a s2 := Transition il s1.fst s1.snd a s2.fst s2.snd
 
 --set_option pp.notation false in
+
 /-
 theorem toTransitionSystem_injective : Function.Injective (@toTransitionSystem Act AP ts1 ts2) := by
   rintro ⟨ac1_1, ap1_1, ac2_1, ap2_1, lb1, lm_lb1⟩
@@ -52,12 +53,20 @@ theorem toTransitionSystem_injective : Function.Injective (@toTransitionSystem A
   refine ⟨?_, ?_, ?_, ?_⟩
   · refine Function.Embedding.ext ?_
     intro act1
+    revert lm2
+    simp [heq_iff_exists_cast_eq]
+    intro lm2_1 lm2_2
+    simp [funext_iff, transition_iff] at lm2_2
+    have lm5 := ac1_1.injective.leftInverse
+-/
+/-
     dsimp [TransitionSystem.labeling] at lm_lb1
     have (eq := lm5) T1 := { x // (∃ y, ac1_1 y = x) ∨ ∃ y, ac2_1 y = x }
     have (eq := lm6) t1 : T1 := cast lm5.symm ⟨ac1_1 act1, by simp⟩
+-/
     --have lm7 := lm5.trans lm1
     --subst lm7
--/
+
 
 
 

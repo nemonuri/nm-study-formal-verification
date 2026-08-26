@@ -336,26 +336,38 @@ variable {CC: Type u1} {EC: Type u2} {Var: Type u3} {Val: Type u4} [EvalLike EC 
 def toTransitionSystem (pgl: OfLoc CC EC Var Val Loc) : TransitionSystem := pgl.casesOn (fun pg => pg.toTransitionSystem)
 
 /-
-#check funext_iff
-
-instance : TransitionSystemLike (OfLoc CC EC Var Val Loc) where
+instance [h: Nonempty Loc] : TransitionSystemLike (OfLoc CC EC Var Val Loc) where
   coe pgl := pgl.toTransitionSystem
   coe_injective := by
     rintro ⟨pg1⟩
     intro pgl2 lm1
-    rcases pg1 with ⟨Loc, Act1, effect1, ctr1, Loc01, g01⟩
-    dsimp at pgl2
+    rcases pg1 with ⟨Loc, Act1, effect1, ctr1, loc01, ⟨fmt1, lm5⟩⟩
+    dsimp at pgl2 h
     rcases pgl2 with ⟨pg2⟩
     dsimp [toTransitionSystem] at lm1
     simp [ProgramGraph.toTransitionSystem] at lm1
     rcases lm1 with ⟨lm1, lm2, lm3, lm4⟩
     subst lm1
     simp [funext_iff, labeling] at lm4; clear lm4
-    simp [Set.ext_iff] at lm3
+    simp [Set.ext_iff, Loc0] at lm3
+    simp [funext_iff, transition_iff] at lm2
+    congr
+    · simp only [funext_iff]
+      intro act ec
+      obtain ⟨loc⟩ := h
+      specialize lm2 loc ec act loc ec
+      rewrite [← not_iff_not] at lm2
+      simp at lm2
+-/
+    --rcases g01 with ⟨fml1, lm5⟩
+/-
     congr
     · simp [funext_iff, transition_iff] at lm2
       simp only [funext_iff]
       intro act ec
+      obtain ⟨loc⟩ := h
+-/
+/-
       replace lm2 := fun l1 l2 => lm2 l1 ec act l2 ec
       conv at lm2 => ext; ext; rw [← not_iff_not]
       simp at lm2
