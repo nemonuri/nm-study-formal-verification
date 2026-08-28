@@ -1,6 +1,7 @@
 module
 
 public import Nemonuri.TransitionSystemLike.Basic
+public import Nemonuri.HasHUnion
 
 /-!
 
@@ -14,34 +15,68 @@ public import Nemonuri.TransitionSystemLike.Basic
 
 namespace Nemonuri.TransitionSystem
 
-structure Interleaving (Act AP: Type _) (ts1 ts2: TransitionSystem) where
-  toAct1 : ts1.Act ↪ Act
-  toAP1 : ts1.AP ↪ AP
-  toAct2 : ts2.Act ↪ Act
-  toAP2 : ts2.AP ↪ AP
-  labeling (s1: ts1.S) (s2: ts2.S) : AP → Bool
-  labeling_valid (s1: ts1.S) (s2: ts2.S) (ap: AP) :
-            (labeling s1 s2 ap = .true) ↔ ((∃(ap1: ts1.AP), (ts1.labeling s1 ap1 = .true) ∧ (toAP1 ap1 = ap)) ∨ (∃(ap2: ts2.AP), (ts2.labeling s2 ap2 = .true) ∧ (toAP2 ap2 = ap)))
+universe us1 us2 uact_l uap_l uact_r uap_r
+
+
+structure Interleaving (Act: Type uact_r) (AP: Type uap_r) (ts1: TransitionSystem.{us1, uact_l, uap_l}) (ts2: TransitionSystem.{us2, uact_l, uap_l}) where
+  actHasHUnionBundle: HasHUnion.Bundle ts1.Act ts2.Act Act
+  apHasHUnionBundle: HasHUnion.Bundle ts1.AP ts2.AP AP
+
+--attribute [reducible, instance] Interleaving.actHasHUnionBundle Interleaving.apHasHUnionBundle
 
 namespace Interleaving
 
-variable {Act AP: Type _} {ts1 ts2: TransitionSystem}
+open HasHUnion
+
+variable {Act: Type uact_r} {AP: Type uap_r} {ts1: TransitionSystem.{us1, uact_l, uap_l}} {ts2: TransitionSystem.{us2, uact_l, uap_l}}
+
+
+@[reducible]
+def toActHasHUnion (il: Interleaving Act AP ts1 ts2) : HasHUnion ts1.Act ts2.Act Act := il.actHasHUnionBundle.hasHUnion
+
+def toActMemDecidable (il: Interleaving Act AP ts1 ts2) (lb: Label) (rv: Act)
+  : letI := il.toActHasHUnion; Decidable (rv ∈ EmbedRangeAt ts1.Act ts2.Act lb) := il.actHasHUnionBundle.memDecidable lb rv
+
+@[reducible]
+def toAPHasHUnion (il: Interleaving Act AP ts1 ts2) : HasHUnion ts1.AP ts2.AP AP := il.apHasHUnionBundle.hasHUnion
+
+def toAPMemDecidable (il: Interleaving Act AP ts1 ts2) (lb: Label) (rv: AP)
+  : letI := il.toAPHasHUnion; Decidable (rv ∈ EmbedRangeAt ts1.AP ts2.AP lb) := il.apHasHUnionBundle.memDecidable lb rv
+
+
+abbrev LeftActTypeAt (il: Interleaving Act AP ts1 ts2) (lb: Label) : Type uact_l := il.toActHasHUnion.LeftTypeAt ts1.Act ts2.Act Act lb
+
+def embedAt (il: Interleaving Act AP ts1 ts2) (lb: Label) (lv: il.LeftActTypeAt lb) : Act := il.toActHasHUnion.embedAt ts1.Act ts2.Act lb lv
+
+
 
 @[mk_iff]
 inductive Transition (il: Interleaving Act AP ts1 ts2) : ts1.S → ts2.S → Act → ts1.S → ts2.S → Prop where
-  | fst (s₁1: ts1.S) (a₁: ts1.Act) (s₁2: ts1.S) (req: s₁1 ─⌞a₁⌟→{ts1} s₁2) (s₂: ts2.S) : Transition il s₁1 s₂ (il.toAct1 a₁) s₁2 s₂
-  | snd (s₂1: ts2.S) (a₂: ts2.Act) (s₂2: ts2.S) (req: s₂1 ─⌞a₂⌟→{ts2} s₂2) (s₁: ts1.S) : Transition il s₁ s₂1 (il.toAct2 a₂) s₁ s₂2
+  | fst (s₁1: ts1.S) (a₁: ts1.Act) (s₁2: ts1.S) (req: s₁1 ─⌞a₁⌟→{ts1} s₁2) (s₂: ts2.S) : Transition il s₁1 s₂ (il.embedAt .fst a₁) s₁2 s₂
+  | snd (s₂1: ts2.S) (a₂: ts2.Act) (s₂2: ts2.S) (req: s₂1 ─⌞a₂⌟→{ts2} s₂2) (s₁: ts1.S) : Transition il s₁ s₂1 (il.embedAt .snd a₂) s₁ s₂2
 
 @[reducible]
 def toTransitionSystem (il: Interleaving Act AP ts1 ts2) : TransitionSystem where
   S := ts1.S × ts2.S
-  Act := ((Set.range il.toAct1) ∪ (Set.range il.toAct2): Set Act)
+  Act := il.toActHasHUnion.hunionSetUnivAt _ _
   I := Set.prod ts1.I ts2.I
-  AP := ((Set.range il.toAP1) ∪ (Set.range il.toAP2): Set AP)
-  L s ap := il.labeling s.fst s.snd ap.val
+  AP := il.toAPHasHUnion.hunionSetUnivAt _ _
+  L s ap := letI := il.toAPMemDecidable; il.toAPHasHUnion.hunionIndicator (ts1.labeling s.fst) (ts2.labeling s.snd) ap.val
   tr s1 a s2 := Transition il s1.fst s1.snd a s2.fst s2.snd
 
---set_option pp.notation false in
+
+
+/-
+theorem toTransitionSystem_injective : Function.Injective (@toTransitionSystem Act AP ts1 ts2) := by
+  intro x1 x2
+  simp [toTransitionSystem]
+  intro lm1 lm2 lm3 lm4
+-/
+  --rintro ⟨⟨_,_⟩, ⟨_,_⟩⟩ ⟨⟨_,_⟩, ⟨_,_⟩⟩
+  --simp [Set.Elem, hunionSet] at lm1
+  --rewrite [lm1] at lm5
+  --intro lm1 lm2 lm3 lm4
+  ---dsimp [Set.Elem] at lm1
 
 /-
 theorem toTransitionSystem_injective : Function.Injective (@toTransitionSystem Act AP ts1 ts2) := by

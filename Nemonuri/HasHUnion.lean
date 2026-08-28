@@ -16,10 +16,10 @@ structure LiftableEmbedding (T1 T2: Type*) extends toEmbedding: T1 ↪ T2 where
 
 namespace LiftableEmbedding
 
-variable {T1 T2: Type*}
+variable {L R: Type*}
 
-instance toFunlike : FunLike (LiftableEmbedding T1 T2) T1 T2 where
-  coe x := (x.toEmbedding: T1 → T2)
+instance toFunlike : FunLike (LiftableEmbedding L R) L R where
+  coe x := (x.toEmbedding: L → R)
   coe_injective := by
     rintro ⟨emb, lift1, lm1⟩ ⟨emb2, lift2, lm2⟩
     simp
@@ -34,14 +34,59 @@ instance toFunlike : FunLike (LiftableEmbedding T1 T2) T1 T2 where
     specialize lm2 t1
     rw [lm1, lm2]
 
-instance : EmbeddingLike (LiftableEmbedding T1 T2) T1 T2 where
+instance : EmbeddingLike (LiftableEmbedding L R) L R where
   injective' x := x.toEmbedding.injective
 
-/-
-structure PartialLift (x: LiftableEmbedding T1 T2) where
-  partialLift (t2: T2) : Option T1
-  partialLift_valid (t2: T2) (t1: T1) : (partialLift t2 = some t1) ↔ (∃req, x.lift t2 req = t1)
--/
+@[defeq]
+theorem coe_eq_toEmbedding_coe {l: LiftableEmbedding L R} : (l: L → R) = (l.toEmbedding: L → R) := rfl
+
+
+def refl (L: Type*) : LiftableEmbedding L L where
+  toEmbedding := Function.Embedding.refl L
+  lift rv _ := rv
+  lift_valid lv := Function.Embedding.refl_apply _ lv
+
+instance decidableRangeMemOfRefl (L: Type*) (rv: L) : Decidable (rv ∈ Set.range (refl L)) :=
+  decidable_of_iff True (by simp; exists rv)
+
+
+def sumLeft (L1 L2: Type*) : LiftableEmbedding L1 (L1 ⊕ L2) :=
+  let embedding : Function.Embedding L1 (L1 ⊕ L2) := ⟨Sum.inl, by intro _ _; simp⟩
+  {
+    toEmbedding := embedding
+    lift rv req :=
+      rv.casesOn (motive := fun rv => (rv ∈ Set.range embedding) → L1)
+        (fun l1 _ => l1)
+        (fun l2 h => absurd h (by simp))
+      <| req
+    lift_valid := by subst embedding; simp
+  }
+
+
+instance decidableRangeMemOfSumLeft (L1 L2: Type*) rv : Decidable (rv ∈ Set.range (sumLeft L1 L2)) :=
+  decidable_of_iff (rv.isLeft = .true) (by
+    dsimp [sumLeft, coe_eq_toEmbedding_coe]
+    simp only [Set.mem_range, Sum.isLeft_iff]
+    conv => lhs; arg 1; ext; rw [Eq.comm] )
+
+
+def sumRight (L1 L2: Type*) : LiftableEmbedding L2 (L1 ⊕ L2) :=
+  let embedding : Function.Embedding L2 (L1 ⊕ L2) := ⟨Sum.inr, by intro _ _; simp⟩
+  {
+    toEmbedding := embedding
+    lift rv req :=
+      rv.casesOn (motive := fun rv => (rv ∈ Set.range embedding) → L2)
+        (fun l1 h => absurd h (by simp))
+        (fun l2 _ => l2)
+      <| req
+    lift_valid := by subst embedding; simp
+  }
+
+instance decidableRangeMemOfSumRight (L1 L2: Type*) rv : Decidable (rv ∈ Set.range (sumRight L1 L2)) :=
+  decidable_of_iff (rv.isRight = .true) (by
+    dsimp [sumRight, coe_eq_toEmbedding_coe]
+    simp only [Set.mem_range, Sum.isRight_iff]
+    conv => lhs; arg 1; ext; rw [Eq.comm] )
 
 end LiftableEmbedding
 
@@ -117,63 +162,27 @@ theorem embedAt_liftAt_eq [HasHUnion T1 T2 T3] {lb: Label} {lv: LeftTypeAt T1 T2
 
 end ExplicitLeftType
 
-/-
-theorem embedAt_eq_iff [HasHUnion T1 T2 T3] {t1: T1} {t2: T2} : (embedAt T2 T3 t1) = (embedAt T1 T3 t2) := by
-  dsimp [embedAt]
-  dsimp only [DFunLike.coe]
--/
 
-/-
-def liftAt? (T2: Type*) {T3 T1: Type*} [HasHUnion T1 T2 T3] [HasPartialLift T1 T2 T3] (t3: T3) : Option T1 :=
-  (@HasPartialLift.fst T1 T2 T3 _ _).partialLift t3
+instance ofRefl (T: Type u1) : HasHUnion T T T where
+  fst := .refl T
+  snd := .refl T
 
-
-theorem liftAt?_eq_some_iff [HasHUnion T1 T2 T3] [HasPartialLift T1 T2 T3] {t3: T3} {t1: T1}
-  : (liftAt? T2 t3 = .some t1) ↔ (∃req, liftAt T2 t3 req = t1) :=
-  (@HasPartialLift.fst T1 T2 T3 _ _).partialLift_valid t3 t1
+instance ofSum (L1 L2: Type u1) : HasHUnion L1 L2 (L1 ⊕ L2) where
+  fst := .sumLeft L1 L2
+  snd := .sumRight L1 L2
 
 
-theorem liftAt?_eq_none_iff [HasHUnion T1 T2 T3] [HasPartialLift T1 T2 T3] {t3: T3}
-  : (liftAt? T2 t3 = (.none: Option T1)) ↔ (t3 ∉ Set.range (embedAt T2 T3: T1 → T3)) := by
-  rw [Option.eq_none_iff_forall_ne_some]
-  dsimp
-  conv =>
-    lhs
-    ext
-    arg 1
-    rw [liftAt?_eq_some_iff]
-  simp
-  constructor
-  · intro lm1 x lm2
-    replace lm2 := lm2.symm
-    subst lm2
-    exact lm1 x x rfl embedAt_liftAt_eq
-  · intro lm1 x1 x2 lm2 lm3
-    exact lm1 x2 lm2
--/
-
-
-
-/-
-theorem liftAt?_exists_eq_some_iff [HasHUnion T1 T2 T3] [HasPartialLift T1 T2 T3] {t3: T3}
-  : (∃(t1: T1), liftAt? T2 t3 = .some t1) ↔ (t3 ∈ Set.range (embedAt T2 T3: T1 → T3)) := by
-  simp [liftAt?, embedAt]
-  have lm1 := (@HasPartialLift.fst T1 T2 T3 _ _).partialLift_valid t3
-  simp at lm1
-  refine Iff.trans ?_ lm1
-  exact Option.isSome_iff_exists.symm
--/
-
-/-
-theorem embedAt_range_mem_of_liftAt?_eq_some [HasHUnion T1 T2 T3] [HasPartialLift T1 T2 T3] {t3: T3} {t1: T1} (req: liftAt? T2 t3 = .some t1)
-  : t3 ∈ Set.range (embedAt T2 T3: T1 → T3) :=
-  --liftAt?_exists_eq_some_iff.mp (Exists.intro t1 req)
--/
 
 
 variable {T1 T2: Type u1} {T3: Type u2} [HasHUnion T1 T2 T3]
 
 def hunionSet (s1: Set T1) (s2: Set T2) : Set T3 := (s1.image (embedAt T1 T2 .fst)) ∪ (s2.image (embedAt T1 T2 .snd))
+
+def hunionSetUnivAt (T1 T2: Type u1) {T3: Type u2} [HasHUnion T1 T2 T3] : Set T3 := hunionSet (Set.univ: Set T1) (Set.univ: Set T2)
+
+theorem hunionSetUnivAt_mem_iff {rv: T3} : (rv ∈ hunionSetUnivAt T1 T2) ↔ ((∃lv1, embedAt T1 T2 .fst lv1 = rv) ∨ (∃lv2, embedAt T1 T2 .snd lv2 = rv)) := by
+  dsimp [hunionSetUnivAt, hunionSet]
+  simp
 
 def hunionFinset [DecidableEq T3] (s1: Finset T1) (s2: Finset T2) : Finset T3 := (s1.image (embedAt T1 T2 .fst)) ∪ (s2.image (embedAt T1 T2 .snd))
 
@@ -182,6 +191,13 @@ theorem hunionFinset_dist [DecidableEq T3] {s1: Finset T1} {s2: Finset T2}
   : (hunionFinset s1 s2: Set T3) = (hunionSet (s1: Set T1) (s2: Set T2)) := by
   dsimp [hunionFinset, hunionSet]
   simp
+
+instance (priority := low) [dec: (rv: T3) → Decidable (rv ∈ Set.range (HasHUnion.fst T2: T1 → T3))] rv : Decidable (rv ∈ EmbedRangeAt T1 T2 .fst) := dec rv
+
+instance (priority := low) [dec: (rv: T3) → Decidable (rv ∈ Set.range (HasHUnion.snd T1: T2 → T3))] rv : Decidable (rv ∈ EmbedRangeAt T1 T2 .snd) := dec rv
+
+instance ofFstSnd [decFst: ∀rv, Decidable (rv ∈ EmbedRangeAt T1 T2 .fst)] [decSnd: ∀rv, Decidable (rv ∈ EmbedRangeAt T1 T2 .snd)] lb rv : Decidable (rv ∈ EmbedRangeAt T1 T2 lb) :=
+  lb.casesOn (fun rv => decFst rv) (fun rv => decSnd rv) <| rv
 
 
 def hunionIndicator [∀lb rv, Decidable (rv ∈ EmbedRangeAt T1 T2 lb)] (s1: T1 → Bool) (s2: T2 → Bool) (rv: T3) : Bool :=
@@ -232,26 +248,35 @@ theorem hunionIndicator_set_eq [∀lb rv, Decidable (rv ∈ EmbedRangeAt T1 T2 l
       simp [embedAt_liftAt_eq, lm1] )
 
 
+class Bundle (T1 T2: Type u1) (T3: Type u2) where
+  hasHUnion: HasHUnion T1 T2 T3
+  memDecidable (lb: Label) (rv: T3) : Decidable (rv ∈ EmbedRangeAt T1 T2 lb)
+
+attribute [reducible, instance] Bundle.hasHUnion Bundle.memDecidable
+
+namespace Bundle
+
+open LiftableEmbedding
+
+@[reducible]
+def ofRefl (T: Type*) : Bundle T T T :=
+  let hu := HasHUnion.ofRefl T
+  {
+    hasHUnion := hu
+    memDecidable := @ofFstSnd T T T _ (decidableRangeMemOfRefl T) (decidableRangeMemOfRefl T)
+  }
+
+@[reducible]
+def ofSum (L1 L2: Type u1) : Bundle L1 L2 (L1 ⊕ L2) :=
+  let hu := HasHUnion.ofSum L1 L2
+  {
+    hasHUnion := hu
+    memDecidable := @ofFstSnd L1 L2 _ hu (decidableRangeMemOfSumLeft L1 L2) (decidableRangeMemOfSumRight L1 L2)
+  }
 
 
 
-
-/-
-theorem hunionIndicator_eq_true [HasPartialLift T1 T2 T3] {s1: T1 → Bool} {s2: T2 → Bool}
-  : ({ t3 | hunionIndicator s1 s2 t3 = .true }: Set T3) = (hunionSet { t1 | s1 t1 = .true } { t2 | s2 t2 = .true }) := by
-  simp [hunionSet, Set.ext_iff]
-  intro t3
-  constructor
-  · intro lm1
-    dsimp [hunionIndicator] at lm1
-    split at lm1
-    · rename_i t1_2 lm2
-      refine Or.inl ?_
-      exists t1_2
-      simp [lm1]
-      replace lm2 := embedAt_range_mem_of_liftAt?_eq_some lm2 |> Set.mem_range.mp
-      obtain ⟨t1_3, lm2⟩ := lm2
--/
+end Bundle
 
 end HasHUnion
 

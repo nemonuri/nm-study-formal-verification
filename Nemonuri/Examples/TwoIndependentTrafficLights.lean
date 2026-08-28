@@ -60,24 +60,20 @@ def trLight2 : TransitionSystem where
   AP := AP
   L := lb2
 
-def interleaving : TransitionSystem.Interleaving (Act1 ⊕ Act2) AP (trLight1 lb1) (trLight2 lb2) where
-  toAct1 := ⟨Sum.inl, by intro _ _; simp⟩
-  toAP1 := Function.Embedding.refl _
-  toAct2 := ⟨Sum.inr, by intro _ _; simp⟩
-  toAP2 := Function.Embedding.refl _
-  labeling s1 s2 ap := (lb1 s1 ap) || (lb2 s2 ap)
-  labeling_valid := by
-    dsimp [TransitionSystem.labeling]
-    intro s1 s2 ap
-    simp
 
-theorem example1 : (interleaving lb1 lb2).toTransitionSystem.tr (.red, .red) (.mk (Sum.inl .a) (by simp [interleaving])) (.green, .red) := by
+def interleaving : TransitionSystem.Interleaving (Act1 ⊕ Act2) AP (trLight1 lb1) (trLight2 lb2) where
+  actHasHUnionBundle := HasHUnion.Bundle.ofSum Act1 Act2
+  apHasHUnionBundle := HasHUnion.Bundle.ofRefl AP
+
+open Nemonuri.HasHUnion in
+theorem example1 : (interleaving lb1 lb2).toTransitionSystem.tr (.red, .red) ⟨Sum.inl .a, by simp [hunionSetUnivAt_mem_iff]; left; exists .a⟩ (.green, .red) := by
   simp [interleaving]
   refine .fst _ _ _ ?_ _
   dsimp
   exact .a
 
-theorem example2 : (interleaving lb1 lb2).toTransitionSystem.tr (.red, .green) (.mk (Sum.inr .d) (by simp [interleaving])) (.red, .red) := by
+open Nemonuri.HasHUnion in
+theorem example2 : (interleaving lb1 lb2).toTransitionSystem.tr (.red, .green) ⟨Sum.inr .d, by simp [hunionSetUnivAt_mem_iff]; right; exists .d⟩ (.red, .red) := by
   simp [interleaving]
   refine .snd _ _ _ ?_ _
   dsimp
