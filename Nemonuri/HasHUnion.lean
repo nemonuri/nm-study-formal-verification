@@ -248,7 +248,7 @@ theorem hunionIndicator_set_eq [∀lb rv, Decidable (rv ∈ EmbedRangeAt T1 T2 l
       simp [embedAt_liftAt_eq, lm1] )
 
 
-class Bundle (T1 T2: Type u1) (T3: Type u2) where
+class Bundle (T1 T2: Type u1) (T3: outParam <| Type u2) where
   hasHUnion: HasHUnion T1 T2 T3
   memDecidable (lb: Label) (rv: T3) : Decidable (rv ∈ EmbedRangeAt T1 T2 lb)
 
