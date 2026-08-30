@@ -261,10 +261,10 @@ end ProgramGraph
 
 
 open ProgramGraph in
-structure ProgramGraph (CC EC Var Val: Type*) [EvalLike EC Var Val] [Fintype Var] [Fintype Val] [DecidableEq Val] [CondLike CC EC Var Val] where
-  Loc: Type*
+structure ProgramGraph.{u1, u2, u3, u4, u5, u6} (CC: Type u1) (EC: Type u2) (Var: Type u3) (Val: Type u4) [EvalLike EC Var Val] [Fintype Var] [Fintype Val] [DecidableEq Val] [CondLike CC EC Var Val] where
+  Loc: Type u5
   [decidableEqOfLoc: DecidableEq Loc]
-  Act: Type*
+  Act: Type u6
   effect: Act → EC → EC
   ctr: Loc → CC → Act → Loc → Prop
   loc0: Loc → Prop

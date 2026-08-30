@@ -1,6 +1,7 @@
 module
 
 public import Nemonuri.TransitionSystemLike.ProgramGraph.Basic
+public import Nemonuri.HasHUnion
 
 /-!
 
@@ -12,5 +13,15 @@ public import Nemonuri.TransitionSystemLike.ProgramGraph.Basic
 
 @[expose] public section
 
+namespace Nemonuri.ProgramGraph
+
+
+structure Interleaving
+
+--namespace Interleaving
+
+--end Interleaving
+
+end Nemonuri.ProgramGraph
 
 end

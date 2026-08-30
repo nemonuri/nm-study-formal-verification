@@ -58,9 +58,9 @@ inductive Transition (il: Interleaving ts1 ts2 Act AP) : ts1.S → ts2.S → Act
 @[reducible]
 def toTransitionSystem (il: Interleaving ts1 ts2 Act AP) : TransitionSystem where
   S := ts1.S × ts2.S
-  Act := il.act.hasHUnion.hunionSetUnivAt _ _
+  Act := letI := il.act.hasHUnion; HUnionElemAt ts1.Act ts2.Act Act
   I := Set.prod ts1.I ts2.I
-  AP := il.ap.hasHUnion.hunionSetUnivAt _ _
+  AP := letI := il.ap.hasHUnion; HUnionElemAt ts1.AP ts2.AP AP
   L s ap := letI := il.ap.memDecidable; il.ap.hasHUnion.hunionIndicator (ts1.labeling s.fst) (ts2.labeling s.snd) ap.val
   tr s1 a s2 := Transition il s1.fst s1.snd a s2.fst s2.snd
 
