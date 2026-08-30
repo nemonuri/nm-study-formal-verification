@@ -368,7 +368,9 @@ class Bundle (T1 T2: Type u1) (T3: outParam <| Type u2) where
   hasHUnion: HasHUnion T1 T2 T3
   memDecidable : DecidableEmbedRange T1 T2 T3
 
-attribute [reducible, instance] Bundle.hasHUnion Bundle.memDecidable
+
+--attribute [reducible, instance] Bundle.hasHUnion Bundle.memDecidable
+
 
 namespace Bundle
 
