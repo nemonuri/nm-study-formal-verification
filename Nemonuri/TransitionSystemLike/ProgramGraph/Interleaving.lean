@@ -52,18 +52,31 @@ def eval (il: Interleaving VarL1 VarL2 ValL1 ValL2 EC1 EC2 VarR ValR) (ec1: EC1)
   il.toEval ec1 ec2
 -/
 
+
 theorem op_injective : Function.Injective (@op VarL1 VarL2 ValL1 ValL2 EC1 EC2 _ _ VarR ValR _ _) := by
   rintro ⟨te1, lm1⟩ ⟨te2, lm2⟩ lm3
   simp at lm3 ⊢
   exact lm3
 
+
 structure Eval (il: Interleaving VarL1 VarL2 ValL1 ValL2 EC1 EC2 VarR ValR) (ec1: EC1) (ec2: EC2) where
   eval: (HUnionElemAt VarL1 VarL2 VarR) → (HUnionElemAt ValL1 ValL2 ValR)
   valid: eval = il.op ec1 ec2
 
-def toEval (il: Interleaving VarL1 VarL2 ValL1 ValL2 EC1 EC2 VarR ValR) (ec1: EC1) (ec2: EC2) : Eval il ec1 ec2 where
+def toEval (ec1: EC1) (ec2: EC2) (il: Interleaving VarL1 VarL2 ValL1 ValL2 EC1 EC2 VarR ValR) : Eval il ec1 ec2 where
   eval := il.op ec1 ec2
   valid := rfl
+
+theorem toEval_injective {ec1: EC1} {ec2: EC2} : Function.Injective (fun il => (toEval ec1 ec2 il).eval) := by
+  intro il1 il2 lm3
+  simp [toEval] at lm3
+  rcases il1 with ⟨te1, lm1⟩
+  rcases il2 with ⟨te2, lm2⟩
+  simp at lm3 ⊢
+  --rewrite [op_injective.eq_iff] at lm1
+
+
+--@toEval VarL1 VarL2 ValL1 ValL2 EC1 EC2 _ _ VarR ValR _ _
 
 instance {il: Interleaving VarL1 VarL2 ValL1 ValL2 EC1 EC2 VarR ValR} {ec1: EC1} {ec2: EC2} : EvalLike (Eval il ec1 ec2) (HUnionElemAt VarL1 VarL2 VarR) (HUnionElemAt ValL1 ValL2 ValR) where
   coe x := .mk x.eval
