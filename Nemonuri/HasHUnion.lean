@@ -102,6 +102,12 @@ inductive Label where
   | snd
   deriving DecidableEq
 
+namespace Label
+
+abbrev toDual (lb: Label) : Label := lb.casesOn Label.snd Label.fst
+
+end Label
+
 universe u1 u2
 
 /-
@@ -151,6 +157,11 @@ theorem embedAt_injective [HasHUnion T1 T2 T3] {lb: Label} : Function.Injective 
 
 def EmbedRangeAt [HasHUnion T1 T2 T3] (lb: Label) : Set T3 := Set.range (embedAt T1 T2 lb)
 
+@[simp]
+theorem EmbedRangeAt.mem_self [HasHUnion T1 T2 T3] {lb: Label} {lv: LeftTypeAt T1 T2 T3 lb} : embedAt T1 T2 lb lv ∈ EmbedRangeAt T1 T2 lb := by
+  dsimp [EmbedRangeAt]
+  exact Set.mem_range_self _
+
 abbrev DecidableEmbedRange (T1 T2: Type u1) (T3: Type u2) [HasHUnion T1 T2 T3] : Type u2 := (lb: Label) → (rv: T3) → (Decidable (rv ∈ EmbedRangeAt T1 T2 lb))
 
 namespace DecidableEmbedRange
@@ -170,6 +181,9 @@ theorem isInEmbedRangeAt_eq_false_iff {T1 T2: Type u1} {T3: Type u2} [HasHUnion 
   simp
   exact isInEmbedRangeAt_eq_true_iff
 
+noncomputable instance ofClassicalAt : DecidableEmbedRange T1 T2 T3 := fun _ _ => Classical.propDecidable _
+
+
 end DecidableEmbedRange
 
 
@@ -180,6 +194,28 @@ def liftAt [HasHUnion T1 T2 T3] (rv: T3) (lb: Label) (req: rv ∈ EmbedRangeAt T
 theorem embedAt_liftAt_eq [HasHUnion T1 T2 T3] {lb: Label} {lv: LeftTypeAt T1 T2 T3 lb}
   : liftAt T1 T2 (embedAt T1 T2 lb lv) lb (Set.mem_range_self _) = lv :=
   (toLiftableEmbeddingAt T1 T2 T3 lb).lift_valid lv
+
+
+def EmbedElemAt [HasHUnion T1 T2 T3] (lb: Label) : Type u2 := Set.Elem (EmbedRangeAt T1 T2 lb: Set T3)
+
+namespace EmbedElemAt
+
+def pureAt [HasHUnion T1 T2 T3] (lb: Label) (lv: LeftTypeAt T1 T2 T3 lb) : EmbedElemAt T1 T2 lb := ⟨embedAt T1 T2 lb lv, by simp only [EmbedRangeAt.mem_self]⟩
+
+def liftAt [HasHUnion T1 T2 T3] (lb: Label) (e: EmbedElemAt T1 T2 lb) : LeftTypeAt T1 T2 T3 lb := HasHUnion.liftAt T1 T2 e.val lb e.property
+
+def bindAt.{u3, u4}
+  [HasHUnion T1 T2 T3] (Cod1 Cod2: Type u3) {Cod3: Type u4} [HasHUnion Cod1 Cod2 Cod3] (lb: Label)
+  (rv: EmbedElemAt T1 T2 lb) (f: LeftTypeAt T1 T2 T3 lb → EmbedElemAt Cod1 Cod2 lb) : EmbedElemAt Cod1 Cod2 lb :=
+  f (rv.liftAt)
+
+def mapAt.{u3, u4}
+  [HasHUnion T1 T2 T3] (Cod1 Cod2: Type u3) {Cod3: Type u4} [HasHUnion Cod1 Cod2 Cod3] (lb: Label)
+  (f: LeftTypeAt T1 T2 T3 lb → LeftTypeAt Cod1 Cod2 Cod3 lb) (rv: EmbedElemAt T1 T2 lb) : EmbedElemAt Cod1 Cod2 lb :=
+  bindAt T1 T2 Cod1 Cod2 lb rv ((pureAt Cod1 Cod2 lb) ∘ f)
+
+end EmbedElemAt
+
 
 end ExplicitLeftType
 
@@ -207,30 +243,121 @@ theorem hunionSetUnivAt_mem_iff {rv: T3} : (rv ∈ hunionSetUnivAt T1 T2) ↔ ((
 
 abbrev HUnionElemAt (T1 T2: Type u1) (T3: Type u2) [HasHUnion T1 T2 T3] : Type u2 := Set.Elem (hunionSetUnivAt T1 T2)
 
+namespace HUnionElemAt
+
+def ofEmbedElem {lb: Label} (x: EmbedElemAt T1 T2 lb) : HUnionElemAt T1 T2 T3 := Subtype.mk x.val (by
+    have lm1 := x.property
+    simp [EmbedRangeAt, - Subtype.coe_prop] at lm1
+    rewrite [hunionSetUnivAt_mem_iff]
+    cases lb
+    · exact Or.inl lm1
+    · exact Or.inr lm1 )
+
+end HUnionElemAt
+
 
 def hinterSet (s1: Set T1) (s2: Set T2) : Set T3 := (s1.image (embedAt T1 T2 .fst)) ∩ (s2.image (embedAt T1 T2 .snd))
 
 def hinterSetUnivAt (T1 T2: Type u1) {T3: Type u2} [HasHUnion T1 T2 T3] : Set T3 := hinterSet (Set.univ: Set T1) (Set.univ: Set T2)
 
+theorem hinterSetUnivAt_mem_iff {rv: T3} : (rv ∈ hinterSetUnivAt T1 T2) ↔ ((∃lv1, embedAt T1 T2 .fst lv1 = rv) ∧ (∃lv2, embedAt T1 T2 .snd lv2 = rv)) := by
+  dsimp [hinterSetUnivAt, hinterSet]
+  simp
+
 open DecidableEmbedRange in
 theorem hinterSetUnivAt_mem_iff_isInEmbedRangeAt [DecidableEmbedRange T1 T2 T3] {rv: T3}
   : (rv ∈ hinterSetUnivAt T1 T2) ↔ ((isInEmbedRangeAt T1 T2 rv .fst = .true) ∧ (isInEmbedRangeAt T1 T2 rv .snd = .true)) := by
-  simp only [isInEmbedRangeAt_eq_true_iff]
-  dsimp [hinterSetUnivAt, hinterSet, EmbedRangeAt]
-  simp
+  simp [isInEmbedRangeAt_eq_true_iff, EmbedRangeAt, hinterSetUnivAt_mem_iff]
 
 
 abbrev HInterElemAt (T1 T2: Type u1) (T3: Type u2) [HasHUnion T1 T2 T3] : Type u2 := Set.Elem (hinterSetUnivAt T1 T2)
 
+namespace HInterElemAt
+
+def liftAt (x: HInterElemAt T1 T2 T3) (lb: Label) : LeftTypeAt T1 T2 T3 lb := HasHUnion.liftAt T1 T2 x.val lb (by
+    have lm1 := x.property
+    simp only [hinterSetUnivAt_mem_iff] at lm1
+    simp [EmbedRangeAt]
+    cases lb
+    · exact lm1.left
+    · exact lm1.right )
+
+def toUnion (x: HInterElemAt T1 T2 T3) : HUnionElemAt T1 T2 T3 := Subtype.mk x.val (by
+    obtain ⟨x, lm1⟩ := x
+    simp [hinterSetUnivAt_mem_iff] at lm1
+    simp [hunionSetUnivAt_mem_iff]
+    exact Or.inl lm1.left )
+
+def toEmbedElemAt (x: HInterElemAt T1 T2 T3) (lb: Label) : EmbedElemAt T1 T2 lb := EmbedElemAt.pureAt T1 T2 lb (x.liftAt lb)
+
+end HInterElemAt
 
 
+def hdiffSet (s1: Set T1) (s2: Set T2) (lb: Label) : Set T3 :=
+  let toSet (lb: Label) : Set (LeftTypeAt T1 T2 T3 lb) := lb.casesOn s1 s2
+  ((toSet lb).image (embedAt T1 T2 lb)) \ ((toSet lb.toDual).image (embedAt T1 T2 lb.toDual))
 
-def hdiffSet (s1: Set T1) (s2: Set T2) : Set T3 := (s1.image (embedAt T1 T2 .fst)) \ (s2.image (embedAt T1 T2 .snd))
 
-def hdiffSetUnivAt (T1 T2: Type u1) {T3: Type u2} [HasHUnion T1 T2 T3] : Set T3 := hdiffSet (Set.univ: Set T1) (Set.univ: Set T2)
+def hdiffSetUnivAt (T1 T2: Type u1) {T3: Type u2} [HasHUnion T1 T2 T3] (lb: Label) : Set T3 := hdiffSet (Set.univ: Set T1) (Set.univ: Set T2) lb
 
-abbrev HDiffElemAt (T1 T2: Type u1) (T3: Type u2) [HasHUnion T1 T2 T3] : Type u2 := Set.Elem (hdiffSetUnivAt T1 T2)
+theorem embedRangeAt_mem_of_hdiffSetUnivAt_mem {rv: T3} {lb: Label} (req: rv ∈ hdiffSetUnivAt T1 T2 lb) : rv ∈ EmbedRangeAt T1 T2 lb := by
+  cases lb <;> (
+  simp [hdiffSetUnivAt, hdiffSet, Label.toDual] at req
+  simp [EmbedRangeAt]
+  exact req.left )
 
+
+abbrev HDiffElemAt (T1 T2: Type u1) (T3: Type u2) [HasHUnion T1 T2 T3] (lb: Label) : Type u2 := Set.Elem (hdiffSetUnivAt T1 T2 lb)
+
+namespace HDiffElemAt
+
+def toEmbedElem {lb: Label} (x: HDiffElemAt T1 T2 T3 lb) : EmbedElemAt T1 T2 lb := Subtype.mk x.val (embedRangeAt_mem_of_hdiffSetUnivAt_mem x.property)
+
+end HDiffElemAt
+
+
+namespace HUnionElemAt
+
+open DecidableEmbedRange
+
+@[elab_as_elim]
+def recDiffInter [DecidableEmbedRange T1 T2 T3]
+  {motive: HUnionElemAt T1 T2 T3 → Sort _}
+  (diffFst: (x: HDiffElemAt T1 T2 T3 .fst) → motive (.ofEmbedElem x.toEmbedElem))
+  (diffSnd: (x: HDiffElemAt T1 T2 T3 .snd) → motive (.ofEmbedElem x.toEmbedElem))
+  (inter: (x: HInterElemAt T1 T2 T3) → motive x.toUnion)
+  (t: HUnionElemAt T1 T2 T3)
+  : motive t :=
+  if lm1: isInEmbedRangeAt T1 T2 t.val .fst then
+    if lm2: isInEmbedRangeAt T1 T2 t.val .snd then
+      inter (Subtype.mk t.val (hinterSetUnivAt_mem_iff_isInEmbedRangeAt.mpr (And.intro lm1 lm2)))
+    else
+      diffFst (Subtype.mk t.val (by
+        simp at lm2;
+        simp [isInEmbedRangeAt_eq_true_iff, EmbedRangeAt] at lm1
+        simp [isInEmbedRangeAt_eq_false_iff, EmbedRangeAt] at lm2
+        simp [hdiffSetUnivAt, hdiffSet]
+        exact And.intro lm1 lm2 ))
+  else if lm2: isInEmbedRangeAt T1 T2 t.val .snd then
+    diffSnd (Subtype.mk t.val (by
+        simp at lm1;
+        simp [isInEmbedRangeAt_eq_false_iff, EmbedRangeAt] at lm1
+        simp [isInEmbedRangeAt_eq_true_iff, EmbedRangeAt] at lm2
+        simp [hdiffSetUnivAt, hdiffSet]
+        exact And.intro lm2 lm1 ))
+  else
+    False.elim (by
+      have lm3 := t.property
+      rewrite [hunionSetUnivAt_mem_iff] at lm3
+      simp [isInEmbedRangeAt_eq_false_iff, EmbedRangeAt] at lm1 lm2
+      rcases lm3 with lm3 | lm3
+      <;> rcases lm3 with ⟨lv, lm3⟩
+      · exact lm1 lv lm3
+      · exact lm2 lv lm3 )
+
+#print recDiffInter
+
+end HUnionElemAt
 
 
 def hunionFinset [DecidableEq T3] (s1: Finset T1) (s2: Finset T2) : Finset T3 := (s1.image (embedAt T1 T2 .fst)) ∪ (s2.image (embedAt T1 T2 .snd))
@@ -332,6 +459,17 @@ theorem hunionIndicator_set_eq [DecidableEmbedRange T1 T2 T3] {s1: T1 → Bool} 
       subst lm2
       simp [embedAt_liftAt_eq, lm1] )
 
+/-
+def restrict.{u3, u4}
+  (DomL1 DomL2: Type u1) (DomR: Type u2) [HasHUnion DomL1 DomL2 DomR]
+  (CodL1 CodL2: Type u3) (CodR: Type u4) [HasHUnion CodL1 CodL2 CodR]
+  (f: DomL1 → CodL1) (x: HInterElemAt DomL1 DomL2 DomR) : HInterElemAt CodL1 CodL2 CodR :=
+  Subtype.mk (embedAt CodL1 CodL2 .fst (f (x.liftAt .fst))) (by
+    simp [hinterSetUnivAt_mem_iff]
+    --exists (embedAt CodL1 CodL2 .fst (f (x.liftAt .fst)))
+  )
+-/
+
 
 open DecidableEmbedRange in
 def hunionMapAt.{u3, u4}
@@ -359,8 +497,6 @@ def hunionMapAt.{u3, u4}
       rcases lm3 with lm3 | lm3 <;> (rcases lm3 with ⟨lv, lm3⟩)
       · exact lm1 lv lm3
       · exact lm2 lv lm3)
-
-
 
 
 
