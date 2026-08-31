@@ -24,13 +24,13 @@ universe uvar_l uval_l uec uvar_r uval_r uec_r
 structure IsInterleaving
   (VarL1 VarL2: Type uvar_l) (ValL1 ValL2: Type uval_l) (EC1 EC2: Type uec) [EvalLike EC1 VarL1 ValL1] [EvalLike EC2 VarL2 ValL2]
   (VarR: Type uvar_r) (ValR: Type uval_r) [HasHUnion VarL1 VarL2 VarR] [HasHUnion ValL1 ValL2 ValR]
-  (toEval: EC1 → EC2 → (HUnionElemAt VarL1 VarL2 VarR) → (HUnionElemAt ValL1 ValL2 ValR)) : Prop where
+  (op: EC1 → EC2 → (HUnionElemAt VarL1 VarL2 VarR) → (HUnionElemAt ValL1 ValL2 ValR)) : Prop where
   diff_fst (x: HDiffElemAt VarL1 VarL2 VarR .fst) (ec1: EC1) (ec2: EC2) :
-    .ofEmbedElem (EmbedElemAt.mapAt VarL1 VarL2 ValL1 ValL2 .fst (ec1: Eval VarL1 ValL1) x.toEmbedElem) = toEval ec1 ec2 (.ofEmbedElem x.toEmbedElem)
+    .ofEmbedElem (EmbedElemAt.mapAt VarL1 VarL2 ValL1 ValL2 .fst (ec1: Eval VarL1 ValL1) x.toEmbedElem) = op ec1 ec2 (.ofEmbedElem x.toEmbedElem)
   diff_snd (x: HDiffElemAt VarL1 VarL2 VarR .snd) (ec1: EC1) (ec2: EC2) :
-    .ofEmbedElem (EmbedElemAt.mapAt VarL1 VarL2 ValL1 ValL2 .snd (ec2: Eval VarL2 ValL2) x.toEmbedElem) = toEval ec1 ec2 (.ofEmbedElem x.toEmbedElem)
+    .ofEmbedElem (EmbedElemAt.mapAt VarL1 VarL2 ValL1 ValL2 .snd (ec2: Eval VarL2 ValL2) x.toEmbedElem) = op ec1 ec2 (.ofEmbedElem x.toEmbedElem)
   inter (x: HInterElemAt VarL1 VarL2 VarR) (ec1: EC1) (ec2: EC2) :
-    let rhs := toEval ec1 ec2 (x.toUnion)
+    let rhs := op ec1 ec2 (x.toUnion)
     (.ofEmbedElem (EmbedElemAt.mapAt VarL1 VarL2 ValL1 ValL2 .fst (ec1: Eval VarL1 ValL1) (x.toEmbedElemAt .fst)) = rhs) ∨
     (.ofEmbedElem (EmbedElemAt.mapAt VarL1 VarL2 ValL1 ValL2 .snd (ec2: Eval VarL2 ValL2) (x.toEmbedElemAt .snd)) = rhs)
 
@@ -38,27 +38,66 @@ structure IsInterleaving
 structure Interleaving
   (VarL1 VarL2: Type uvar_l) (ValL1 ValL2: Type uval_l) (EC1 EC2: Type uec) [EvalLike EC1 VarL1 ValL1] [EvalLike EC2 VarL2 ValL2]
   (VarR: Type uvar_r) (ValR: Type uval_r) [HasHUnion VarL1 VarL2 VarR] [HasHUnion ValL1 ValL2 ValR] where
-  toEval (ec1: EC1) (ec2: EC2) : (HUnionElemAt VarL1 VarL2 VarR) → (HUnionElemAt ValL1 ValL2 ValR)
-  valid: IsInterleaving VarL1 VarL2 ValL1 ValL2 EC1 EC2 VarR ValR toEval
+  op (ec1: EC1) (ec2: EC2) : (HUnionElemAt VarL1 VarL2 VarR) → (HUnionElemAt ValL1 ValL2 ValR)
+  valid: IsInterleaving VarL1 VarL2 ValL1 ValL2 EC1 EC2 VarR ValR op
 
 
 namespace Interleaving
 
+variable {VarL1 VarL2: Type uvar_l} {ValL1 ValL2: Type uval_l} {EC1 EC2: Type uec} [EvalLike EC1 VarL1 ValL1] [EvalLike EC2 VarL2 ValL2]
+         {VarR: Type uvar_r} {ValR: Type uval_r} [HasHUnion VarL1 VarL2 VarR] [HasHUnion ValL1 ValL2 ValR]
+
+/-
+def eval (il: Interleaving VarL1 VarL2 ValL1 ValL2 EC1 EC2 VarR ValR) (ec1: EC1) (ec2: EC2) : (HUnionElemAt VarL1 VarL2 VarR) → (HUnionElemAt ValL1 ValL2 ValR) :=
+  il.toEval ec1 ec2
+-/
+
+theorem op_injective : Function.Injective (@op VarL1 VarL2 ValL1 ValL2 EC1 EC2 _ _ VarR ValR _ _) := by
+  rintro ⟨te1, lm1⟩ ⟨te2, lm2⟩ lm3
+  simp at lm3 ⊢
+  exact lm3
+
+structure Eval (il: Interleaving VarL1 VarL2 ValL1 ValL2 EC1 EC2 VarR ValR) (ec1: EC1) (ec2: EC2) where
+  eval: (HUnionElemAt VarL1 VarL2 VarR) → (HUnionElemAt ValL1 ValL2 ValR)
+  valid: eval = il.op ec1 ec2
+
+def toEval (il: Interleaving VarL1 VarL2 ValL1 ValL2 EC1 EC2 VarR ValR) (ec1: EC1) (ec2: EC2) : Eval il ec1 ec2 where
+  eval := il.op ec1 ec2
+  valid := rfl
+
+instance {il: Interleaving VarL1 VarL2 ValL1 ValL2 EC1 EC2 VarR ValR} {ec1: EC1} {ec2: EC2} : EvalLike (Eval il ec1 ec2) (HUnionElemAt VarL1 VarL2 VarR) (HUnionElemAt ValL1 ValL2 ValR) where
+  coe x := .mk x.eval
+  coe_injective := by rintro ⟨_,_⟩ ⟨_,_⟩; simp
+
+/-
+def evalFlip (ec1: EC1) (ec2: EC2) (il: Interleaving VarL1 VarL2 ValL1 ValL2 EC1 EC2 VarR ValR) := eval il ec1 ec2
+
+theorem evalFlip_injective {ec1: EC1} {ec2: EC2} : Function.Injective (evalFlip ec1 ec2) := by
+  intro il1 il2 lm1
+  dsimp [evalFlip] at lm1
+  have lm2 := @eval_injective VarL1 VarL2 ValL1 ValL2 EC1 EC2 _ _ VarR ValR _ _
+  have lm3 := @lm2.eq_iff _ _ _ il1 il2
+  simp only [funext_iff] at lm3
+-/
+
+/-
 inductive OfEvalCarriers
   (VarL1 VarL2: Type uvar_l) (ValL1 ValL2: Type uval_l) (EC1 EC2: Type uec) [EvalLike EC1 VarL1 ValL1] [EvalLike EC2 VarL2 ValL2]
   (VarR: Type uvar_r) (ValR: Type uval_r) [HasHUnion VarL1 VarL2 VarR] [HasHUnion ValL1 ValL2 ValR]
   : EC1 → EC2 → Type _ where
   | mk (il: Interleaving VarL1 VarL2 ValL1 ValL2 EC1 EC2 VarR ValR) (ec1: EC1) (ec2: EC2)
     : OfEvalCarriers VarL1 VarL2 ValL1 ValL2 EC1 EC2 VarR ValR ec1 ec2
+-/
+--namespace OfEvalCarriers
 
-namespace OfEvalCarriers
-
+/-
 variable {VarL1 VarL2: Type uvar_l} {ValL1 ValL2: Type uval_l} {EC1 EC2: Type uec} [EvalLike EC1 VarL1 ValL1] [EvalLike EC2 VarL2 ValL2]
          {VarR: Type uvar_r} {ValR: Type uval_r} [HasHUnion VarL1 VarL2 VarR] [HasHUnion ValL1 ValL2 ValR]
          {ec1: EC1} {ec2: EC2}
 
 def eval (il: OfEvalCarriers VarL1 VarL2 ValL1 ValL2 EC1 EC2 VarR ValR ec1 ec2) : (HUnionElemAt VarL1 VarL2 VarR) → (HUnionElemAt ValL1 ValL2 ValR) :=
   il.casesOn (fun il ec1 ec2 => il.toEval ec1 ec2)
+-/
 
 /-
 theorem eval_injective : Function.Injective (@eval VarL1 VarL2 ValL1 ValL2 EC1 EC2 _ _ VarR ValR _ _ ec1 ec2) := by
@@ -139,7 +178,7 @@ theorem eval_injective : Function.Injective (@eval VarL1 VarL2 ValL1 ValL2 EC1 E
 
 
 
-end OfEvalCarriers
+--end OfEvalCarriers
 
 
 
