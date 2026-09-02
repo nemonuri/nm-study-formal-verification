@@ -5,6 +5,8 @@ public import Mathlib.Logic.Embedding.Basic
 
 @[expose] public section
 
+set_option autoImplicit false
+
 namespace Nemonuri
 
 theorem LiftableEmbedding.apply_mem {T1 T2: Type*} {emb: T1 ↪ T2} {x: T1} : (emb x) ∈ Set.range emb := by simp
@@ -292,6 +294,30 @@ theorem hunionSetUnivAt_mem_iff {rv: R T1 T2} : (rv ∈ hunionSetUnivAt T1 T2) �
   dsimp [hunionSetUnivAt, hunionSet]
   simp
 
+theorem hunionSetUnivAt_mem_iff_embedRangeAt_mem {rv: R T1 T2} : (rv ∈ hunionSetUnivAt T1 T2) ↔ (∃(lb: Label), rv ∈ EmbedRangeAt T1 T2 lb) := by
+  simp [EmbedRangeAt, hunionSetUnivAt_mem_iff]
+  constructor
+  · intro lm1
+    rcases lm1 with lm1 | lm1
+    · exists .fst
+    · exists .snd
+  · rintro ⟨lb, lv, lm1⟩
+    cases lb
+    · refine Or.inl ?_
+      exists lv
+    · refine Or.inr ?_
+      exists lv
+
+theorem hunionSetUnivAt_mem_of_embedRangeAt_mem {rv: R T1 T2} {lb: Label} (req: rv ∈ EmbedRangeAt T1 T2 lb) : rv ∈ hunionSetUnivAt T1 T2 :=
+  hunionSetUnivAt_mem_iff_embedRangeAt_mem.mpr (Exists.intro lb req)
+
+
+theorem embedAt_hunionSetUnivAt_mem {lb: Label} {lv: LeftTypeAt T1 T2 lb} : embedAt T1 T2 lb lv ∈ hunionSetUnivAt T1 T2 := by
+  rw [hunionSetUnivAt_mem_iff_embedRangeAt_mem]
+  exists lb
+  exact EmbedRangeAt.mem_self _ _
+
+
 abbrev HUnionElemAt (T1 T2: Type u1) [HasHUnion T1 T2] : Type u2 := Set.Elem (hunionSetUnivAt T1 T2)
 
 namespace HUnionElemAt
@@ -304,8 +330,33 @@ def ofEmbedElem {lb: Label} (x: EmbedElemAt T1 T2 lb) : HUnionElemAt T1 T2 := Su
     · exact Or.inl lm1
     · exact Or.inr lm1 )
 
+def pureAt (T1 T2: Type u1) [HasHUnion T1 T2] (lb: Label) (lv: LeftTypeAt T1 T2 lb) : HUnionElemAt T1 T2 := (ofEmbedElem ∘ EmbedElemAt.pureAt T1 T2 lb) lv
+
 def setOfHUnion (s1: Set T1) (s2: Set T2) : Set (HUnionElemAt T1 T2) :=
-  (s1.image (ofEmbedElem ∘ EmbedElemAt.pureAt T1 T2 .fst)) ∪ (s2.image (ofEmbedElem ∘ EmbedElemAt.pureAt T1 T2 .snd))
+  (s1.image (pureAt T1 T2 .fst)) ∪ (s2.image (pureAt T1 T2 .snd))
+
+def liftAt (x: HUnionElemAt T1 T2) (lb: Label) (req: x.val ∈ EmbedRangeAt T1 T2 lb) : LeftTypeAt T1 T2 lb :=
+  HasHUnion.liftAt T1 T2 x.val lb req
+
+def liftSetAt (x: Set (HUnionElemAt T1 T2)) (lb: Label) : Set (LeftTypeAt T1 T2 lb) := { lv | pureAt T1 T2 lb lv ∈ x }
+
+/-
+def bindAt.{u3, u4}
+  [HasHUnion T1 T2] (Cod1 Cod2: Type u3) [HasHUnion.{u3, u4} Cod1 Cod2] (lb: Label)
+  (rv: EmbedElemAt T1 T2 lb) (f: LeftTypeAt T1 T2 lb → EmbedElemAt Cod1 Cod2 lb) : EmbedElemAt Cod1 Cod2 lb :=
+  f (rv.liftAt)
+
+def mapAt.{u3, u4}
+  [HasHUnion T1 T2] (Cod1 Cod2: Type u3) [HasHUnion.{u3, u4} Cod1 Cod2] (lb: Label)
+  (f: LeftTypeAt T1 T2 lb → LeftTypeAt Cod1 Cod2 lb) (rv: EmbedElemAt T1 T2 lb) : EmbedElemAt Cod1 Cod2 lb :=
+  bindAt T1 T2 Cod1 Cod2 lb rv ((pureAt Cod1 Cod2 lb) ∘ f)
+-/
+
+/-
+def bindAt.{u3, u4} (Dom1 Dom2: Type u1) [HasHUnion.{u1, u2} Dom1 Dom2] (Cod1 Cod2: Type u3) [HasHUnion.{u3, u4} Cod1 Cod2] (lb: Label)
+  (rv: HUnionElemAt Dom1 Dom2) (f: LeftTypeAt Dom1 Dom2 lb → HUnionElemAt Cod1 Cod2) : HUnionElemAt Cod1 Cod2 :=
+  f (rv.lif)
+-/
 
 end HUnionElemAt
 
@@ -318,23 +369,36 @@ theorem hinterSetUnivAt_mem_iff {rv: R T1 T2} : (rv ∈ hinterSetUnivAt T1 T2) �
   dsimp [hinterSetUnivAt, hinterSet]
   simp
 
+theorem hinterSetUnivAt_mem_iff_embedRangeAt_mem {rv: R T1 T2} : (rv ∈ hinterSetUnivAt T1 T2) ↔ (∀lb, rv ∈ EmbedRangeAt T1 T2 lb) := by
+  simp [hinterSetUnivAt_mem_iff, EmbedRangeAt]
+  constructor
+  · rintro ⟨lm1, lm2⟩ lb
+    cases lb
+    · exact lm1
+    · exact lm2
+  · intro lm1
+    have lm1_1 := lm1 .fst
+    have lm1_2 := lm1 .snd
+    exact And.intro lm1_1 lm1_2
+
 open DecidableEmbedRange in
 theorem hinterSetUnivAt_mem_iff_isInEmbedRangeAt [DecidableEmbedRange T1 T2] {rv: R T1 T2}
   : (rv ∈ hinterSetUnivAt T1 T2) ↔ ((isInEmbedRangeAt T1 T2 rv .fst = .true) ∧ (isInEmbedRangeAt T1 T2 rv .snd = .true)) := by
   simp [isInEmbedRangeAt_eq_true_iff, EmbedRangeAt, hinterSetUnivAt_mem_iff]
 
+theorem embedRangeAt_mem_of_hinterSetUnivAt_mem_at {rv: R T1 T2} (req: rv ∈ hinterSetUnivAt T1 T2) (lb: Label) : rv ∈ EmbedRangeAt T1 T2 lb := by
+  simp only [hinterSetUnivAt_mem_iff] at req
+  simp [EmbedRangeAt]
+  cases lb
+  · exact req.left
+  · exact req.right
 
 abbrev HInterElemAt (T1 T2: Type u1) [HasHUnion T1 T2] : Type u2 := Set.Elem (hinterSetUnivAt T1 T2)
 
 namespace HInterElemAt
 
-def liftAt (x: HInterElemAt T1 T2) (lb: Label) : LeftTypeAt T1 T2 lb := HasHUnion.liftAt T1 T2 x.val lb (by
-    have lm1 := x.property
-    simp only [hinterSetUnivAt_mem_iff] at lm1
-    simp [EmbedRangeAt]
-    cases lb
-    · exact lm1.left
-    · exact lm1.right )
+def liftAt (x: HInterElemAt T1 T2) (lb: Label) : LeftTypeAt T1 T2 lb :=
+  HasHUnion.liftAt T1 T2 x.val lb (embedRangeAt_mem_of_hinterSetUnivAt_mem_at x.property lb)
 
 def toUnion (x: HInterElemAt T1 T2) : HUnionElemAt T1 T2 := Subtype.mk x.val (by
     obtain ⟨x, lm1⟩ := x
@@ -354,11 +418,15 @@ def hdiffSet (s1: Set T1) (s2: Set T2) (lb: Label) : Set (R T1 T2) :=
 
 def hdiffSetUnivAt (T1 T2: Type u1) [HasHUnion T1 T2] (lb: Label) : Set (R T1 T2) := hdiffSet (Set.univ: Set T1) (Set.univ: Set T2) lb
 
-theorem embedRangeAt_mem_of_hdiffSetUnivAt_mem {rv: R T1 T2} {lb: Label} (req: rv ∈ hdiffSetUnivAt T1 T2 lb) : rv ∈ EmbedRangeAt T1 T2 lb := by
-  cases lb <;> (
-  simp [hdiffSetUnivAt, hdiffSet, Label.toDual] at req
-  simp [EmbedRangeAt]
-  exact req.left )
+theorem hdiffSetUnivAt_mem_iff_embedRangAt_mem {rv: R T1 T2} {lb: Label}
+  : (rv ∈ hdiffSetUnivAt T1 T2 lb) ↔ ((rv ∈ EmbedRangeAt T1 T2 lb) ∧ (rv ∉ EmbedRangeAt T1 T2 lb.toDual)) := by
+  cases lb <;> ( simp [hdiffSetUnivAt, hdiffSet, Label.toDual, EmbedRangeAt] )
+
+
+theorem embedRangeAt_mem_of_hdiffSetUnivAt_mem {rv: R T1 T2} {lb: Label} (req: rv ∈ hdiffSetUnivAt T1 T2 lb) : rv ∈ EmbedRangeAt T1 T2 lb :=
+  hdiffSetUnivAt_mem_iff_embedRangAt_mem.mp req |>.left
+
+
 
 
 abbrev HDiffElemAt (T1 T2: Type u1) [HasHUnion T1 T2] (lb: Label) : Type u2 := Set.Elem (hdiffSetUnivAt T1 T2 lb)

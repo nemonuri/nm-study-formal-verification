@@ -102,6 +102,8 @@ instance {il: Interleaving VarL1 VarL2 ValL1 ValL2 EC1 EC2} {ec1: EC1} {ec2: EC2
 
 end Interleaving
 
+--def LeftEvalTypeAt (EC1 EC2: Type uec_l) (Var1 Var2: Type uvar_l) (Val1 Val2: Type uval_l) [EvalLike EC1 Var1 Val1] [EvalLike EC2 Var2 Val2] [HasHUnion Var1 Var2] [HasHUnion Val1 Val2]
+
 class HasInterleaving (EC1 EC2: Type uec_l) (Var1 Var2: Type uvar_l) (Val1 Val2: Type uval_l) [EvalLike EC1 Var1 Val1] [EvalLike EC2 Var2 Val2] where
   var: HasHUnion.Bundle.{uvar_l, uvar_r} Var1 Var2
   val: HasHUnion.Bundle.{uval_l, uval_r} Val1 Val2
@@ -110,6 +112,15 @@ class HasInterleaving (EC1 EC2: Type uec_l) (Var1 Var2: Type uvar_l) (Val1 Val2:
   interleaving: Interleaving Var1 Var2 Val1 Val2 EC1 EC2 R
 
 attribute [reducible, instance] HasInterleaving.var HasInterleaving.val HasInterleaving.evalLikeR
+
+namespace HasInterleaving
+
+variable {EC1 EC2: Type uec_l} {Var1 Var2: Type uvar_l} {Val1 Val2: Type uval_l} [EvalLike EC1 Var1 Val1] [EvalLike EC2 Var2 Val2]
+         [HasInterleaving EC1 EC2 Var1 Var2 Val1 Val2]
+
+
+
+end HasInterleaving
 
 end EvalLike
 
@@ -125,6 +136,7 @@ def SetOfInterleavingValueDomainAt (sty1: StandardType EC1 Var1 Val1) (sty2: Sta
   let s1 : Set Val1 := var.recLiftDiffAt .fst (fun x => sty1.dom x.liftAt) (fun _ => ∅)
   let s2 : Set Val2 := var.recLiftDiffAt .snd (fun x => sty2.dom x.liftAt) (fun _ => ∅)
   HUnionElemAt.setOfHUnion s1 s2
+
 
 
 def interleave (sty1: StandardType EC1 Var1 Val1) (sty2: StandardType EC2 Var2 Val2) : StandardType (HasInterleaving.R EC1 EC2 Var1 Var2 Val1 Val2) (HUnionElemAt Var1 Var2) (HUnionElemAt Val1 Val2) where
@@ -191,7 +203,7 @@ def interleave (sty1: StandardType EC1 Var1 Val1) (sty2: StandardType EC2 Var2 V
             simp [liftAt_embedAt_eq]
           exact lm1
         · subst x1
-          dsimp [HInterElemAt.toEmbedElemAt, HInterElemAt.liftAt, EmbedElemAt.pureAt, EmbedElemAt.liftAt]
+          dsimp [HInterElemAt.toEmbedElemAt, HInterElemAt.liftAt, HUnionElemAt.pureAt, EmbedElemAt.pureAt, EmbedElemAt.liftAt]
           simp [liftAt_embedAt_eq]
           dsimp [EmbedElemAt.mapAt, EmbedElemAt.bindAt, EmbedElemAt.pureAt, EmbedElemAt.liftAt]
       · rw [← lm3_3]
@@ -207,14 +219,120 @@ def interleave (sty1: StandardType EC1 Var1 Val1) (sty2: StandardType EC2 Var2 V
           subst x2
           conv at lm2 =>
             arg 1
-            dsimp [HInterElemAt.toEmbedElemAt, EmbedElemAt.pureAt, HInterElemAt.liftAt]
+            dsimp [HInterElemAt.toEmbedElemAt, HUnionElemAt.pureAt, EmbedElemAt.pureAt, HInterElemAt.liftAt]
             simp [liftAt_embedAt_eq]
           exact lm2
         · subst x2
-          dsimp [HInterElemAt.toEmbedElemAt, HInterElemAt.liftAt, EmbedElemAt.pureAt, EmbedElemAt.liftAt]
+          dsimp [HInterElemAt.toEmbedElemAt, HInterElemAt.liftAt, HUnionElemAt.pureAt, EmbedElemAt.pureAt, EmbedElemAt.liftAt]
           simp [liftAt_embedAt_eq]
-          dsimp [EmbedElemAt.mapAt, EmbedElemAt.bindAt, EmbedElemAt.pureAt, EmbedElemAt.liftAt]
+          dsimp [EmbedElemAt.mapAt, EmbedElemAt.bindAt, HUnionElemAt.pureAt, EmbedElemAt.pureAt, EmbedElemAt.liftAt]
 
+scoped instance {lb: Label} : EvalLike (lb.casesOn EC1 EC2) (LeftTypeAt Var1 Var2 lb) (LeftTypeAt Val1 Val2 lb) where
+  coe := lb.casesOn
+          (motive := fun lb0 => (lb0.casesOn EC1 EC2) → Eval (LeftTypeAt Var1 Var2 lb0) (LeftTypeAt Val1 Val2 lb0))
+          (fun x => x)
+          (fun x => x)
+  coe_injective := by cases lb <;> ( exact EvalLike.coe_injective )
+
+
+def invInterleaveAt
+  (x: StandardType (HasInterleaving.R EC1 EC2 Var1 Var2 Val1 Val2) (HUnionElemAt Var1 Var2) (HUnionElemAt Val1 Val2)) (lb: Label) [Nonempty (lb.casesOn EC2 EC1)]
+  : StandardType (lb.casesOn EC1 EC2) (LeftTypeAt Var1 Var2 lb) (LeftTypeAt Val1 Val2 lb) where
+  dom var := x.dom (.pureAt _ _ lb var) |> (HUnionElemAt.liftSetAt · lb)
+  valid := by
+    rename_i req
+    let ⟨opR, lm1, lm2⟩ : Interleaving Var1 Var2 Val1 Val2 EC1 EC2 _ := HasInterleaving.interleaving
+    rcases x with ⟨domR, lm3⟩
+    --have lm4 := Nonempty.intro opR
+    --simp at lm4
+    cases lb
+    · dsimp [LeftTypeAt, HUnionElemAt.pureAt, EmbedElemAt.pureAt, HUnionElemAt.ofEmbedElem, HUnionElemAt.liftSetAt]
+      dsimp at req
+      obtain ⟨ec2⟩ := req
+      intro ec1 lv
+      let ecr := opR ec1 ec2
+      specialize lm3 ecr (.pureAt _ _ .fst lv)
+      subst ecr
+      simp [HUnionElemAt.pureAt, EmbedElemAt.pureAt, HUnionElemAt.ofEmbedElem] at lm3
+      rcases lm1 with ⟨lm1_1, lm1_2, lm1_3⟩
+/-
+
+    cases lb
+-/
+/-
+    · dsimp [LeftTypeAt, HUnionElemAt.pureAt, EmbedElemAt.pureAt, HUnionElemAt.ofEmbedElem, HUnionElemAt.liftSetAt]
+      intro ec lv
+-/
+/-
+theorem interleave_uncurry_surjective : Function.Surjective (Function.uncurry (interleave: StandardType EC1 Var1 Val1 → StandardType EC2 Var2 Val2 → StandardType (HasInterleaving.R EC1 EC2 Var1 Var2 Val1 Val2) (HUnionElemAt Var1 Var2) (HUnionElemAt Val1 Val2))) := by
+  rintro ⟨domr, lm1⟩
+  simp [interleave]
+  simp only [funext_iff]
+  let sty1 : StandardType EC1 Var1 Val1 := .mk
+-/
+
+/-
+namespace IsSafe
+
+def interleave (sty1: StandardType EC1 Var1 Val1) (sty2: StandardType EC2 Var2 Val2)
+
+--structure Interleaving (sty1: StandardType EC1 Var1 Val1) (sty2: StandardType EC2 Var2 Val2)
+
+
+end IsSafe
+-/
+
+/-
+theorem interleave_isSafe_iff
+  {sty1: StandardType EC1 Var1 Val1} {sty2: StandardType EC2 Var2 Val2}
+  {v: HUnionElemAt Var1 Var2} {d: Set (HUnionElemAt Val1 Val2)}
+  : ((interleave sty1 sty2).IsSafe v d) ↔
+    ((∃req, sty1.IsSafe (v.liftAt .fst req) (HUnionElemAt.liftSetAt d .fst)) ∨ (∃req, sty2.IsSafe (v.liftAt .snd req) (HUnionElemAt.liftSetAt d .snd)))
+  := by
+  cases v using HUnionElemAt.recDiffInter <;> rename_i x
+  · dsimp [HDiffElemAt.toEmbedElem, HUnionElemAt.ofEmbedElem, HUnionElemAt.liftAt,
+           HUnionElemAt.liftSetAt, HUnionElemAt.pureAt, EmbedElemAt.pureAt, interleave]
+    simp [isSafe_iff]
+    have lm2 := x.property |> hdiffSetUnivAt_mem_iff_embedRangAt_mem.mp
+    simp [lm2]
+    conv =>
+      lhs; ext; ext; ext
+      simp [SetOfInterleavingValueDomainAt, HUnionElemAt.setOfHUnion, HUnionElemAt.recLiftDiffAt, DecidableEmbedRange.isInEmbedRangeAt_eq_true_iff, lm2]
+      simp [EmbedElemAt.liftAt, HUnionElemAt.pureAt, EmbedElemAt.pureAt, HUnionElemAt.ofEmbedElem]
+    constructor
+    · intro lm1 lv lm3
+      have lm4 := lm1 (embedAt _ _ .fst lv) embedAt_hunionSetUnivAt_mem lm3
+      rcases lm4 with ⟨lv2, lm4, lm5⟩
+      rewrite [(embedAt_injective _ _).eq_iff] at lm5
+      subst lm5
+      exact lm4
+    · intro lm1 rv lm3 lm4
+      by_contra lm5
+      simp at lm5
+-/
+      --let x1 := liftAt _ _ x.val .fst lm2.left
+      --dsimp [LeftTypeAt] at x1
+
+/-
+    constructor
+    · intro lm1
+      refine Or.inl ?_
+      refine ⟨?_, ?_⟩
+      · exact embedRangeAt_mem_of_hdiffSetUnivAt_mem x.property
+      · intro lv lm2
+        specialize lm1 (embedAt _ _ .fst lv) embedAt_hunionSetUnivAt_mem lm2
+        simp [SetOfInterleavingValueDomainAt, HUnionElemAt.setOfHUnion, HUnionElemAt.recLiftDiffAt, DecidableEmbedRange.isInEmbedRangeAt_eq_true_iff] at lm1
+        have lm3 := x.property |> hdiffSetUnivAt_mem_iff_embedRangAt_mem.mp
+        simp [lm3] at lm1
+        rcases lm1 with ⟨x2, lm1⟩
+-/
+      --simp [SetOfInterleavingValueDomainAt, HUnionElemAt.setOfHUnion] at lm1
+/-
+  simp only [isSafe_iff]
+  dsimp [interleave, SetOfInterleavingValueDomainAt, HUnionElemAt.setOfHUnion]
+  simp [- Subtype.forall]
+-/
+  --: (∀v d, (interleave sty1 sty2).IsSafe v d) ↔ ((∀v d, sty1.IsSafe v d) ∧ (∀v d, sty2.IsSafe v d)) := by
 
 
 end StandardType
