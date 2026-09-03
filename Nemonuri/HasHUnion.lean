@@ -131,6 +131,29 @@ namespace Label
 
 abbrev toDual (lb: Label) : Label := lb.casesOn Label.snd Label.fst
 
+def projectProd (lb: Label) {α β: Type _} (prod: α × β) : lb.casesOn α β := lb.casesOn prod.fst prod.snd
+
+section ProjectProd
+
+variable {α β: Type _} {prod: α × β}
+
+@[defeq]
+theorem projectProd_prod_eq
+  : (Label.fst.projectProd prod, Label.snd.projectProd prod) = prod := by
+  dsimp [projectProd]
+
+@[defeq]
+theorem projectProd_prod_fst_eq
+  : Label.fst.projectProd prod = prod.fst := by
+  dsimp [projectProd]
+
+@[defeq]
+theorem projectProd_prod_snd_eq
+  : Label.snd.projectProd prod = prod.snd := by
+  dsimp [projectProd]
+
+end ProjectProd
+
 end Label
 
 universe u1 u2
@@ -332,6 +355,11 @@ def ofEmbedElem {lb: Label} (x: EmbedElemAt T1 T2 lb) : HUnionElemAt T1 T2 := Su
 
 def pureAt (T1 T2: Type u1) [HasHUnion T1 T2] (lb: Label) (lv: LeftTypeAt T1 T2 lb) : HUnionElemAt T1 T2 := (ofEmbedElem ∘ EmbedElemAt.pureAt T1 T2 lb) lv
 
+@[defeq]
+theorem pureAt_val_eq_embedAt {lb: Label} {lv: LeftTypeAt T1 T2 lb}
+  : (pureAt T1 T2 lb lv).val = embedAt T1 T2 lb lv := by
+  dsimp [pureAt, EmbedElemAt.pureAt, ofEmbedElem]
+
 def setOfHUnion (s1: Set T1) (s2: Set T2) : Set (HUnionElemAt T1 T2) :=
   (s1.image (pureAt T1 T2 .fst)) ∪ (s2.image (pureAt T1 T2 .snd))
 
@@ -435,6 +463,10 @@ namespace HDiffElemAt
 
 def toEmbedElem {lb: Label} (x: HDiffElemAt T1 T2 lb) : EmbedElemAt T1 T2 lb := Subtype.mk x.val (embedRangeAt_mem_of_hdiffSetUnivAt_mem x.property)
 
+def toUnion {lb: Label} (x: HDiffElemAt T1 T2 lb) : HUnionElemAt T1 T2 := Subtype.mk x.val (embedRangeAt_mem_of_hdiffSetUnivAt_mem x.property |> hunionSetUnivAt_mem_of_embedRangeAt_mem)
+
+def lift {lb: Label} (x: HDiffElemAt T1 T2 lb) : LeftTypeAt T1 T2 lb := liftAt T1 T2 x.val lb (hdiffSetUnivAt_mem_iff_embedRangAt_mem.mp x.property |>.left)
+
 end HDiffElemAt
 
 
@@ -445,8 +477,8 @@ open DecidableEmbedRange
 @[elab_as_elim]
 def recDiffInter [DecidableEmbedRange T1 T2]
   {motive: HUnionElemAt T1 T2 → Sort _}
-  (diffFst: (x: HDiffElemAt T1 T2 .fst) → motive (.ofEmbedElem x.toEmbedElem))
-  (diffSnd: (x: HDiffElemAt T1 T2 .snd) → motive (.ofEmbedElem x.toEmbedElem))
+  (diffFst: (x: HDiffElemAt T1 T2 .fst) → motive (x.toUnion))
+  (diffSnd: (x: HDiffElemAt T1 T2 .snd) → motive (x.toUnion))
   (inter: (x: HInterElemAt T1 T2) → motive x.toUnion)
   (t: HUnionElemAt T1 T2)
   : motive t :=
