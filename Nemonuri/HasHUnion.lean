@@ -196,13 +196,15 @@ variable (T1 T2: Type u1) --{T3: Type u2}
 
 def embedAt [HasHUnion T1 T2] (lb: Label) (lv: LeftTypeAt T1 T2 lb) : R T1 T2 := (toLiftableEmbeddingAt T1 T2 lb) lv
 
-theorem embedAt_injective [HasHUnion T1 T2] {lb: Label} : Function.Injective (embedAt T1 T2 lb) := by
+theorem embedAt_injective {T1 T2: Type u1} [HasHUnion T1 T2] {lb: Label} : Function.Injective (embedAt T1 T2 lb) := by
   intro x1 x2 lm1
   dsimp [LeftTypeAt] at x1 x2
   dsimp [embedAt, toLiftableEmbeddingAt] at lm1
   cases lb <;> (
     dsimp at x1 x2 lm1
     exact (Function.Embedding.injective _).eq_iff.mp lm1 )
+
+theorem embedAt_injective_at {T1 T2: Type u1} [HasHUnion T1 T2] (lb: Label) : Function.Injective (embedAt T1 T2 lb) := embedAt_injective
 
 def EmbedRangeAt [HasHUnion T1 T2] (lb: Label) : Set (R T1 T2) := Set.range (embedAt T1 T2 lb)
 
@@ -671,6 +673,45 @@ def hunionMapAt.{u3, u4}
       · exact lm1 lv lm3
       · exact lm2 lv lm3)
 -/
+
+
+
+open DecidableEmbedRange in
+@[elab_as_elim]
+def recDiffInterAt [DecidableEmbedRange T1 T2] (lb: Label)
+  {motive: LeftTypeAt T1 T2 lb → Sort _}
+  (diff: (x: HDiffElemAt T1 T2 lb) → motive x.lift)
+  (inter: (x: HInterElemAt T1 T2) → motive (x.liftAt lb))
+  (t: LeftTypeAt T1 T2 lb)
+  : motive t :=
+  let et : EmbedElemAt T1 T2 lb := .pureAt _ _ _ t
+  if lm1: isInEmbedRangeAt T1 T2 et.val lb.toDual then
+    inter (Subtype.mk et.val (by
+      subst et
+      dsimp [EmbedElemAt.pureAt] at lm1 ⊢
+      rw [isInEmbedRangeAt_eq_true_iff] at lm1
+      rw [hinterSetUnivAt_mem_iff_embedRangeAt_mem]
+      intro lb2
+      cases lb <;> cases lb2
+      · simp
+      · dsimp [Label.toDual] at lm1; exact lm1
+      · dsimp [Label.toDual] at lm1; exact lm1
+      · simp ))
+    |> Eq.subst (by
+      subst et
+      dsimp [EmbedElemAt.pureAt, HInterElemAt.liftAt]
+      rw [embedAt_liftAt_eq] )
+  else
+    diff (Subtype.mk et.val (by
+      subst et
+      dsimp [EmbedElemAt.pureAt] at lm1 ⊢
+      rw [Bool.not_eq_true, isInEmbedRangeAt_eq_false_iff] at lm1
+      rw [hdiffSetUnivAt_mem_iff_embedRangAt_mem]
+      simp [lm1] ))
+    |> Eq.subst (by
+      subst et
+      dsimp [EmbedElemAt.pureAt, HDiffElemAt.lift]
+      rw [embedAt_liftAt_eq] )
 
 
 class Bundle (T1 T2: Type u1) where

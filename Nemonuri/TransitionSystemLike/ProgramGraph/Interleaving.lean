@@ -37,40 +37,195 @@ scoped instance {lb: Label} : EvalLike (lb.casesOn EC1 EC2) (LeftTypeAt Var1 Var
 
 def leftEvalAt (ec1: EC1) (ec2: EC2) (lb: Label) : lb.casesOn EC1 EC2 := lb.casesOn ec1 ec2
 
+variable {ec1: EC1} {ec2: EC2}
+
+@[defeq]
+theorem leftEvalAt_fst : leftEvalAt ec1 ec2 .fst = ec1 := rfl
+
+@[defeq]
+theorem leftEvalAt_snd : leftEvalAt ec1 ec2 .snd = ec2 := rfl
+
 end LeftEvalAt
 
 structure IsInterleaving
-  (EC1 EC2: Type uec_l) (Var1 Var2: Type uvar_l) (Val1 Val2: Type uval_l) [EvalLike EC1 Var1 Val1] [EvalLike EC2 Var2 Val2]
-  [HasHUnion Var1 Var2] [HasHUnion Val1 Val2]
+  {EC1 EC2: Type uec_l} {Var1 Var2: Type uvar_l} {Val1 Val2: Type uval_l}
+  [HasHUnion Var1 Var2] [HasHUnion Val1 Val2] [EvalLike EC1 Var1 Val1] [EvalLike EC2 Var2 Val2]
   (op: EC1 → EC2 → (HUnionElemAt Var1 Var2) → (HUnionElemAt Val1 Val2)) : Prop where
   diff (ec1: EC1) (ec2: EC2) (lb: Label) (x: HDiffElemAt Var1 Var2 lb) :
-    embedAt Val1 Val2 lb ((leftEvalAt ec1 ec2 lb: Eval (LeftTypeAt Var1 Var2 lb) (LeftTypeAt Val1 Val2 lb)) x.lift) = (op ec1 ec2 (x.toUnion)).val
+    embedAt Val1 Val2 lb ((leftEvalAt ec1 ec2 lb: (LeftTypeAt Var1 Var2 lb) → (LeftTypeAt Val1 Val2 lb)) x.lift) = (op ec1 ec2 (x.toUnion)).val
   inter (ec1: EC1) (ec2: EC2) (x: HInterElemAt Var1 Var2) :
-    ∃(lb: Label), embedAt Val1 Val2 lb ((leftEvalAt ec1 ec2 lb: Eval (LeftTypeAt Var1 Var2 lb) (LeftTypeAt Val1 Val2 lb)) (x.liftAt lb)) = (op ec1 ec2 (x.toUnion)).val
+    ∃(lb: Label), embedAt Val1 Val2 lb ((leftEvalAt ec1 ec2 lb: (LeftTypeAt Var1 Var2 lb) → (LeftTypeAt Val1 Val2 lb)) (x.liftAt lb)) = (op ec1 ec2 (x.toUnion)).val
 
---#print IsInterleaving
+structure Interleaving
+  (EC1 EC2: Type uec_l) (Var1 Var2: Type uvar_l) (Val1 Val2: Type uval_l) (ECR: Type uec_r)
+  [HasHUnion Var1 Var2] [HasHUnion Val1 Val2] [EvalLike EC1 Var1 Val1] [EvalLike EC2 Var2 Val2]
+  [EvalLike ECR (HUnionElemAt Var1 Var2) (HUnionElemAt Val1 Val2)] where
+  op: EC1 → EC2 → ECR
+  valid: IsInterleaving (fun ec1 ec2 => op ec1 ec2)
+
+namespace Interleaving
+
+variable {EC1 EC2: Type uec_l} {Var1 Var2: Type uvar_l} {Val1 Val2: Type uval_l} {ECR: Type uec_r}
+         [HasHUnion Var1 Var2] [HasHUnion Val1 Val2] [EvalLike EC1 Var1 Val1] [EvalLike EC2 Var2 Val2]
+         [EvalLike ECR (HUnionElemAt Var1 Var2) (HUnionElemAt Val1 Val2)]
+
+structure EmbeddableStruct
+  (EC1 EC2: Type uec_l) (Var1 Var2: Type uvar_l) (Val1 Val2: Type uval_l) (ECR: Type uec_r)
+  [HasHUnion Var1 Var2] [HasHUnion Val1 Val2] [EvalLike EC1 Var1 Val1] [EvalLike EC2 Var2 Val2]
+  [EvalLike ECR (HUnionElemAt Var1 Var2) (HUnionElemAt Val1 Val2)] where
+  op: EC1 → EC2 → ECR
+  emptyAt (lb: Label) : lb.casesOn EC1 EC2
+
+namespace EmbeddableStruct
+
+def embedAt (s: EmbeddableStruct EC1 EC2 Var1 Var2 Val1 Val2 ECR) (lb: Label) : (lb.casesOn EC1 EC2) → ECR :=
+  lb.casesOn (motive := fun lb0 => lb0.casesOn EC1 EC2 → ECR)
+             (fun ec1 => s.op ec1 (s.emptyAt .snd))
+             (fun ec2 => s.op (s.emptyAt .fst) ec2)
+
+variable {s: EmbeddableStruct EC1 EC2 Var1 Var2 Val1 Val2 ECR}
+
+@[defeq]
+theorem embedAt_fst {ec1: EC1} : s.embedAt .fst ec1 = s.op ec1 (s.emptyAt .snd) := rfl
+
+@[defeq]
+theorem embedAt_snd {ec2: EC2} : s.embedAt .snd ec2 = s.op (s.emptyAt .fst) ec2 := rfl
+
+end EmbeddableStruct
+
+structure IsEmbeddable (s: EmbeddableStruct EC1 EC2 Var1 Var2 Val1 Val2 ECR) : Prop where
+  interleave: IsInterleaving (fun ec1 ec2 => s.op ec1 ec2)
+  embed_eq (lb: Label) (ec: lb.casesOn EC1 EC2) (varL: LeftTypeAt Var1 Var2 lb) :
+    embedAt Val1 Val2 lb ((ec: (LeftTypeAt Var1 Var2 lb) → (LeftTypeAt Val1 Val2 lb)) varL) = ((s.embedAt lb ec) (.pureAt Var1 Var2 lb varL)).val
+
+namespace IsEmbeddable
+
+open EmbeddableStruct
+
+variable {s: EmbeddableStruct EC1 EC2 Var1 Var2 Val1 Val2 ECR}
+
+theorem embedAt_injective (h: IsEmbeddable s) {lb: Label} : Function.Injective (s.embedAt lb) := by
+  let huVar : HasHUnion Var1 Var2 := inferInstance
+  let huVal : HasHUnion Val1 Val2 := inferInstance
+  rcases h with ⟨⟨lm1, lm2⟩, lm3⟩
+  replace lm1 := fun ec1 ec2 => lm1 ec1 ec2 lb
+  specialize lm3 lb
+  cases lb
+  · dsimp [Function.Injective, embedAt_fst]
+    intro ecL1 ecL2 lm4
+    simp only [← DFunLike.coe_injective.eq_iff, funext_iff] at lm4 ⊢
+    intro varL
+    specialize lm4 (HUnionElemAt.pureAt _ _ .fst varL)
+    dsimp [LeftTypeAt] at lm3
+    replace lm3 := fun ec => lm3 ec varL
+    rw [← (huVal.embedAt_injective_at .fst).eq_iff]
+    calc
+      _ = _ := lm3 ecL1
+      _ = _ := congrArg _ lm4
+      _ = _ := (lm3 ecL2).symm
+  · dsimp [Function.Injective, embedAt_snd]
+    intro ecL1 ecL2 lm4
+    simp only [← DFunLike.coe_injective.eq_iff, funext_iff] at lm4 ⊢
+    intro varL
+    specialize lm4 (HUnionElemAt.pureAt _ _ .snd varL)
+    dsimp [LeftTypeAt] at lm3
+    replace lm3 := fun ec => lm3 ec varL
+    rw [← (huVal.embedAt_injective_at .snd).eq_iff]
+    calc
+      _ = _ := lm3 ecL1
+      _ = _ := congrArg _ lm4
+      _ = _ := (lm3 ecL2).symm
+
+
+
 /-
-  diff_fst (x: HDiffElemAt Var1 Var2 .fst) (ec1: EC1) (ec2: EC2) :
-    embedAt Val1 Val2 .fst ((ec1: Eval Var1 Val1) x.lift) = (op ec1 ec2 (x.toUnion)).val
-  diff_snd (x: HDiffElemAt Var1 Var2 .snd) (ec1: EC1) (ec2: EC2) :
-    embedAt Val1 Val2 .snd ((ec2: Eval Var2 Val2) x.lift) = (op ec1 ec2 (x.toUnion)).val
-  inter (x: HInterElemAt Var1 Var2) (ec1: EC1) (ec2: EC2) :
-    (embedAt Val1 Val2 .fst ((ec1: Eval Var1 Val1) (x.liftAt .fst)) = (op ec1 ec2 (x.toUnion)).val) ∨
-    (embedAt Val1 Val2 .snd ((ec2: Eval Var2 Val2) (x.liftAt .snd)) = (op ec1 ec2 (x.toUnion)).val)
+    dsimp [HUnionElemAt.pureAt, EmbedElemAt.pureAt, HUnionElemAt.ofEmbedElem] at lm4
+
+    rw [← (huVal.embedAt_injective_at .fst).eq_iff]
+    cases varL using (huVar.recDiffInterAt .fst) <;> rename_i x
+    · simp [HDiffElemAt.lift, HasHUnion.liftAt_embedAt_eq] at lm4
+      dsimp [leftEvalAt_fst] at lm1
+      replace lm1 := fun ec => lm1 ec (s.emptyAt Label.snd) x
+      dsimp [HDiffElemAt.toUnion] at lm1
+      calc
+        _ = _ := lm1 ecL1
+        _ = _ := congrArg _ lm4
+        _ = _ := (lm1 ecL2).symm
+    · simp [HInterElemAt.liftAt, HasHUnion.liftAt_embedAt_eq] at lm4
+      replace lm2 := fun ec => lm2 ec (s.emptyAt Label.snd) x
+      dsimp [HDiffElemAt.toUnion] at lm2
+      obtain ⟨lb1, lm2_1⟩ := lm2 ecL1
+      obtain ⟨lb2, lm2_2⟩ := lm2 ecL2
+      dsimp [HUnionElemAt.pureAt, EmbedElemAt.pureAt, HUnionElemAt.ofEmbedElem, EmbeddableStruct.embedAt] at lm3
 -/
-    --let rhs := op ec1 ec2 (x.toUnion)
+      --have lm2_1 := lm2 ecL1
+      --rcases lm2_1 with ⟨lb, lm2_1⟩
+      --have lm2_1 := lm2 ecL1
+      --cases lb
+      --· dsimp [leftEvalAt_fst] at lm2_1
+        --rw [← (huVal.embedAt_injective_at .fst).eq_iff]
+      --
 
-    --(.ofEmbedElem (EmbedElemAt.mapAt Var1 Var2 Val1 Val2 .snd (ec2: Eval Var2 Val2) (x.toEmbedElemAt .snd)) = rhs)
+/-
+      have lm5_1 := lm1 ecL1
+      have lm5_2 := lm1 ecL2
+      rewrite [lm4] at lm5_1
+      have lm5 := lm5_1.trans lm5_2.symm
+      rewrite [huVal.embedAt_injective.eq_iff] at lm5
+      exact lm5
+-/
 
+/-
+    dsimp [LeftTypeAt] at lm3
+    replace lm3 := fun ec => lm3 ec varL
+    cases varL using (hu.recDiffInterAt .fst) <;> rename_i x
+    · replace lm1 := fun ec => lm1 ec (s.emptyAt .snd) x
+      dsimp [leftEvalAt_fst] at lm1
+      specialize lm3 ecL1
+      specialize lm1 ecL1
+      have lm5 := lm1.symm.trans lm3
+      dsimp [embedAt_fst] at lm5
+      rewrite [← Subtype.ext_iff] at lm5
+-/
+/-
+      conv at lm1 =>
+        ext ec
+        rw [lm3 ec]
+        dsimp [embedAt_fst]
+      have lm5_1 := lm1 ecL1
+      have lm5_2 := lm1 ecL2
+      replace lm5_2
+-/
+
+
+end IsEmbeddable
+
+structure Embeddable
+  (EC1 EC2: Type uec_l) (Var1 Var2: Type uvar_l) (Val1 Val2: Type uval_l) (ECR: Type uec_r)
+  [HasHUnion Var1 Var2] [HasHUnion Val1 Val2] [EvalLike EC1 Var1 Val1] [EvalLike EC2 Var2 Val2]
+  [EvalLike ECR (HUnionElemAt Var1 Var2) (HUnionElemAt Val1 Val2)]
+  extends
+    struct: EmbeddableStruct EC1 EC2 Var1 Var2 Val1 Val2 ECR,
+    valid: IsEmbeddable struct
+
+
+
+end Interleaving
+
+
+
+
+
+/-
 structure IsInterleavingLike
   (EC1 EC2: Type uec_l) (Var1 Var2: Type uvar_l) (Val1 Val2: Type uval_l) (ECR: Type uec_r)
   [HasHUnion Var1 Var2] [HasHUnion Val1 Val2] [EvalLike EC1 Var1 Val1] [EvalLike EC2 Var2 Val2] [EvalLike ECR (HUnionElemAt Var1 Var2) (HUnionElemAt Val1 Val2)]
-  (op: EC1 → EC2 → ECR) (inv: ECR → (EC1 × EC2)) (emptyR: ECR) : Prop where
+  (op: EC1 → EC2 → ECR) (emptyAt: (lb: Label) → lb.casesOn EC1 EC2) : Prop where
   interleaving: IsInterleaving EC1 EC2 Var1 Var2 Val1 Val2 (fun ec1 ec2 => op ec1 ec2)
   right_inverse: Function.RightInverse inv (Function.uncurry op)
   injective1: Function.Injective (fun ec1 => op ec1 ((inv emptyR).snd))
   injective2: Function.Injective (fun ec2 => op ((inv emptyR).fst) ec2)
-
+-/
 
 namespace IsInterleavingLike
 

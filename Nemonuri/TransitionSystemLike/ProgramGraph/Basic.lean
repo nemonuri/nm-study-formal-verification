@@ -33,6 +33,9 @@ attribute [coe, reducible] EvalLike.coe
 
 instance {EC Var Val: Type*} [EvalLike EC Var Val] : CoeOut EC (Eval Var Val) := ⟨EvalLike.coe⟩
 
+instance {EC Var Val: Type*} [EvalLike EC Var Val] : FunLike EC Var Val where
+  coe ec := (ec: Eval Var Val)
+  coe_injective := DFunLike.coe_injective.comp EvalLike.coe_injective
 
 structure StandardType (EC Var Val: Type*) [EvalLike EC Var Val] where
   dom : Var → Set Val
