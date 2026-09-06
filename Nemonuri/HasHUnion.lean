@@ -63,6 +63,10 @@ theorem liftAlt_Injective {l: LiftableEmbedding L R} : Function.Injective (liftA
   simp only [coe_eq_toEmbedding_coe, LiftableEmbedding.lift_valid] at lm3
   exact lm3
 
+theorem liftAlt_dom_congr {l: LiftableEmbedding L R} {rv1 rv2: R} (req1: rv1 = rv2) (req2: rv1 ∈ Set.range l)
+  : ((Subtype.mk rv1 req2) = (Subtype.mk rv2 (req1 ▸ req2))) := by
+  simpa using req1
+
 
 
 def refl (L: Type*) : LiftableEmbedding L L where
@@ -129,7 +133,42 @@ inductive Label where
 
 namespace Label
 
+instance : Nonempty Label := .intro .fst
+
 abbrev toDual (lb: Label) : Label := lb.casesOn Label.snd Label.fst
+
+theorem ne_iff_eq_toDual {lb1 lb2: Label} : (lb1 ≠ lb2) ↔ (lb1 = lb2.toDual) := by
+  dsimp [toDual]
+  rcases lb1 <;> rcases lb2 <;> simp
+/-
+  constructor
+  · intro lm1
+    dsimp [toDual]
+    cases lb1 <;> cases lb2
+    · simp at lm1
+    · simp
+    · simp
+    · simp at lm1
+  · intro lm1
+    dsimp [toDual] at lm1
+    cases lb2 <;> (dsimp at lm1; subst lm1; simp)
+-/
+
+theorem toDual_toDual_eq_self {lb: Label} : lb.toDual.toDual = lb := by
+  rcases lb <;> dsimp [toDual]
+
+theorem eq_toDual_symm {lb1 lb2: Label} (req: lb1 = lb2.toDual) : lb2 = lb1.toDual := by
+  replace req := congrArg (Label.toDual) req
+  simp [toDual_toDual_eq_self] at req
+  exact req.symm
+
+theorem ne_iff_eq_toDual_symm {lb1 lb2: Label} : (lb1 ≠ lb2) ↔ (lb2 = lb1.toDual) := by
+  rw [ne_iff_eq_toDual]
+  constructor
+  · intro lm1
+    exact eq_toDual_symm lm1
+  · intro lm1
+    exact eq_toDual_symm lm1
 
 def projectProd (lb: Label) {α β: Type _} (prod: α × β) : lb.casesOn α β := lb.casesOn prod.fst prod.snd
 
@@ -209,7 +248,7 @@ theorem embedAt_injective_at {T1 T2: Type u1} [HasHUnion T1 T2] (lb: Label) : Fu
 def EmbedRangeAt [HasHUnion T1 T2] (lb: Label) : Set (R T1 T2) := Set.range (embedAt T1 T2 lb)
 
 @[simp]
-theorem EmbedRangeAt.mem_self [HasHUnion T1 T2] {lb: Label} {lv: LeftTypeAt T1 T2 lb} : embedAt T1 T2 lb lv ∈ EmbedRangeAt T1 T2 lb := by
+theorem EmbedRangeAt.mem_self {T1 T2: Type u1} [HasHUnion T1 T2] {lb: Label} {lv: LeftTypeAt T1 T2 lb} : embedAt T1 T2 lb lv ∈ EmbedRangeAt T1 T2 lb := by
   dsimp [EmbedRangeAt]
   exact Set.mem_range_self _
 
@@ -251,6 +290,10 @@ theorem liftAtAlt_injective {T1 T2: Type u1} [HasHUnion T1 T2] {lb: Label} : Fun
   rewrite [LiftableEmbedding.liftAlt_Injective.eq_iff] at lm3
   exact lm3
 
+theorem liftAlt_dom_congr {T1 T2: Type u1} [HasHUnion T1 T2] {rv1 rv2: R T1 T2} (req1: rv1 = rv2) {lb: Label} (req2: rv1 ∈ EmbedRangeAt T1 T2 lb)
+  : (Subtype.mk rv1 req2) = (Subtype.mk rv2 (req1 ▸ req2)) :=
+  LiftableEmbedding.liftAlt_dom_congr req1 req2
+
 
 theorem embedAt_liftAt_eq [HasHUnion T1 T2] {lb: Label} {lv: LeftTypeAt T1 T2 lb}
   : liftAt T1 T2 (embedAt T1 T2 lb lv) lb (Set.mem_range_self _) = lv :=
@@ -265,10 +308,189 @@ theorem liftAt_eq_liftAtAlt [HasHUnion T1 T2] {rv: R T1 T2} {lb: Label} {req: rv
 theorem liftAt_embedAt_eq [HasHUnion T1 T2] {rv: R T1 T2} {lb: Label} (req: rv ∈ EmbedRangeAt T1 T2 lb)
   : embedAt T1 T2 lb (liftAt T1 T2 rv lb req) = rv := by
   refine @Subtype.mk.inj _ _ _ ?_ rv req ?_
-  · exact EmbedRangeAt.mem_self _ _
+  · exact EmbedRangeAt.mem_self
   · rw [← liftAtAlt_injective.eq_iff, ← liftAt_eq_liftAtAlt, embedAt_liftAt_eq]
     rw [liftAt_eq_liftAtAlt]
 
+
+theorem eq_toDual_liftAt_embedAt_of_eq
+  {T1 T2: Type u1} [HasHUnion T1 T2] {rv1 rv2: R T1 T2} (req1: rv1 = rv2)
+  {lb: Label} (req2: rv1 ∈ EmbedRangeAt T1 T2 lb) (req3: rv2 ∈ EmbedRangeAt T1 T2 lb.toDual)
+  : embedAt T1 T2 lb (liftAt T1 T2 rv1 lb req2) = embedAt T1 T2 lb.toDual (liftAt T1 T2 rv2 lb.toDual req3) := by
+  simp only [liftAt_embedAt_eq]
+  exact req1
+
+theorem liftAt_eq_of_embedAt_eq
+  {T1 T2: Type u1} [HasHUnion T1 T2] {rv: R T1 T2} {lb: Label} {lv: LeftTypeAt T1 T2 lb} (req: embedAt T1 T2 lb lv = rv)
+  : liftAt T1 T2 rv lb (req.subst EmbedRangeAt.mem_self) = lv := by
+  have lm1 := req.symm
+  subst lm1
+  rw [embedAt_liftAt_eq]
+
+
+theorem embedAt_eq_iff_liftAt_eq
+  {T1 T2: Type u1} [HasHUnion T1 T2] {rv: R T1 T2} {lb: Label} {lv: LeftTypeAt T1 T2 lb} (req: rv ∈ EmbedRangeAt T1 T2 lb)
+  : (embedAt T1 T2 lb lv = rv) ↔ (liftAt T1 T2 rv lb req = lv) := by
+  constructor
+  · intro lm1
+    exact liftAt_eq_of_embedAt_eq lm1
+  · intro lm1
+    have lm2 := lm1.symm
+    subst lm2
+    rw [liftAt_embedAt_eq]
+
+theorem embedAt_eq_iff_exists_liftAt_eq
+  {T1 T2: Type u1} [HasHUnion T1 T2] {rv: R T1 T2} {lb: Label} {lv: LeftTypeAt T1 T2 lb}
+  : (embedAt T1 T2 lb lv = rv) ↔ (∃req, liftAt T1 T2 rv lb req = lv) := by
+  constructor
+  · intro lm1
+    refine ⟨?_, ?_⟩
+    · simp [← lm1]
+    · exact liftAt_eq_of_embedAt_eq lm1
+  · rintro ⟨lm1, lm2⟩
+    exact (embedAt_eq_iff_liftAt_eq lm1).mpr lm2
+
+
+/-
+structure AreEquiv {T1 T2: Type u1} [HasHUnion T1 T2] (lv1: T1) (lv2: T2) (rv: HasHUnion.R T1 T2) : Prop where
+  inter (lb: Label) : rv ∈ EmbedRangeAt T1 T2 lb
+  liftAt_eq_fst: liftAt T1 T2 rv .fst (inter .fst) = lv1
+  liftAt_eq_snd: liftAt T1 T2 rv .snd (inter .snd) = lv2
+-/
+
+inductive AreEquivAt {T1 T2: Type u1} [HasHUnion T1 T2] (lv1: T1) (lv2: T2) : Label → Prop where
+  | fst (req1: embedAt T1 T2 .fst lv1 ∈ EmbedRangeAt T1 T2 .snd) (req2: liftAt T1 T2 (embedAt T1 T2 .fst lv1) .snd req1 = lv2)
+        : AreEquivAt lv1 lv2 .fst
+  | snd (req1: embedAt T1 T2 .snd lv2 ∈ EmbedRangeAt T1 T2 .fst) (req2: liftAt T1 T2 (embedAt T1 T2 .snd lv2) .fst req1 = lv1)
+        : AreEquivAt lv1 lv2 .snd--(embedAt T1 T2 .snd lv2)
+
+def AreEquiv {T1 T2: Type u1} [HasHUnion T1 T2] (lv1: T1) (lv2: T2) : Prop := ∀⦃lb: Label⦄, AreEquivAt lv1 lv2 lb
+
+@[defeq]
+theorem areEquiv_eq_areEquivAt {T1 T2: Type u1} [HasHUnion T1 T2] {lv1: T1} {lv2: T2}
+  : AreEquiv lv1 lv2 = ((lb: Label) → AreEquivAt lv1 lv2 lb) :=
+  rfl
+
+namespace AreEquivAt
+
+variable {T1 T2: Type u1} [HasHUnion T1 T2] {lv1: T1} {lv2: T2}
+
+theorem fst_iff
+  : (AreEquivAt lv1 lv2 .fst) ↔ (∃(req: embedAt T1 T2 .fst lv1 ∈ EmbedRangeAt T1 T2 .snd), liftAt T1 T2 (embedAt T1 T2 .fst lv1) .snd req = lv2) := by
+  constructor
+  · intro lm1
+    rcases lm1 with ⟨lm1, lm2⟩ | _
+    · exact ⟨lm1, lm2⟩
+  · rintro ⟨lm1, lm2⟩
+    exact .fst lm1 lm2
+
+theorem snd_iff
+  : (AreEquivAt lv1 lv2 .snd) ↔ (∃(req: embedAt T1 T2 .snd lv2 ∈ EmbedRangeAt T1 T2 .fst), liftAt T1 T2 (embedAt T1 T2 .snd lv2) .fst req = lv1) := by
+  constructor
+  · intro lm1
+    rcases lm1 with _ | ⟨lm1, lm2⟩
+    · exact ⟨lm1, lm2⟩
+  · rintro ⟨lm1, lm2⟩
+    exact .snd lm1 lm2
+
+variable {lb: Label}
+
+theorem toDual_iff
+  : (AreEquivAt lv1 lv2 lb) ↔ ∃(req: embedAt T1 T2 lb (lb.casesOn lv1 lv2) ∈ EmbedRangeAt T1 T2 lb.toDual), liftAt T1 T2 (embedAt T1 T2 lb (lb.casesOn lv1 lv2)) lb.toDual req = lb.toDual.casesOn lv1 lv2 := by
+  rcases lb <;> dsimp [Label.toDual]
+  · exact fst_iff
+  · exact snd_iff
+
+def rightValue (_: AreEquivAt lv1 lv2 lb) : HasHUnion.R T1 T2 := embedAt T1 T2 lb (lb.casesOn lv1 lv2)
+
+theorem rightValue_embedRangeAt_mem (h: AreEquivAt lv1 lv2 lb) : h.rightValue ∈ EmbedRangeAt T1 T2 lb := by
+  simp only [rightValue, EmbedRangeAt.mem_self]
+
+theorem rightValue_toDual_embedRangeAt_mem (h: AreEquivAt lv1 lv2 lb) : h.rightValue ∈ EmbedRangeAt T1 T2 lb.toDual := by
+  dsimp [rightValue]
+  obtain ⟨lm1, lm2⟩ := toDual_iff.mp h
+  exact lm1
+
+theorem rightValue_forall_label_embedRangeAt_mem (h: AreEquivAt lv1 lv2 lb) : ∀(lb2: Label), h.rightValue ∈ EmbedRangeAt T1 T2 lb2 := by
+  intro lb2
+  by_cases lm1: lb = lb2
+  · subst lm1
+    exact h.rightValue_embedRangeAt_mem
+  · simp [Label.ne_iff_eq_toDual_symm] at lm1
+    subst lm1
+    exact h.rightValue_toDual_embedRangeAt_mem
+
+theorem toDual_of_fst_eq_snd (h: AreEquivAt lv1 lv2 lb) (req: embedAt T1 T2 .fst lv1 = embedAt T1 T2 .snd lv2)
+  : AreEquivAt lv1 lv2 lb.toDual := by
+  have lm1 := h.rightValue_forall_label_embedRangeAt_mem
+  dsimp [rightValue] at lm1
+  rcases lb <;> dsimp [Label.toDual] at lm1 ⊢
+  · refine .snd ?_ ?_
+    · simp [← req]
+    · simp [← req, embedAt_liftAt_eq]
+  · refine .fst ?_ ?_
+    · simp [req]
+    · simp [req, embedAt_liftAt_eq]
+
+theorem toDual_iff_fst_eq_snd (h: AreEquivAt lv1 lv2 lb)
+  : (AreEquivAt lv1 lv2 lb.toDual) ↔ (embedAt T1 T2 .fst lv1 = embedAt T1 T2 .snd lv2) := by
+  constructor
+  · intro lm1
+    rcases lb <;> dsimp [Label.toDual] at lm1
+    · simp [snd_iff, EmbedRangeAt] at lm1
+      obtain ⟨⟨lv1_1, lm1⟩, lm2⟩ := lm1
+      rewrite [Eq.comm] at lm2 --lm4
+      subst lm2
+      simp [liftAt_embedAt_eq]
+    · simp [snd_iff, EmbedRangeAt] at h
+      obtain ⟨⟨lv1_1, lm1⟩, lm2⟩ := h
+      rewrite [Eq.comm] at lm2
+      subst lm2
+      simp [liftAt_embedAt_eq]
+  · exact h.toDual_of_fst_eq_snd
+
+end AreEquivAt
+
+namespace AreEquiv
+
+variable {T1 T2: Type u1} [HasHUnion T1 T2] {lv1: T1} {lv2: T2}
+
+theorem mk (req: ∀(lb: Label), AreEquivAt lv1 lv2 lb) : AreEquiv lv1 lv2 := req
+
+theorem apply (h: AreEquiv lv1 lv2) (lb: Label) : AreEquivAt lv1 lv2 lb := @h lb
+
+theorem embedAt_fst_eq_snd (h: AreEquiv lv1 lv2) : embedAt T1 T2 .fst lv1 = embedAt T1 T2 .snd lv2 := by
+  have lm1 := h.apply .fst
+  refine lm1.toDual_iff_fst_eq_snd.mp ?_
+  dsimp [Label.toDual]
+  exact h.apply .snd
+
+end AreEquiv
+
+
+
+/-
+theorem embedAt_fst_eq_snd_iff_areEquiv_exists
+  {T1 T2: Type u1} [HasHUnion T1 T2] {lv1: T1} {lv2: T2}
+  : (embedAt T1 T2 .fst lv1 = embedAt T1 T2 .snd lv2) ↔ (∃(rv: R T1 T2), AreEquiv lv1 lv2 rv) := by
+  constructor
+  · intro lm1
+    exists embedAt T1 T2 Label.fst lv1
+    refine .mk ?_ ?_ ?_
+    · intro lb
+      cases lb
+      · exact EmbedRangeAt.mem_self
+      · rw [lm1]
+        exact EmbedRangeAt.mem_self
+    · rw [embedAt_liftAt_eq]
+    · simp only [lm1]
+      rw [embedAt_liftAt_eq]
+  · rintro ⟨rv, lm1, lm2, lm3⟩
+    rewrite [Eq.comm] at lm2 lm3
+    subst lm2
+    subst lm3
+    refine eq_toDual_liftAt_embedAt_of_eq rfl ?_ ?_
+-/
 
 
 def EmbedElemAt [HasHUnion T1 T2] (lb: Label) : Type u2 := Set.Elem (EmbedRangeAt T1 T2 lb: Set (R T1 T2))
@@ -340,7 +562,7 @@ theorem hunionSetUnivAt_mem_of_embedRangeAt_mem {rv: R T1 T2} {lb: Label} (req: 
 theorem embedAt_hunionSetUnivAt_mem {lb: Label} {lv: LeftTypeAt T1 T2 lb} : embedAt T1 T2 lb lv ∈ hunionSetUnivAt T1 T2 := by
   rw [hunionSetUnivAt_mem_iff_embedRangeAt_mem]
   exists lb
-  exact EmbedRangeAt.mem_self _ _
+  exact EmbedRangeAt.mem_self
 
 
 abbrev HUnionElemAt (T1 T2: Type u1) [HasHUnion T1 T2] : Type u2 := Set.Elem (hunionSetUnivAt T1 T2)
@@ -362,6 +584,11 @@ theorem pureAt_val_eq_embedAt {lb: Label} {lv: LeftTypeAt T1 T2 lb}
   : (pureAt T1 T2 lb lv).val = embedAt T1 T2 lb lv := by
   dsimp [pureAt, EmbedElemAt.pureAt, ofEmbedElem]
 
+@[defeq]
+theorem pureAt_eq_embedAt_mk {lb: Label} {lv: LeftTypeAt T1 T2 lb}
+  : pureAt T1 T2 lb lv = (Subtype.mk (embedAt T1 T2 lb lv) (embedAt_hunionSetUnivAt_mem)) :=
+  Subtype.ext pureAt_val_eq_embedAt
+
 def setOfHUnion (s1: Set T1) (s2: Set T2) : Set (HUnionElemAt T1 T2) :=
   (s1.image (pureAt T1 T2 .fst)) ∪ (s2.image (pureAt T1 T2 .snd))
 
@@ -369,6 +596,8 @@ def liftAt (x: HUnionElemAt T1 T2) (lb: Label) (req: x.val ∈ EmbedRangeAt T1 T
   HasHUnion.liftAt T1 T2 x.val lb req
 
 def liftSetAt (x: Set (HUnionElemAt T1 T2)) (lb: Label) : Set (LeftTypeAt T1 T2 lb) := { lv | pureAt T1 T2 lb lv ∈ x }
+
+def ofRightType (x: R T1 T2) (req: x ∈ hunionSetUnivAt T1 T2) : HUnionElemAt T1 T2 := Subtype.mk x req
 
 /-
 def bindAt.{u3, u4}
@@ -411,6 +640,16 @@ theorem hinterSetUnivAt_mem_iff_embedRangeAt_mem {rv: R T1 T2} : (rv ∈ hinterS
     have lm1_2 := lm1 .snd
     exact And.intro lm1_1 lm1_2
 
+theorem hinterSetUnivAt_mem_iff_toDual_embedRangeAt_mem {rv: R T1 T2} : (rv ∈ hinterSetUnivAt T1 T2) ↔ (∀(lb: Label), rv ∈ EmbedRangeAt T1 T2 lb.toDual) := by
+  rewrite [hinterSetUnivAt_mem_iff_embedRangeAt_mem]
+  constructor
+  · intro lm1 lb
+    exact lm1 lb.toDual
+  · intro lm1 lb
+    specialize lm1 lb.toDual
+    simpa [Label.toDual_toDual_eq_self] using lm1
+
+
 open DecidableEmbedRange in
 theorem hinterSetUnivAt_mem_iff_isInEmbedRangeAt [DecidableEmbedRange T1 T2] {rv: R T1 T2}
   : (rv ∈ hinterSetUnivAt T1 T2) ↔ ((isInEmbedRangeAt T1 T2 rv .fst = .true) ∧ (isInEmbedRangeAt T1 T2 rv .snd = .true)) := by
@@ -422,6 +661,82 @@ theorem embedRangeAt_mem_of_hinterSetUnivAt_mem_at {rv: R T1 T2} (req: rv ∈ hi
   cases lb
   · exact req.left
   · exact req.right
+
+theorem hunionSetUnivAt_mem_of_hinterSetUnivAt_mem {rv: R T1 T2} (req: rv ∈ hinterSetUnivAt T1 T2) : rv ∈ hunionSetUnivAt T1 T2 :=
+  embedRangeAt_mem_of_hinterSetUnivAt_mem_at req .fst |> hunionSetUnivAt_mem_of_embedRangeAt_mem
+
+namespace AreEquivAt
+
+theorem fst_of_hinterSetUnivAt_mem {rv: R T1 T2} (req: rv ∈ hinterSetUnivAt T1 T2)
+  : letI aux := embedRangeAt_mem_of_hinterSetUnivAt_mem_at req
+    AreEquivAt (liftAt T1 T2 rv .fst (aux .fst)) (liftAt T1 T2 rv .snd (aux .snd)) .fst := by
+  have lm1 := embedRangeAt_mem_of_hinterSetUnivAt_mem_at req
+  refine .fst ?_ ?_
+  · dsimp [LeftTypeAt]
+    rw [liftAt_embedAt_eq]
+    exact lm1 .snd
+  · dsimp [LeftTypeAt]
+    simp [liftAt_embedAt_eq]
+
+theorem snd_of_hinterSetUnivAt_mem {rv: R T1 T2} (req: rv ∈ hinterSetUnivAt T1 T2)
+  : letI aux := embedRangeAt_mem_of_hinterSetUnivAt_mem_at req
+    AreEquivAt (liftAt T1 T2 rv .fst (aux .fst)) (liftAt T1 T2 rv .snd (aux .snd)) .snd := by
+  have lm1 := embedRangeAt_mem_of_hinterSetUnivAt_mem_at req
+  refine .snd ?_ ?_
+  · dsimp [LeftTypeAt]
+    rw [liftAt_embedAt_eq]
+    exact lm1 .fst
+  · dsimp [LeftTypeAt]
+    simp [liftAt_embedAt_eq]
+
+theorem hinterSetUnivAt_mem_forall_exists {rv: R T1 T2}
+  : (rv ∈ hinterSetUnivAt T1 T2) ↔ (∀(lb: Label), ∃req1, ∃req2, AreEquivAt (liftAt T1 T2 rv .fst req1) (liftAt T1 T2 rv .snd req2) lb) := by
+  constructor
+  · intro lm1 lb
+    have lm2 := embedRangeAt_mem_of_hinterSetUnivAt_mem_at lm1
+    exists lm2 .fst
+    exists lm2 .snd
+    rcases lb
+    · exact fst_of_hinterSetUnivAt_mem lm1
+    · exact snd_of_hinterSetUnivAt_mem lm1
+  · intro lm1
+    rw [hinterSetUnivAt_mem_iff_toDual_embedRangeAt_mem]
+    intro lb
+    specialize lm1 lb
+    rcases lm1 with ⟨lm1, lm2, lm3⟩
+    rcases lb <;> dsimp [Label.toDual]
+    · exact lm2
+    · exact lm1
+
+end AreEquivAt
+
+namespace AreEquiv
+
+theorem of_hinterSetUnivAt_mem {rv: R T1 T2} (req: rv ∈ hinterSetUnivAt T1 T2)
+  : letI aux := embedRangeAt_mem_of_hinterSetUnivAt_mem_at req
+    AreEquiv (liftAt T1 T2 rv .fst (aux .fst)) (liftAt T1 T2 rv .snd (aux .snd)) := by
+  refine .mk ?_
+  intro lb
+  rcases lb
+  · exact AreEquivAt.fst_of_hinterSetUnivAt_mem req
+  · exact AreEquivAt.snd_of_hinterSetUnivAt_mem req
+
+theorem hinterSetUnivAt_mem_iff_exists {rv: R T1 T2}
+  : (rv ∈ hinterSetUnivAt T1 T2) ↔ (∃req1, ∃req2, AreEquiv (liftAt T1 T2 rv .fst req1) (liftAt T1 T2 rv .snd req2)) := by
+  constructor
+  · intro lm1
+    have lm2 := embedRangeAt_mem_of_hinterSetUnivAt_mem_at lm1
+    exists lm2 .fst
+    exists lm2 .snd
+    exact of_hinterSetUnivAt_mem lm1
+  · rintro ⟨lm1, lm2, lm3⟩
+    rw [hinterSetUnivAt_mem_iff_toDual_embedRangeAt_mem]
+    intro lb
+    rcases lb <;> dsimp [Label.toDual]
+    · exact lm2
+    · exact lm1
+
+end AreEquiv
 
 abbrev HInterElemAt (T1 T2: Type u1) [HasHUnion T1 T2] : Type u2 := Set.Elem (hinterSetUnivAt T1 T2)
 
@@ -456,7 +771,8 @@ theorem hdiffSetUnivAt_mem_iff_embedRangAt_mem {rv: R T1 T2} {lb: Label}
 theorem embedRangeAt_mem_of_hdiffSetUnivAt_mem {rv: R T1 T2} {lb: Label} (req: rv ∈ hdiffSetUnivAt T1 T2 lb) : rv ∈ EmbedRangeAt T1 T2 lb :=
   hdiffSetUnivAt_mem_iff_embedRangAt_mem.mp req |>.left
 
-
+theorem hunionSetUnivAt_mem_of_hdiffSetUnivAt_mem {rv: R T1 T2} {lb: Label} : (rv ∈ hdiffSetUnivAt T1 T2 lb) → (rv ∈ hunionSetUnivAt T1 T2) :=
+ hunionSetUnivAt_mem_of_embedRangeAt_mem ∘ embedRangeAt_mem_of_hdiffSetUnivAt_mem
 
 
 abbrev HDiffElemAt (T1 T2: Type u1) [HasHUnion T1 T2] (lb: Label) : Type u2 := Set.Elem (hdiffSetUnivAt T1 T2 lb)
