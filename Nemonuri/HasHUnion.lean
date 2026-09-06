@@ -350,7 +350,6 @@ theorem embedAt_eq_iff_exists_liftAt_eq
   · rintro ⟨lm1, lm2⟩
     exact (embedAt_eq_iff_liftAt_eq lm1).mpr lm2
 
-
 /-
 structure AreEquiv {T1 T2: Type u1} [HasHUnion T1 T2] (lv1: T1) (lv2: T2) (rv: HasHUnion.R T1 T2) : Prop where
   inter (lb: Label) : rv ∈ EmbedRangeAt T1 T2 lb
@@ -464,6 +463,12 @@ theorem embedAt_fst_eq_snd (h: AreEquiv lv1 lv2) : embedAt T1 T2 .fst lv1 = embe
   refine lm1.toDual_iff_fst_eq_snd.mp ?_
   dsimp [Label.toDual]
   exact h.apply .snd
+
+theorem embedAt_eq_toDual {f: (lb: Label) → LeftTypeAt T1 T2 lb} {lb: Label} (h: AreEquiv (f .fst) (f .snd))
+  : embedAt T1 T2 lb (f lb) = embedAt T1 T2 lb.toDual (f lb.toDual) := by
+  rcases lb <;> dsimp [Label.toDual]
+  · exact h.embedAt_fst_eq_snd
+  · exact h.embedAt_fst_eq_snd.symm
 
 end AreEquiv
 
