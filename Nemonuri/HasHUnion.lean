@@ -247,10 +247,20 @@ theorem embedAt_injective_at {T1 T2: Type u1} [HasHUnion T1 T2] (lb: Label) : Fu
 
 def EmbedRangeAt [HasHUnion T1 T2] (lb: Label) : Set (R T1 T2) := Set.range (embedAt T1 T2 lb)
 
+namespace EmbedRangeAt
+
+variable {T1 T2: Type u1} [HasHUnion T1 T2] {lb: Label}
+
 @[simp]
-theorem EmbedRangeAt.mem_self {T1 T2: Type u1} [HasHUnion T1 T2] {lb: Label} {lv: LeftTypeAt T1 T2 lb} : embedAt T1 T2 lb lv ∈ EmbedRangeAt T1 T2 lb := by
+theorem mem_self {lv: LeftTypeAt T1 T2 lb} : embedAt T1 T2 lb lv ∈ EmbedRangeAt T1 T2 lb := by
   dsimp [EmbedRangeAt]
   exact Set.mem_range_self _
+
+theorem exists_embedAt_iff {rv: R T1 T2}
+  : (rv ∈ EmbedRangeAt T1 T2 lb) ↔ (∃(lv: LeftTypeAt T1 T2 lb), embedAt T1 T2 lb lv = rv) := by
+  simp [EmbedRangeAt]
+
+end EmbedRangeAt
 
 abbrev DecidableEmbedRange (T1 T2: Type u1) [HasHUnion T1 T2] : Type u2 := (lb: Label) → (rv: R T1 T2) → (Decidable (rv ∈ EmbedRangeAt T1 T2 lb))
 
