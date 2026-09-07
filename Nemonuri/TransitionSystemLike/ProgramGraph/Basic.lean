@@ -13,6 +13,8 @@ public import Nemonuri.PropositionalLogics.Tactic
 
 @[expose] public section
 
+set_option autoImplicit false
+
 namespace Nemonuri
 
 namespace ProgramGraph
@@ -46,16 +48,20 @@ theorem coe_coe_eq_coe {ec: EC} : ((ec: Eval Var Val): Var → Val) = (ec: Var �
 
 end EvalLike
 
+structure IsStandardType  {Var Val: Type*} (dom : Var → Set Val) (EC: Type*) [EvalLike EC Var Val] : Prop where
+  type_safe (ec: EC) (var: Var) : (ec var) ∈ (dom var)
+  eval_exists (var: Var) (val: Val) (req: val ∈ dom var) : ∃(ec: EC), ec var = val
+
 structure StandardType (EC Var Val: Type*) [EvalLike EC Var Val] where
   dom : Var → Set Val
-  valid (ec: EC) (v: Var) : ((ec: Eval Var Val) v) ∈ (dom v)
+  valid : IsStandardType dom EC
 
 namespace StandardType
 
 variable {EC Var Val: Type*} [EvalLike EC Var Val]
 
 @[ext]
-protected theorem ext {sty1 sty2: StandardType EC Var Val} (req: ∀(var: Var) (val: Val), (val ∈ sty1.dom var) ↔ (val ∈ sty2.dom var)) : sty1 = sty2 := by
+theorem ext {sty1 sty2: StandardType EC Var Val} (req: ∀(var: Var) (val: Val), (val ∈ sty1.dom var) ↔ (val ∈ sty2.dom var)) : sty1 = sty2 := by
   rcases sty1 with ⟨dom1, lm1⟩
   rcases sty2 with ⟨dom2, lm2⟩
   simp at req ⊢
@@ -63,23 +69,27 @@ protected theorem ext {sty1 sty2: StandardType EC Var Val} (req: ∀(var: Var) (
   intro var val
   exact req var val
 
-theorem ext' {sty1 sty2: StandardType EC Var Val} (req: ∀(ec: EC) (var: Var), (ec var ∈ sty1.dom var) ↔ (ec var ∈ sty2.dom var)) : sty1 = sty2 := by
-  rcases sty1 with ⟨dom1, lm1⟩
-  rcases sty2 with ⟨dom2, lm2⟩
-  simp at req ⊢
-/-
+@[ext]
+theorem eval_ext {sty1 sty2: StandardType EC Var Val} (req: ∀(ec: EC) (var: Var), (ec var ∈ sty1.dom var) ↔ (ec var ∈ sty2.dom var)) : sty1 = sty2 := by
   simp only [StandardType.ext_iff]
   intro var val
-  by_cases lm1: (∃(ec: EC), ec var = val)
-  · obtain ⟨ec, lm1⟩ := lm1
-    rewrite [Eq.comm] at lm1
-    subst lm1
-    exact req ec var
-  · simp at lm1
-    replace lm1_1 := fun ec => lm1_1 ec var
-    replace lm1_2 := fun ec => lm1_2 ec var
-  --have lm2 := forall₂_congr req
--/
+  have lm1_1 := sty1.valid.eval_exists var val
+  have lm1_2 := sty2.valid.eval_exists var val
+  constructor
+  · intro lm2
+    obtain ⟨ec, lm3⟩ := lm1_1 lm2
+    rewrite [Eq.comm] at lm3
+    subst lm3
+    specialize req ec var
+    exact req.mp lm2
+  · intro lm2
+    obtain ⟨ec, lm3⟩ := lm1_2 lm2
+    rewrite [Eq.comm] at lm3
+    subst lm3
+    specialize req ec var
+    exact req.mpr lm2
+
+
 
 def IsSafe (sty: StandardType EC Var Val) (v: Var) (D: Set Val) : Prop := D ⊆ sty.dom v
 
