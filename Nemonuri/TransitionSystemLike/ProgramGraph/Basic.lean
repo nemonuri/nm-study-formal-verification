@@ -31,11 +31,20 @@ class EvalLike (EC: Type*) (Var Val: outParam Type*) where
 
 attribute [coe, reducible] EvalLike.coe
 
-instance {EC Var Val: Type*} [EvalLike EC Var Val] : CoeOut EC (Eval Var Val) := ⟨EvalLike.coe⟩
+namespace EvalLike
 
-instance {EC Var Val: Type*} [EvalLike EC Var Val] : FunLike EC Var Val where
+variable {EC Var Val: Type*} [EvalLike EC Var Val]
+
+instance : CoeOut EC (Eval Var Val) := ⟨EvalLike.coe⟩
+
+instance : FunLike EC Var Val where
   coe ec := (ec: Eval Var Val)
   coe_injective := DFunLike.coe_injective.comp EvalLike.coe_injective
+
+@[defeq]
+theorem coe_coe_eq_coe {ec: EC} : ((ec: Eval Var Val): Var → Val) = (ec: Var → Val) := rfl
+
+end EvalLike
 
 structure StandardType (EC Var Val: Type*) [EvalLike EC Var Val] where
   dom : Var → Set Val
@@ -44,6 +53,33 @@ structure StandardType (EC Var Val: Type*) [EvalLike EC Var Val] where
 namespace StandardType
 
 variable {EC Var Val: Type*} [EvalLike EC Var Val]
+
+@[ext]
+protected theorem ext {sty1 sty2: StandardType EC Var Val} (req: ∀(var: Var) (val: Val), (val ∈ sty1.dom var) ↔ (val ∈ sty2.dom var)) : sty1 = sty2 := by
+  rcases sty1 with ⟨dom1, lm1⟩
+  rcases sty2 with ⟨dom2, lm2⟩
+  simp at req ⊢
+  simp only [funext_iff, Set.ext_iff]
+  intro var val
+  exact req var val
+
+theorem ext' {sty1 sty2: StandardType EC Var Val} (req: ∀(ec: EC) (var: Var), (ec var ∈ sty1.dom var) ↔ (ec var ∈ sty2.dom var)) : sty1 = sty2 := by
+  rcases sty1 with ⟨dom1, lm1⟩
+  rcases sty2 with ⟨dom2, lm2⟩
+  simp at req ⊢
+/-
+  simp only [StandardType.ext_iff]
+  intro var val
+  by_cases lm1: (∃(ec: EC), ec var = val)
+  · obtain ⟨ec, lm1⟩ := lm1
+    rewrite [Eq.comm] at lm1
+    subst lm1
+    exact req ec var
+  · simp at lm1
+    replace lm1_1 := fun ec => lm1_1 ec var
+    replace lm1_2 := fun ec => lm1_2 ec var
+  --have lm2 := forall₂_congr req
+-/
 
 def IsSafe (sty: StandardType EC Var Val) (v: Var) (D: Set Val) : Prop := D ⊆ sty.dom v
 

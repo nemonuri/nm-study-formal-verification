@@ -313,6 +313,16 @@ structure Interleaving
   extends toStruct: InterleavingStruct EC1 EC2 Var1 Var2 Val1 Val2 where
   valid: IsInterleaving toStruct
 
+def leftStandardTypeAt (sty1: StandardType EC1 Var1 Val1) (sty2: StandardType EC2 Var2 Val2) (lb: Label)
+  : StandardType (LeftTypeAt EC1 EC2 lb) (LeftTypeAt Var1 Var2 lb) (LeftTypeAt Val1 Val2 lb) :=
+  lb.casesOn sty1 sty2
+
+def minimalAt
+  (EC1 EC2: Type uec_l) (Var1 Var2: Type uvar_l) (Val1 Val2: Type uval_l) [EvalLike EC1 Var1 Val1] [EvalLike EC2 Var2 Val2] [HasInterleaving EC1 EC2 Var1 Var2 Val1 Val2]
+  (lb: Label) : StandardType (LeftTypeAt EC1 EC2 lb) (LeftTypeAt Var1 Var2 lb) (LeftTypeAt Val1 Val2 lb) where
+  dom (varL: LeftTypeAt Var1 Var2 lb) := { valL: LeftTypeAt Val1 Val2 lb | ∃ec: LeftTypeAt EC1 EC2 lb, ec varL = valL }
+  valid ec _ := by simp; exists ec
+
 
 def SetOfInterleavingValueDomainAt (sty1: StandardType EC1 Var1 Val1) (sty2: StandardType EC2 Var2 Val2) (var: HUnionElemAt Var1 Var2) : Set (HUnionElemAt Val1 Val2) :=
   let s1 : Set Val1 := var.recLiftDiffAt .fst (fun x => sty1.dom x.liftAt) (fun _ => ∅)
@@ -323,15 +333,96 @@ namespace IsInterleaving
 
 variable {s: InterleavingStruct EC1 EC2 Var1 Var2 Val1 Val2}
 
-/-
-theorem projectAt_eta_iff (h: IsInterleaving s) (ecr: hi.R) (x : HUnionElemAt Var1 Var2)
-  : (hi.interleaving.op (s.projectAt .fst ecr) (s.projectAt .snd ecr)) x = ecr x := by
--/
-  --simp only [← EvalLike.coe_injective.eq_iff, ← DFunLike.coe_injective.eq_iff, funext_iff]
+theorem setOfInterleavingValueDomainAt_mem_iff
+  {sty1: StandardType EC1 Var1 Val1} {sty2: StandardType EC2 Var2 Val2} {varR: HUnionElemAt Var1 Var2} {valR: HUnionElemAt Val1 Val2}
+  : (valR ∈ SetOfInterleavingValueDomainAt sty1 sty2 varR) ↔ (∃(lb: Label), ∃(req: AreLiftableAt Var1 Var2 Val1 Val2 varR.val valR.val lb), req.snd.lift ∈ ((leftStandardTypeAt sty1 sty2 lb).dom req.fst.lift)) := by
+  constructor
+  · cases varR using HUnionElemAt.recDiffInter <;> rename_i varR
+    · have lm1 := varR.property |> hdiffSetUnivAt_mem_iff_embedRangAt_mem.mp
+      simp [SetOfInterleavingValueDomainAt, HUnionElemAt.setOfHUnion, HUnionElemAt.recLiftDiffAt,
+            DecidableEmbedRange.isInEmbedRangeAt_eq_true_iff, HDiffElemAt.toUnion, lm1]
+      intro valL lm2 lm3
+      dsimp [EmbedElemAt.liftAt] at lm2
+      rewrite [Subtype.ext_iff, HUnionElemAt.pureAt_val_eq_embedAt] at lm3
+      exists Label.fst
+      refine ⟨?_, ?_⟩
+      · refine .mk ?_ ?_
+        · dsimp [IsLiftableAt]
+          exact lm1.left
+        · dsimp [IsLiftableAt]
+          simp [← lm3]
+      · simp [IsLiftableAt.lift, ← lm3, embedAt_liftAt_eq, leftStandardTypeAt]
+        exact lm2
+    · have lm1 := varR.property |> hdiffSetUnivAt_mem_iff_embedRangAt_mem.mp
+      simp [SetOfInterleavingValueDomainAt, HUnionElemAt.setOfHUnion, HUnionElemAt.recLiftDiffAt,
+            DecidableEmbedRange.isInEmbedRangeAt_eq_true_iff, HDiffElemAt.toUnion, lm1]
+      intro valL lm2 lm3
+      dsimp [EmbedElemAt.liftAt] at lm2
+      rewrite [Subtype.ext_iff, HUnionElemAt.pureAt_val_eq_embedAt] at lm3
+      exists Label.snd
+      refine ⟨?_, ?_⟩
+      · refine .mk ?_ ?_
+        · dsimp [IsLiftableAt]
+          exact lm1.left
+        · dsimp [IsLiftableAt]
+          simp [← lm3]
+      · simp [IsLiftableAt.lift, ← lm3, embedAt_liftAt_eq, leftStandardTypeAt]
+        exact lm2
+    · have lm1 := varR.property |> hinterSetUnivAt_mem_iff_embedRangeAt_mem.mp
+      simp [SetOfInterleavingValueDomainAt, HUnionElemAt.setOfHUnion, HUnionElemAt.recLiftDiffAt,
+            DecidableEmbedRange.isInEmbedRangeAt_eq_true_iff, HInterElemAt.toUnion, lm1]
+      intro lm2
+      rcases lm2 with lm2 | lm2
+      · dsimp [EmbedElemAt.liftAt] at lm2
+        obtain ⟨valL, lm2, lm3⟩ := lm2
+        rewrite [Subtype.ext_iff, HUnionElemAt.pureAt_val_eq_embedAt] at lm3
+        exists Label.fst
+        refine ⟨.mk ?_ ?_, ?_⟩
+        · dsimp [IsLiftableAt]
+          exact lm1 .fst
+        · dsimp [IsLiftableAt]
+          simp [← lm3]
+        · simp [IsLiftableAt.lift, ← lm3, embedAt_liftAt_eq, leftStandardTypeAt]
+          exact lm2
+      · dsimp [EmbedElemAt.liftAt] at lm2
+        obtain ⟨valL, lm2, lm3⟩ := lm2
+        rewrite [Subtype.ext_iff, HUnionElemAt.pureAt_val_eq_embedAt] at lm3
+        exists Label.snd
+        refine ⟨.mk ?_ ?_, ?_⟩
+        · dsimp [IsLiftableAt]
+          exact lm1 .snd
+        · dsimp [IsLiftableAt]
+          simp [← lm3]
+        · simp [IsLiftableAt.lift, ← lm3, embedAt_liftAt_eq, leftStandardTypeAt]
+          exact lm2
+  · rintro ⟨lb, lm1, lm3⟩
+    rcases lm1 with ⟨lm1, lm2⟩
+    dsimp [IsLiftableAt] at lm1 lm2
+    dsimp [IsLiftableAt.lift] at lm3
+    simp [SetOfInterleavingValueDomainAt, HUnionElemAt.setOfHUnion, HUnionElemAt.recLiftDiffAt,
+          DecidableEmbedRange.isInEmbedRangeAt_eq_true_iff]
+    rcases lb
+    · simp [lm1]
+      refine Or.inl ?_
+      exists (liftAt Val1 Val2 (valR.val) Label.fst lm2)
+      refine ⟨?_, ?_⟩
+      · dsimp [EmbedElemAt.liftAt]
+        dsimp [leftStandardTypeAt] at lm3
+        exact lm3
+      · simp [Subtype.ext_iff, HUnionElemAt.pureAt_val_eq_embedAt, liftAt_embedAt_eq]
+    · simp [lm1]
+      refine Or.inr ?_
+      exists (liftAt Val1 Val2 (valR.val) Label.snd lm2)
+      refine ⟨?_, ?_⟩
+      · dsimp [EmbedElemAt.liftAt]
+        dsimp [leftStandardTypeAt] at lm3
+        exact lm3
+      · simp [Subtype.ext_iff, HUnionElemAt.pureAt_val_eq_embedAt, liftAt_embedAt_eq]
+
 
 open HasInterleaving in
 theorem projectAt_eq_self_of_diff_mem
-  (h: IsInterleaving s) {ecR: hi.R} {varR: HasHUnion.R Var1 Var2} {lb: Label} (req: varR ∈ hdiffSetUnivAt Var1 Var2 lb)
+  (h: IsInterleaving s) (ecR: hi.R) {varR: HasHUnion.R Var1 Var2} {lb: Label} (req: varR ∈ hdiffSetUnivAt Var1 Var2 lb)
   : embedAt _ _ lb ((s.projectAt lb ecR) (liftAt _ _ varR lb (embedRangeAt_mem_of_hdiffSetUnivAt_mem req))) = (ecR (HUnionElemAt.ofRightType varR (hunionSetUnivAt_mem_of_hdiffSetUnivAt_mem req))).val := by
   let il := interleavingAt EC1 EC2
   have lm1 : il.op = merge := rfl
@@ -343,60 +434,12 @@ theorem projectAt_eq_self_of_diff_mem
     rewrite [lm1, h.projectAt_eta]
     dsimp [HDiffElemAt.toUnion, HUnionElemAt.ofRightType] )
 
-/-
-open HasInterleaving in
-theorem merge_eq_iff_projectAt_eq (h: IsInterleaving s) {ec1: EC1} {ec2: EC2} {ecR: hi.R}
-  : (hi.merge ec1 ec2 = ecR) ↔ ((s.projectAt .fst ecR = ec1) ∧ (s.projectAt .snd ecR = ec2)) := by
-  constructor
-  · intro lm1
-    have lm2 := h.projectAt_eta ecR
-    simp only [← EvalLike.coe_injective.eq_iff, ← DFunLike.coe_injective.eq_iff, funext_iff] at ⊢ lm1 lm2
-    let il := HasInterleaving.interleavingAt EC1 EC2
-    rcases il.valid with ⟨⟨⟨lm3, lm4⟩, lm5⟩, lm6, lm7⟩
-    clear lm6 lm7
-    have lm6 : il.op = merge := merge_eq_interleaving_op.symm
-    have lm7 : il.embedAt = embedAt EC1 EC2 := embedAt_eq_interleaving_embedAt.symm
-    let huVar : HasHUnion Var1 Var2 := inferInstance
-    refine ⟨?_, ?_⟩
-    · intro var1
-      specialize lm1 (HUnionElemAt.pureAt _ _ .fst var1)
-      specialize lm2 (HUnionElemAt.pureAt _ _ .fst var1)
-      dsimp [LeftTypeAt] at lm5
-      replace lm5 := fun ec1 => lm5 .fst ec1 var1
-      dsimp at lm5
-      simp only [lm7] at lm5
-      cases var1 using (huVar.recDiffInterAt .fst) <;> rename_i var1
-      · replace lm3 := fun ec1 ec2 => lm3 ec1 ec2 .fst var1
-        dsimp [leftEvalAt] at lm3
-        rewrite [lm6] at lm3
-        have lm8 := lm3 (s.projectAt .fst ecR) (s.projectAt .snd ecR)
--/
-/-
-      replace lm3 := lm3 ec1 (il.emptyAt .snd) .fst
-      replace lm4 := fun ec1 => lm4 ec1 (il.emptyAt .snd)
-      dsimp [leftEvalAt] at lm3
-      simp only [lm7] at lm5
-      simp only [lm6] at lm3 lm4
-      rewrite [← embedAt_fst_eq_merge] at lm3
-      cases var1 using (huVar.recDiffInterAt .fst) <;> rename_i var1
-      · specialize lm3 var1
--/
-      --simp [HUnionElemAt.pureAt_eq_embedAt_mk] at lm1 lm2
-/-
-    rewrite [Eq.comm] at lm1
-    subst lm1
-    refine ⟨?_, ?_⟩
-    ·
--/
-
-
 
 open HasInterleaving in
 theorem projectAt_eq_exists_of_apply_eq (h: IsInterleaving s) {ecR: hi.R} {varR: HUnionElemAt Var1 Var2} {valR: HUnionElemAt Val1 Val2} (req: ecR varR = valR)
-  : (∃(lb: Label), ∃(req1: varR.val ∈ EmbedRangeAt Var1 Var2 lb), ∃(req2: valR.val ∈ EmbedRangeAt Val1 Val2 lb), (s.projectAt lb ecR) (liftAt Var1 Var2 varR.val lb req1) = (liftAt Val1 Val2 valR.val lb req2))
+  : (∃(lb: Label), ∃(req: AreLiftableAt Var1 Var2 Val1 Val2 varR.val valR.val lb), (s.projectAt lb ecR) (req.fst.lift) = (req.snd.lift))
   := by
   let il := HasInterleaving.interleavingAt EC1 EC2
---  intro lm1
   have lm2 := h.projectAt_eta ecR
   replace lm2 := lm2.symm ▸ req
   cases varR using HUnionElemAt.recDiffInter <;> rename_i varL
@@ -404,16 +447,16 @@ theorem projectAt_eq_exists_of_apply_eq (h: IsInterleaving s) {ecR: hi.R} {varR:
     have lm3 := il.valid.interleave.diff (s.projectAt .fst ecR) (s.projectAt .snd ecR) .fst varL
     rewrite [← merge_eq_interleaving_op, (h.projectAt_eta ecR)] at lm3
     dsimp [leftEvalAt_fst] at lm3
-    refine ⟨?_, ?_, ?_⟩
+    refine ⟨⟨?_, ?_⟩, ?_⟩
     · dsimp [HDiffElemAt.toUnion]
       exact embedRangeAt_mem_of_hdiffSetUnivAt_mem varL.property
-    · simp [EmbedRangeAt]
+    · simp [IsLiftableAt, EmbedRangeAt]
       exists ((s.projectAt Label.fst ecR) varL.lift)
       rewrite [Eq.comm] at req
       subst req
       exact lm3
     · rw [← (embedAt_injective_at .fst).eq_iff]
-      simp [liftAt_embedAt_eq]
+      simp [IsLiftableAt.lift, liftAt_embedAt_eq]
       rewrite [Eq.comm] at req
       subst req
       refine Eq.trans ?_ lm3
@@ -424,16 +467,16 @@ theorem projectAt_eq_exists_of_apply_eq (h: IsInterleaving s) {ecR: hi.R} {varR:
     have lm3 := il.valid.interleave.diff (s.projectAt .fst ecR) (s.projectAt .snd ecR) .snd varL
     rewrite [← merge_eq_interleaving_op, (h.projectAt_eta ecR)] at lm3
     dsimp [leftEvalAt_fst] at lm3
-    refine ⟨?_, ?_, ?_⟩
+    refine ⟨⟨?_, ?_⟩, ?_⟩
     · dsimp [HDiffElemAt.toUnion]
       exact embedRangeAt_mem_of_hdiffSetUnivAt_mem varL.property
-    · simp [EmbedRangeAt]
+    · simp [IsLiftableAt, EmbedRangeAt]
       exists ((s.projectAt Label.snd ecR) varL.lift)
       rewrite [Eq.comm] at req
       subst req
       exact lm3
     · rw [← (embedAt_injective_at .snd).eq_iff]
-      simp [liftAt_embedAt_eq]
+      simp [IsLiftableAt.lift, liftAt_embedAt_eq]
       rewrite [Eq.comm] at req
       subst req
       refine Eq.trans ?_ lm3
@@ -445,15 +488,15 @@ theorem projectAt_eq_exists_of_apply_eq (h: IsInterleaving s) {ecR: hi.R} {varR:
     obtain ⟨lb, lm3⟩ := lm3
     exists lb
     have lm4 := hinterSetUnivAt_mem_iff_embedRangeAt_mem.mp varL.property lb
-    refine ⟨?_, ?_, ?_⟩
+    refine ⟨⟨?_, ?_⟩, ?_⟩
     · dsimp [HInterElemAt.toUnion]
       exact lm4
-    · simp [EmbedRangeAt]
+    · simp [IsLiftableAt, EmbedRangeAt]
       rewrite [Eq.comm] at req
       subst req
       exact Exists.intro _ lm3
     · rw [← (embedAt_injective_at lb).eq_iff]
-      simp [liftAt_embedAt_eq]
+      simp [IsLiftableAt.lift, liftAt_embedAt_eq]
       rewrite [Eq.comm] at req
       subst req
       refine Eq.trans ?_ lm3
@@ -463,244 +506,146 @@ theorem projectAt_eq_exists_of_apply_eq (h: IsInterleaving s) {ecR: hi.R} {varR:
       · dsimp [leftEvalAt_fst]
       · dsimp [leftEvalAt_snd]
 
-/-
-theorem projectAt_apply_inter_mem_of_inter_mem
-  (h: IsInterleaving s) {ecR: hi.R} {varR: HasHUnion.R Var1 Var2} (req: varR ∈ hinterSetUnivAt Var1 Var2) {lb: Label}
-  : embedAt Val1 Val2 lb ((s.projectAt lb ecR) (liftAt Var1 Var2 varR lb (embedRangeAt_mem_of_hinterSetUnivAt_mem_at req lb))) ∈ hinterSetUnivAt Val1 Val2 := by
-  rw [hinterSetUnivAt_mem_iff_embedRangeAt_mem]
-  intro lb2
-  by_cases lm1: lb = lb2
-  · subst lm1
-    exact EmbedRangeAt.mem_self
-  · simp [Label.ne_iff_eq_toDual_symm] at lm1
-    subst lm1
-    rw [EmbedRangeAt.exists_embedAt_iff]
-    have lm2 := embedRangeAt_mem_of_hinterSetUnivAt_mem_at req lb.toDual
-    let varLD := (s.projectAt lb.toDual ecR) (liftAt _ _ varR lb.toDual lm2)
-    exists varLD
-    subst varLD
--/
-
-/-
-theorem apply_inter_mem_of_inter_mem
-  (h: IsInterleaving s) {ecR: hi.R} {varR: HasHUnion.R Var1 Var2} (req: varR ∈ hinterSetUnivAt Var1 Var2)
-  : (ecR (HUnionElemAt.ofRightType varR (hunionSetUnivAt_mem_of_hinterSetUnivAt_mem req))).val ∈ hinterSetUnivAt Val1 Val2 := by
-  dsimp [HUnionElemAt.ofRightType]
-  rw [hinterSetUnivAt_mem_iff_embedRangeAt_mem]
-  intro lb1
-  let il := HasInterleaving.interleavingAt EC1 EC2
-  obtain ⟨lb2, lm2⟩ := il.valid.interleave.inter (s.projectAt .fst ecR) (s.projectAt .snd ecR) ⟨varR, req⟩
-  rewrite [← HasInterleaving.merge_eq_interleaving_op, h.projectAt_eta] at lm2
-  dsimp [HInterElemAt.toUnion] at lm2
-  by_cases lm3: lb1 = lb2
-  · subst lm3
-    rw [← lm2]
-    simp only [EmbedRangeAt, Set.mem_range, exists_apply_eq_apply]
-  · simp [Label.ne_iff_eq_toDual] at lm3
-    subst lm3
-    simp [EmbedRangeAt]
-    have lm4 := il.valid.embed_eq
-    have lm5 := hinterSetUnivAt_mem_iff_toDual_embedRangeAt_mem.mp req lb2
-    simp [EmbedRangeAt] at lm5
-    obtain ⟨varLD, lm5⟩ := lm5
-    have lm6 := lm4 lb2.toDual (s.projectAt lb2.toDual ecR) varLD
-    rewrite [← HasInterleaving.embedAt_eq_interleaving_embedAt] at lm6
-    exists ((s.projectAt lb2.toDual ecR) varLD)
--/
-/-
-  have lm4 := req
-  revert req
-  simp [hinterSetUnivAt_mem_iff_embedRangeAt_mem, EmbedRangeAt]
-  intro req lb
-  obtain ⟨varL, lm1⟩ := req lb
-  obtain ⟨varLD, lm1_d⟩ := req lb.toDual
-  let (eq := lm2) valR : HasHUnion.R Val1 Val2 := ecR (HUnionElemAt.pureAt _ _ lb varL)
-  let (eq := lm2_d) valRD : HasHUnion.R Val1 Val2 := ecR (HUnionElemAt.pureAt _ _ lb.toDual varLD)
-  simp [HUnionElemAt.pureAt_eq_embedAt_mk] at lm2 lm2_d
--/
-
-
-  --let () valRD : HasHUnion.R Val1 Val2 := ecR (HUnionElemAt.pureAt _ _ lb.toDual varLD)
-  --let valL : LeftTypeAt Val1 Val2 lb := ecR (HUni)
-  --have lm2 := req lb
-
-  --rewrite [hinterSetUnivAt_mem_iff_embedRangeAt_mem] at req
-
-/-
 open HasInterleaving in
-theorem projectAt_fst_eq_snd_of_inter_mem
-  (h: IsInterleaving s) {ecR: hi.R} {varR: HasHUnion.R Var1 Var2} (req: varR ∈ hinterSetUnivAt Var1 Var2)
-  : embedAt Val1 Val2 .fst ((s.projectAt .fst ecR) (liftAt Var1 Var2 varR .fst (embedRangeAt_mem_of_hinterSetUnivAt_mem_at req .fst))) =
-    embedAt Val1 Val2 .snd ((s.projectAt .snd ecR) (liftAt Var1 Var2 varR .snd (embedRangeAt_mem_of_hinterSetUnivAt_mem_at req .snd)))
+theorem projectAt_eq_exists_of_inter_mem (h: IsInterleaving s) (ecR: hi.R) {varR: R Var1 Var2} (req: varR ∈ hinterSetUnivAt Var1 Var2)
+  : ∃(lb: Label), embedAt Val1 Val2 lb ((s.projectAt lb ecR) (liftAt Var1 Var2 varR lb (embedRangeAt_mem_of_hinterSetUnivAt_mem_at req lb))) =
+    (ecR (.ofRightType varR (hunionSetUnivAt_mem_of_hinterSetUnivAt_mem req))).val
   := by
-  rw [HasHUnion.embedAt_fst_eq_snd_iff_areEquiv_exists]
-  let valR := ecR (HUnionElemAt.ofRightType varR (hunionSetUnivAt_mem_of_hinterSetUnivAt_mem req))
-  exists valR
-  refine .mk ?_ ?_ ?_
-  · have lm1 := valR.property
-    rewrite [hunionSetUnivAt_mem_iff_embedRangeAt_mem] at lm1
-    have lm4 := hinterSetUnivAt_mem_iff_embedRangeAt_mem.mp req
-    subst valR
-    dsimp [HUnionElemAt.ofRightType] at ⊢ lm1
-    obtain ⟨lb1, lm1⟩ := lm1
-    intro lb2
-    by_cases lm2: lb1 = lb2
-    · subst lm2
-      exact lm1
-    · simp [Label.ne_iff_eq_toDual] at lm2
-      replace lm2 := Label.eq_toDual_symm lm2
-      subst lm2
-      have lm5 := lm4 lb1.toDual
-      simp [EmbedRangeAt] at lm1 ⊢
-      obtain ⟨valL, lm1⟩ := lm1
-      let valLDual : LeftTypeAt Val1 Val2 lb1.toDual := liftAt Val1 Val2 (embedAt _ _ lb1 valL) lb1.toDual
-      --simp [EmbedRangeAt] at lm1 ⊢
--/
-/-
-      obtain ⟨valL, lm1⟩ := lm1
-      have lm3 := HasInterleaving.liftAt_apply_fst_eq_snd_of_inter_mem_at ecR req
-      simp only [← lm1]
-      let sdfsdf : LeftTypeAt Val1 Val2 lb2 := liftAt Val1 Val2 (embedAt _ _ lb1 valL) lb2
--/
-/-
-      cases lb1 <;> cases lb2 <;> simp at lm2
-      · simp only [Eq.comm]
-        simp only [HasHUnion.embedAt_fst_eq_snd_iff_areEquiv_exists]
-        dsimp [LeftTypeAt] at ⊢ valL
--/
-      --simp [HUnionElemAt.pureAt_eq_embedAt_mk, Subtype.ext_iff] at lm3
-/-
-      have lm3_1 := lm3
-      conv at lm3_1 =>
-        lhs
-        simp [HUnionElemAt.pureAt_eq_embedAt_mk, liftAt_embedAt_eq]
-      have lm3_2 := lm3
-      conv at lm3_2 =>
-        rhs
-        simp [HUnionElemAt.pureAt_eq_embedAt_mk, liftAt_embedAt_eq]
-      cases lb1 <;> cases lb2 <;> simp at lm2
-      · simp [EmbedRangeAt] at lm1 ⊢
-        obtain ⟨valL, lm1⟩ := lm1
-        let varLDual : Val2 := (s.projectAt .snd ecR) (liftAt Var1 Var2 varR .snd (lm4 .snd))
-        exists varLDual
-        subst varLDual
-        rw [← lm1]
-        symm
-        rw [HasHUnion.embedAt_fst_eq_snd_iff_areEquiv_exists]
--/
-        --simp only [← lm1]
-        --simp only [Eq.comm]
+  let il := HasInterleaving.interleavingAt EC1 EC2
+  have lm1 := il.valid.interleave.inter (s.projectAt .fst ecR) (s.projectAt .snd ecR) ⟨varR, req⟩
+  obtain ⟨lb, lm1⟩ := lm1
+  rewrite [← merge_eq_interleaving_op, (h.projectAt_eta ecR), s.leftEvalAt_eq_projectAt] at lm1
+  dsimp [HInterElemAt.liftAt, HInterElemAt.toUnion] at lm1
+  dsimp [HUnionElemAt.ofRightType]
+  exists lb
 
 
-        --exists (liftAt Var1 Var2 varR Label.snd (lm4 .snd))
+
 /-
-        conv at lm3 =>
-          rw [Subtype.ext_iff]
-          lhs
-          simp [HUnionElemAt.pureAt_eq_embedAt_mk, liftAt_embedAt_eq]
+def leftStandardTypeAt (sty1: StandardType EC1 Var1 Val1) (sty2: StandardType EC2 Var2 Val2) (lb: Label)
+  : StandardType (LeftTypeAt EC1 EC2 lb) (LeftTypeAt Var1 Var2 lb) (LeftTypeAt Val1 Val2 lb) :=
+  lb.casesOn sty1 sty2
 -/
 
 
 
 
-        --have lm4 := liftAlt_dom_congr lm1 EmbedRangeAt.mem_self
-        --rewrite [← liftAtAlt_injective.eq_iff] at lm4
-        --simp [← liftAt_eq_liftAtAlt, embedAt_liftAt_eq] at lm4
-        --rewrite []
-    --have lm2 := HasInterleaving.liftAt_apply_fst_eq_snd_of_inter_mem_at ecR req
-    --dsimp [HUnionElemAt.pureAt_eq_embedAt_mk] at lm2
-
-    --simp only [liftAt_embedAt_eq] at lm2
-    --subst valR
-    --have lm1 := HasInterleaving.liftAt_apply_fst_eq_snd_of_inter_mem_at ecR req
-  --have lm1 := HasInterleaving.liftAt_apply_fst_eq_snd_of_inter_mem_at ecR req
-/-
-  simp [HUnionElemAt.pureAt_eq_embedAt_mk] at lm1
-  let il := interleavingAt EC1 EC2
-  have lm2 : il.op = merge := merge_eq_interleaving_op.symm
-  have lm3 : il.embedAt = embedAt EC1 EC2 := embedAt_eq_interleaving_embedAt.symm
--/
-  --have lm1 := req
-/-
-  revert req
-  simp only [hinterSetUnivAt_mem_iff_embedRangeAt_mem, EmbedRangeAt, Set.mem_range]
-  intro req
-  obtain ⟨varL1, lm1_1⟩ := req .fst
-  obtain ⟨varL2, lm1_2⟩ := req .snd
-  conv =>
-    conv => lhs; arg 4; arg 2; simp only [← lm1_1]; rw [embedAt_liftAt_eq]
-    conv => rhs; arg 4; arg 2; simp only [← lm1_2]; rw [embedAt_liftAt_eq]
-  let il := interleavingAt EC1 EC2
-  have lm2 : il.op = merge := merge_eq_interleaving_op.symm
-  have lm5 : il.embedAt = embedAt EC1 EC2 := embedAt_eq_interleaving_embedAt.symm
-  obtain ⟨lb, lm3⟩ := il.valid.interleave.inter (s.projectAt .fst ecR) (s.projectAt .snd ecR) ⟨varR, lm1⟩
-  rewrite [lm2, h.projectAt_eta] at lm3
-  have lm4_1 := il.valid.embed_eq .fst (s.projectAt .fst ecR) varL1
-  have lm4_2 := il.valid.embed_eq .snd (s.projectAt .snd ecR) varL2
-  rewrite [lm5] at lm4_1 lm4_2
-  dsimp [HUnionElemAt.pureAt, HUnionElemAt.ofEmbedElem, EmbedElemAt.pureAt] at lm4_1 lm4_2
-  conv at lm4_1 => rhs; arg 1; arg 2; arg 1; simp only [lm1_1, ← lm1_2]
-  conv at lm4_2 => rhs; arg 1; arg 2; arg 1; simp only [lm1_2, ← lm1_1]
-  have lm6_1 := liftAlt_dom_congr lm1_1 (EmbedRangeAt.mem_self)
-  have lm6_2 := liftAlt_dom_congr lm1_2 (EmbedRangeAt.mem_self)
-  rewrite [← liftAtAlt_injective.eq_iff] at lm6_1 lm6_2
-  dsimp [← liftAt_eq_liftAtAlt] at lm6_1 lm6_2
-  rewrite [embedAt_liftAt_eq] at  lm6_1
-  have lm8 := HasInterleaving.liftAt_apply_fst_eq_snd_of_inter_mem_at ecR lm1
-  cases lb
-  · dsimp [leftEvalAt_fst] at lm3
-    simp only [← lm1_1] at lm3
-    dsimp [HInterElemAt.liftAt, HInterElemAt.toUnion] at lm3
-    rewrite [embedAt_liftAt_eq] at lm3
-    have lm7 := lm3.symm.trans lm4_1
--/
-
-
-  --obtain ⟨var2, lm2_2⟩ := lm1 .snd
-  --have lm2 := h.projectAt_eta ecR
-
-/-
-theorem eq_iff_of_inter_mem
-  (h: IsInterleaving s) {ecR: hi.R} {varR: HasHUnion.R Var1 Var2} {valR: HasHUnion.R Val1 Val2} (req: varR ∈ hinterSetUnivAt Var1 Var2)
-  : ((ecR (HUnionElemAt.ofRightType varR (hunionSetUnivAt_mem_of_hinterSetUnivAt_mem req))).val = valR) ↔
-    (∃(lb: Label), embedAt Val1 Val2 lb ((s.projectAt lb ecR) (liftAt Var1 Var2 varR lb (embedRangeAt_mem_of_hinterSetUnivAt_mem_at req lb))) = valR)
-  := by
--/
-
-
-/-
 def interleave (h: IsInterleaving s) (sty1: StandardType EC1 Var1 Val1) (sty2: StandardType EC2 Var2 Val2) : StandardType (HasInterleaving.R EC1 EC2 Var1 Var2 Val1 Val2) (HUnionElemAt Var1 Var2) (HUnionElemAt Val1 Val2) where
   dom := SetOfInterleavingValueDomainAt sty1 sty2
-  valid ecr var := by
+  valid ecR varR := by
     have lm1 := sty1.valid
     have lm2 := sty2.valid
     let il := HasInterleaving.interleavingAt EC1 EC2
-    rcases il with ⟨il, lm3⟩
-    let ec1 := (s.projectAt .fst ecr)
-    let ec2 := (s.projectAt .snd ecr)
+    simp [setOfInterleavingValueDomainAt_mem_iff]
+    let ec1 := (s.projectAt .fst ecR)
+    let ec2 := (s.projectAt .snd ecR)
     dsimp at ec1 ec2
     specialize lm1 ec1
     specialize lm2 ec2
-    cases var using HUnionElemAt.recDiffInter <;> rename_i x
-    · let x1 := x.lift
-      dsimp [LeftTypeAt] at x1
-      have lm4 := x.property
-      rewrite [hdiffSetUnivAt_mem_iff_embedRangAt_mem] at lm4
-      simp [SetOfInterleavingValueDomainAt, HUnionElemAt.setOfHUnion]
-      refine Or.inl ?_
-      exists (ec1 x1)
-      refine ⟨?_, ?_⟩
-      · dsimp [HUnionElemAt.recLiftDiffAt, HDiffElemAt.toUnion]
-        simp [DecidableEmbedRange.isInEmbedRangeAt_eq_true_iff, lm4]
-        specialize lm1 x1
-        subst x1
-        exact lm1
-      · rw [Subtype.ext_iff, HUnionElemAt.pureAt_val_eq_embedAt]
-        dsimp [HDiffElemAt.toUnion]
-        subst x1
+    cases varR using HUnionElemAt.recDiffInter <;> rename_i varR
+    · have lm3 := varR.property |> hdiffSetUnivAt_mem_iff_embedRangAt_mem.mp
+      have lm4 := h.projectAt_eq_self_of_diff_mem varR.property (ecR := ecR)
+      dsimp [HUnionElemAt.ofRightType] at lm4
+      exists .fst
+      refine ⟨.mk ?_ ?_, ?_⟩
+      · dsimp [IsLiftableAt, HDiffElemAt.toUnion]
+        exact lm3.left
+      · dsimp [IsLiftableAt, HDiffElemAt.toUnion]
+        rw [EmbedRangeAt.exists_embedAt_iff]
+        exact Exists.intro _ lm4
+      · obtain ⟨varR, lm5⟩ := varR
+        simp at lm4
+        simp [leftStandardTypeAt, IsLiftableAt.lift, HDiffElemAt.toUnion, EvalLike.coe_coe_eq_coe, ← lm4, embedAt_liftAt_eq]
         subst ec1
-        exact h.projectAt_eq_self_of_diff_mem x.property
+        exact lm1 _
+    · have lm3 := varR.property |> hdiffSetUnivAt_mem_iff_embedRangAt_mem.mp
+      have lm4 := h.projectAt_eq_self_of_diff_mem varR.property (ecR := ecR)
+      dsimp [HUnionElemAt.ofRightType] at lm4
+      exists .snd
+      refine ⟨.mk ?_ ?_, ?_⟩
+      · dsimp [IsLiftableAt, HDiffElemAt.toUnion]
+        exact lm3.left
+      · dsimp [IsLiftableAt, HDiffElemAt.toUnion]
+        rw [EmbedRangeAt.exists_embedAt_iff]
+        exact Exists.intro _ lm4
+      · obtain ⟨varR, lm5⟩ := varR
+        simp at lm4
+        simp [leftStandardTypeAt, IsLiftableAt.lift, HDiffElemAt.toUnion, EvalLike.coe_coe_eq_coe, ← lm4, embedAt_liftAt_eq]
+        subst ec2
+        exact lm2 _
+    · have lm3 := varR.property |> hinterSetUnivAt_mem_iff_embedRangeAt_mem.mp
+      have lm4 := h.projectAt_eq_exists_of_inter_mem varR.property (ecR := ecR)
+      dsimp [HUnionElemAt.ofRightType] at lm4
+      rcases lm4 with ⟨lb, lm4⟩
+      exists lb
+      refine ⟨.mk ?_ ?_, ?_⟩
+      · dsimp [IsLiftableAt, HInterElemAt.toUnion]
+        exact lm3 lb
+      · dsimp [IsLiftableAt, HInterElemAt.toUnion, EvalLike.coe_coe_eq_coe]
+        simp [← lm4]
+      · simp [leftStandardTypeAt, IsLiftableAt.lift, HInterElemAt.toUnion, EvalLike.coe_coe_eq_coe, ← lm4, embedAt_liftAt_eq]
+        rcases lb <;> dsimp
+        · subst ec1
+          exact lm1 _
+        · subst ec2
+          exact lm2 _
+
+protected def embedAt (h: IsInterleaving s) (lb: Label) (styL: StandardType (LeftTypeAt EC1 EC2 lb) (LeftTypeAt Var1 Var2 lb) (LeftTypeAt Val1 Val2 lb))
+  : StandardType (HasInterleaving.R EC1 EC2 Var1 Var2 Val1 Val2) (HUnionElemAt Var1 Var2) (HUnionElemAt Val1 Val2) :=
+  lb.casesOn (motive := fun lb0 => StandardType (LeftTypeAt EC1 EC2 lb0) (LeftTypeAt Var1 Var2 lb0) (LeftTypeAt Val1 Val2 lb0) → StandardType (HasInterleaving.R EC1 EC2 Var1 Var2 Val1 Val2) (HUnionElemAt Var1 Var2) (HUnionElemAt Val1 Val2))
+             (fun styL0 => h.interleave styL0 (minimalAt EC1 EC2 Var1 Var2 Val1 Val2 .snd))
+             (fun styL0 => h.interleave (minimalAt EC1 EC2 Var1 Var2 Val1 Val2 .fst) styL0)
+             <| styL
+
+theorem embedAt_injective {h: IsInterleaving s} {lb: Label} : Function.Injective (h.embedAt lb) := by
+  rintro sty1 sty2 lm1
+  have lm2_1 := sty1.valid
+  have lm2_2 := sty2.valid
+  simp only [StandardType.ext_iff] at ⊢ lm1
+  intro var val
+  specialize lm1 (.pureAt Var1 Var2 lb var) (.pureAt Val1 Val2 lb val)
+  rcases lb
+  · dsimp [IsInterleaving.embedAt, interleave] at lm1
+    simp [setOfInterleavingValueDomainAt_mem_iff, IsLiftableAt.lift, AreLiftableAt.embedRangeAt_iff] at lm1
+    rcases lm1 with ⟨lm1_mp, lm1_mpr⟩
+    simp [EmbedRangeAt.exists_embedAt_iff, HUnionElemAt.pureAt_val_eq_embedAt] at lm1_mp lm1_mpr
+    specialize lm1_mp .fst var rfl val rfl
+    specialize lm1_mpr .fst var rfl val rfl
+    simp [leftStandardTypeAt, embedAt_liftAt_eq, Label.exists_iff_fst_or_snd, minimalAt] at lm1_mp lm1_mpr
+    constructor
+    · intro lm3
+      specialize lm1_mp lm3
+      rcases lm1_mp with lm4 | lm4
+      · exact lm4
+      · rcases lm4 with ⟨⟨lm4, lm5⟩, lm6⟩
+        obtain ⟨var2, lm4⟩ := lm4
+        obtain ⟨val2, lm5⟩ := lm5
+        obtain ⟨ec2, lm6⟩ := lm6
+        simp only [← lm4, ← lm5, embedAt_liftAt_eq] at lm6
+        specialize lm2_2
+        rewrite [Eq.comm] at lm4 lm5
+        rewrite [embedAt_eq_iff_exists_liftAt_eq] at lm4 lm5
+    --simp [embedAt_liftAt_eq] at lm1_mp lm1_mpr
+
+    --embedAt_liftAt_eq
+  --simp [IsInterleaving.embedAt] at lm1
+/-
+  simp only [funext_iff, Set.ext_iff]
+  intro varL valL
+  rcases lb
+  · dsimp [LeftTypeAt] at dom1 lm1 dom2 lm2 varL valL
+    dsimp [IsInterleaving.embedAt, minimalAt] at lm3
+    simp [interleave, funext_iff, Set.ext_iff, setOfInterleavingValueDomainAt_mem_iff] at lm3
+    specialize lm3 (embedAt Var1 Var2 .fst varL) (hunionSetUnivAt_mem_of_embedRangeAt_mem EmbedRangeAt.mem_self)
+                   (embedAt Val1 Val2 .fst valL) (hunionSetUnivAt_mem_of_embedRangeAt_mem EmbedRangeAt.mem_self)
+    rewrite [← not_iff_not] at lm3
+    simp only [not_exists] at lm3
+    simp [Label.forall_iff_fst_and_snd] at lm3
+    --simp [Label.exists_iff_fst_or_snd, Classical.or_iff_not_imp_left] at lm3
+    --simp [IsLiftableAt.lift] at lm3
 -/
+
+
 
 
 end IsInterleaving

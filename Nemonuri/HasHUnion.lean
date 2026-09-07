@@ -170,6 +170,26 @@ theorem ne_iff_eq_toDual_symm {lb1 lb2: Label} : (lb1 ≠ lb2) ↔ (lb2 = lb1.to
   · intro lm1
     exact eq_toDual_symm lm1
 
+theorem forall_iff_fst_and_snd {p: Label → Prop} : (∀(lb: Label), p lb) ↔ (p .fst ∧ p .snd) := by
+  constructor
+  · intro lm1
+    exact ⟨lm1 .fst, lm1 .snd⟩
+  · rintro ⟨lm1, lm2⟩ lb
+    rcases lb
+    · exact lm1
+    · exact lm2
+
+theorem exists_iff_fst_or_snd {p: Label → Prop} : (∃(lb: Label), p lb) ↔ (p .fst ∨ p .snd) := by
+  constructor
+  · rintro ⟨lb, lm1⟩
+    rcases lb
+    · exact Or.inl lm1
+    · exact Or.inr lm1
+  · intro lm1
+    rcases lm1 with lm1 | lm1
+    · exists .fst
+    · exists .snd
+
 def projectProd (lb: Label) {α β: Type _} (prod: α × β) : lb.casesOn α β := lb.casesOn prod.fst prod.snd
 
 section ProjectProd
@@ -360,12 +380,44 @@ theorem embedAt_eq_iff_exists_liftAt_eq
   · rintro ⟨lm1, lm2⟩
     exact (embedAt_eq_iff_liftAt_eq lm1).mpr lm2
 
-/-
-structure AreEquiv {T1 T2: Type u1} [HasHUnion T1 T2] (lv1: T1) (lv2: T2) (rv: HasHUnion.R T1 T2) : Prop where
-  inter (lb: Label) : rv ∈ EmbedRangeAt T1 T2 lb
-  liftAt_eq_fst: liftAt T1 T2 rv .fst (inter .fst) = lv1
-  liftAt_eq_snd: liftAt T1 T2 rv .snd (inter .snd) = lv2
--/
+
+def IsLiftableAt (T1 T2: Type u1) [HasHUnion T1 T2] (rv: R T1 T2) (lb: Label) : Prop := rv ∈ EmbedRangeAt T1 T2 lb
+
+theorem isLiftableAt_def {T1 T2: Type u1} [HasHUnion T1 T2] {rv: R T1 T2} {lb: Label}
+  : IsLiftableAt T1 T2 rv lb ↔ (rv ∈ EmbedRangeAt T1 T2 lb) :=
+  Iff.rfl
+
+namespace IsLiftableAt
+
+variable {T1 T2: Type u1} [HasHUnion T1 T2] {rv: R T1 T2} {lb: Label}
+
+def lift (h: IsLiftableAt T1 T2 rv lb) : LeftTypeAt T1 T2 lb := liftAt T1 T2 rv lb h
+
+end IsLiftableAt
+
+structure AreLiftableAt.{u3, u4}
+  (LFst1 LFst2: Type u1) [HasHUnion.{u1, u2} LFst1 LFst2] (LSnd1 LSnd2: Type u3) [HasHUnion.{u3, u4} LSnd1 LSnd2]
+  (rvFst: R LFst1 LFst2) (rvSnd: R LSnd1 LSnd2) (lb: Label) : Prop where
+  fst: IsLiftableAt LFst1 LFst2 rvFst lb
+  snd: IsLiftableAt LSnd1 LSnd2 rvSnd lb
+
+namespace AreLiftableAt
+
+universe u3 u4
+variable {LFst1 LFst2: Type u1} [HasHUnion.{u1, u2} LFst1 LFst2] {LSnd1 LSnd2: Type u3} [HasHUnion.{u3, u4} LSnd1 LSnd2]
+         {rvFst: R LFst1 LFst2} {rvSnd: R LSnd1 LSnd2} {lb: Label}
+
+theorem embedRangeAt_iff
+  : (AreLiftableAt LFst1 LFst2 LSnd1 LSnd2 rvFst rvSnd lb) ↔ (rvFst ∈ EmbedRangeAt LFst1 LFst2 lb ∧ rvSnd ∈ EmbedRangeAt LSnd1 LSnd2 lb) := by
+  constructor
+  · rintro ⟨lm1, lm2⟩
+    dsimp [IsLiftableAt] at lm1 lm2
+    exact And.intro lm1 lm2
+  · rintro ⟨lm1, lm2⟩
+    rewrite [← isLiftableAt_def] at lm1 lm2
+    refine .mk lm1 lm2
+
+end AreLiftableAt
 
 inductive AreEquivAt {T1 T2: Type u1} [HasHUnion T1 T2] (lv1: T1) (lv2: T2) : Label → Prop where
   | fst (req1: embedAt T1 T2 .fst lv1 ∈ EmbedRangeAt T1 T2 .snd) (req2: liftAt T1 T2 (embedAt T1 T2 .fst lv1) .snd req1 = lv2)
@@ -846,7 +898,7 @@ def recDiffInter [DecidableEmbedRange T1 T2]
 def recLiftDiffAt [DecidableEmbedRange T1 T2] (lb: Label)
   {motive: HUnionElemAt T1 T2 → Sort _}
   (lift: (x: EmbedElemAt T1 T2 lb) → motive (.ofEmbedElem x))
-  (diff: (x: HDiffElemAt T1 T2 lb.toDual) → motive (.ofEmbedElem x.toEmbedElem))
+  (diff: (x: HDiffElemAt T1 T2 lb.toDual) → motive (x.toUnion))
   (t: HUnionElemAt T1 T2)
   : motive t :=
   if lm1: isInEmbedRangeAt T1 T2 t.val lb then
