@@ -48,7 +48,7 @@ theorem coe_coe_eq_coe {ec: EC} : ((ec: Eval Var Val): Var → Val) = (ec: Var �
 
 end EvalLike
 
-structure IsStandardType  {Var Val: Type*} (dom : Var → Set Val) (EC: Type*) [EvalLike EC Var Val] : Prop where
+structure IsStandardType {Var Val: Type*} (dom : Var → Set Val) (EC: Type*) [EvalLike EC Var Val] : Prop where
   type_safe (ec: EC) (var: Var) : (ec var) ∈ (dom var)
   eval_exists (var: Var) (val: Val) (req: val ∈ dom var) : ∃(ec: EC), ec var = val
 
@@ -89,6 +89,13 @@ theorem eval_ext {sty1 sty2: StandardType EC Var Val} (req: ∀(ec: EC) (var: Va
     specialize req ec var
     exact req.mpr lm2
 
+instance subsingleton : Subsingleton (StandardType EC Var Val) where
+  allEq sty1 sty2 := by
+    simp only [StandardType.eval_ext_iff]
+    intro ec var
+    have lm1 := sty1.valid.type_safe ec var
+    have lm2 := sty2.valid.type_safe ec var
+    simp only [lm1, lm2]
 
 
 def IsSafe (sty: StandardType EC Var Val) (v: Var) (D: Set Val) : Prop := D ⊆ sty.dom v

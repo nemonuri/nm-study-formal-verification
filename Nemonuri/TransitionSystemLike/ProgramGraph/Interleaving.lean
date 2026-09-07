@@ -263,17 +263,73 @@ theorem liftAt_apply_fst_eq_snd_of_inter_mem_at
   := by
   simp [HUnionElemAt.pureAt_eq_embedAt_mk, liftAt_embedAt_eq]
 
+/-
 set_option trace.Meta.synthInstance true in
 #synth EvalLike (HasHUnion.R EC1 EC2) (HUnionElemAt Var1 Var2) (HUnionElemAt Val1 Val2)
 
 set_option trace.Meta.synthInstance true in
 #synth FunLike (HasHUnion.R EC1 EC2) (HUnionElemAt Var1 Var2) (HUnionElemAt Val1 Val2)
+-/
 
-/-
+instance : FunLike (HasHUnion.R EC1 EC2) (HUnionElemAt Var1 Var2) (HUnionElemAt Val1 Val2) :=
+  let : EvalLike (HasHUnion.R EC1 EC2) (HUnionElemAt Var1 Var2) (HUnionElemAt Val1 Val2) := HasInterleaving.evalLikeR
+  inferInstance
+
+
+
 theorem leftEval_apply_eq_iff_embed_apply_eq
   {lb: Label} {ecL: LeftTypeAt EC1 EC2 lb} {varL: LeftTypeAt Var1 Var2 lb} {valL: LeftTypeAt Val1 Val2 lb}
-  : (ecL varL = valL) ↔ ((embedAt EC1 EC2 lb ecL: HUnionElemAt Var1 Var2 → HUnionElemAt Val1 Val2) (HUnionElemAt.pureAt Var1 Var2 lb varL) = (emb) )
--/
+  : (ecL varL = valL) ↔ ((embedAt EC1 EC2 lb ecL) (HUnionElemAt.pureAt Var1 Var2 lb varL) = HUnionElemAt.pureAt Val1 Val2 lb valL) := by
+  let il := interleavingAt EC1 EC2
+  have lm1 := il.valid.embed_eq lb ecL varL
+  rw [← embedAt_eq_interleaving_embedAt] at lm1
+  constructor
+  · intro lm2
+    rw [Subtype.ext_iff, HUnionElemAt.pureAt_val_eq_embedAt]
+    rewrite [Eq.comm] at lm1 lm2
+    subst lm2
+    exact lm1
+  · intro lm2
+    rewrite [Subtype.ext_iff, HUnionElemAt.pureAt_val_eq_embedAt] at lm2
+    have lm3 := Eq.trans lm1 lm2
+    exact embedAt_injective.eq_iff.mp lm3
+
+theorem leftEval_apply_eq_iff_embed_apply_eq_at
+  (lb: Label) {ecL: LeftTypeAt EC1 EC2 lb} {varL: LeftTypeAt Var1 Var2 lb} {valL: LeftTypeAt Val1 Val2 lb}
+  : (ecL varL = valL) ↔ ((embedAt EC1 EC2 lb ecL) (HUnionElemAt.pureAt Var1 Var2 lb varL) = HUnionElemAt.pureAt Val1 Val2 lb valL) :=
+  leftEval_apply_eq_iff_embed_apply_eq
+
+
+theorem leftEval_apply_pureAt_eq_embedAt_apply
+  {lb: Label} {ecL: LeftTypeAt EC1 EC2 lb} {varL: LeftTypeAt Var1 Var2 lb}
+  : HUnionElemAt.pureAt Val1 Val2 lb (ecL varL) = (embedAt EC1 EC2 lb ecL) (HUnionElemAt.pureAt Var1 Var2 lb varL) :=
+  leftEval_apply_eq_iff_embed_apply_eq.mp (Eq.refl (ecL varL)) |>.symm
+
+
+theorem leftEval_apply_embedAt_eq_embedAt_apply_val
+  {lb: Label} {ecL: LeftTypeAt EC1 EC2 lb} {varL: LeftTypeAt Var1 Var2 lb}
+  : embedAt Val1 Val2 lb (ecL varL) = ((embedAt EC1 EC2 lb ecL) (HUnionElemAt.pureAt Var1 Var2 lb varL)).val := by
+  have lm1 : HUnionElemAt.pureAt Val1 Val2 lb (ecL varL) = (embedAt EC1 EC2 lb ecL) (HUnionElemAt.pureAt Var1 Var2 lb varL) := leftEval_apply_pureAt_eq_embedAt_apply
+  rewrite [Subtype.ext_iff, HUnionElemAt.pureAt_val_eq_embedAt] at lm1
+  exact lm1
+
+theorem leftEval_apply_embedAt_eq_embedAt_apply_val_at
+  (lb: Label) {ecL: LeftTypeAt EC1 EC2 lb} {varL: LeftTypeAt Var1 Var2 lb}
+  : embedAt Val1 Val2 lb (ecL varL) = ((embedAt EC1 EC2 lb ecL) (HUnionElemAt.pureAt Var1 Var2 lb varL)).val :=
+  leftEval_apply_embedAt_eq_embedAt_apply_val
+
+
+theorem embedAt_apply_val_liftAt_eq_leftEval_apply
+  {lb: Label} {ecL: LeftTypeAt EC1 EC2 lb} {varL: LeftTypeAt Var1 Var2 lb}
+  : liftAt Val1 Val2 ((embedAt EC1 EC2 lb ecL) (HUnionElemAt.pureAt Var1 Var2 lb varL)).val lb (leftEval_apply_embedAt_eq_embedAt_apply_val.subst EmbedRangeAt.mem_self) = (ecL varL) := by
+  rw [← embedAt_eq_iff_liftAt_eq]
+  exact leftEval_apply_embedAt_eq_embedAt_apply_val
+
+theorem embedAt_apply_val_liftAt_eq_leftEval_apply_at
+  (lb: Label) {ecL: LeftTypeAt EC1 EC2 lb} {varL: LeftTypeAt Var1 Var2 lb}
+  : liftAt Val1 Val2 ((embedAt EC1 EC2 lb ecL) (HUnionElemAt.pureAt Var1 Var2 lb varL)).val lb (leftEval_apply_embedAt_eq_embedAt_apply_val.subst EmbedRangeAt.mem_self) = (ecL varL) :=
+  embedAt_apply_val_liftAt_eq_leftEval_apply
+
 end HasInterleaving
 
 end EvalLike
@@ -613,7 +669,24 @@ def interleave (h: IsInterleaving s) (sty1: StandardType EC1 Var1 Val1) (sty2: S
         rcases lm2 with ⟨valL, lm2⟩ )
       · simp [← lm1, ← lm2, embedAt_liftAt_eq] at lm3
         obtain ⟨ecL, lm4⟩ := sty1.valid.eval_exists _ _ lm3
-        let ecR := embedAt EC1 EC2 .fst ecL
+        rewrite [HasInterleaving.leftEval_apply_eq_iff_embed_apply_eq_at .fst] at lm4
+        exists embedAt EC1 EC2 .fst ecL
+        rcases varR with ⟨varR, lm_varR⟩
+        rcases valR with ⟨valR, lm_valR⟩
+        dsimp at lm1 lm2
+        simp only [← lm1, ← lm2]
+        simp only [HUnionElemAt.pureAt_eq_embedAt_mk] at lm4
+        exact lm4
+      · simp [← lm1, ← lm2, embedAt_liftAt_eq] at lm3
+        obtain ⟨ecL, lm4⟩ := sty2.valid.eval_exists _ _ lm3
+        rewrite [HasInterleaving.leftEval_apply_eq_iff_embed_apply_eq_at .snd] at lm4
+        exists embedAt EC1 EC2 .snd ecL
+        rcases varR with ⟨varR, lm_varR⟩
+        rcases valR with ⟨valR, lm_valR⟩
+        dsimp at lm1 lm2
+        simp only [← lm1, ← lm2]
+        simp only [HUnionElemAt.pureAt_eq_embedAt_mk] at lm4
+        exact lm4
   }
 
 
@@ -624,13 +697,44 @@ protected def embedAt (h: IsInterleaving s) (lb: Label) (styL: StandardType (Lef
              (fun styL0 => h.interleave (minimalAt EC1 EC2 Var1 Var2 Val1 Val2 .fst) styL0)
              <| styL
 
+open HasInterleaving in
 theorem embedAt_injective {h: IsInterleaving s} {lb: Label} : Function.Injective (h.embedAt lb) := by
-  rintro sty1 sty2 lm1
-  have lm2_1 := sty1.valid
-  have lm2_2 := sty2.valid
-  simp only [StandardType.ext_iff] at ⊢ lm1
-  intro var val
-  specialize lm1 (.pureAt Var1 Var2 lb var) (.pureAt Val1 Val2 lb val)
+  intro sty1 sty2 lm1
+  --obtain ⟨lm_sty1_1, lm_sty1_2⟩ := sty1.valid
+  --obtain ⟨lm_sty2_1, lm_sty2_2⟩ := sty2.valid
+  simp only [StandardType.eval_ext_iff] --at ⊢ lm1
+  intro ecL varL
+  have lm2 := sty1.valid.type_safe ecL varL
+  have lm3 := sty2.valid.type_safe ecL varL
+  simp [lm2, lm3]
+/-
+  specialize lm1 (embedAt EC1 EC2 lb ecL) (.pureAt Var1 Var2 lb varL)
+  rcases lb
+  · dsimp [IsInterleaving.embedAt, interleave] at lm1
+    simp [setOfInterleavingValueDomainAt_mem_iff, IsLiftableAt.lift, AreLiftableAt.embedRangeAt_iff] at lm1
+    rcases lm1 with ⟨lm1_mp, lm1_mpr⟩
+    simp [EmbedRangeAt.exists_embedAt_iff, HUnionElemAt.pureAt_val_eq_embedAt] at lm1_mp lm1_mpr
+    specialize lm1_mp .fst varL rfl (ecL varL) leftEval_apply_embedAt_eq_embedAt_apply_val
+    specialize lm1_mpr .fst varL rfl (ecL varL) leftEval_apply_embedAt_eq_embedAt_apply_val
+    rewrite [embedAt_apply_val_liftAt_eq_leftEval_apply] at lm1_mp lm1_mpr
+    simp [leftStandardTypeAt, embedAt_liftAt_eq] at lm1_mp lm1_mpr
+    constructor
+    · intro lm2
+      specialize lm1_mp lm2
+      simp [Label.exists_iff_fst_or_snd, minimalAt, (embedAt_apply_val_liftAt_eq_leftEval_apply_at .fst), embedAt_liftAt_eq] at lm1_mp
+      rcases lm1_mp with lm3 | lm3
+      · exact lm3.right
+      · rcases lm3 with ⟨⟨lm3, lm4⟩, ecL2, lm6⟩
+        obtain ⟨varL2, lm3⟩ := lm3
+        obtain ⟨valL2, lm4⟩ := lm4
+        have lm7 := lm_sty2_1 ecL varL
+      --rewrite [embedAt_apply_val_liftAt_eq_leftEval_apply] at lm1_mp
+-/
+
+    --rewrite [← leftEval_apply_embedAt_eq_embedAt_apply_val] at lm1_mp
+    --specialize lm1_mp .fst var rfl val rfl
+    --specialize lm1_mpr .fst var rfl val rfl
+/-
   rcases lb
   · dsimp [IsInterleaving.embedAt, interleave] at lm1
     simp [setOfInterleavingValueDomainAt_mem_iff, IsLiftableAt.lift, AreLiftableAt.embedRangeAt_iff] at lm1
@@ -652,6 +756,7 @@ theorem embedAt_injective {h: IsInterleaving s} {lb: Label} : Function.Injective
         specialize lm2_2
         rewrite [Eq.comm] at lm4 lm5
         rewrite [embedAt_eq_iff_exists_liftAt_eq] at lm4 lm5
+-/
     --simp [embedAt_liftAt_eq] at lm1_mp lm1_mpr
 
     --embedAt_liftAt_eq
