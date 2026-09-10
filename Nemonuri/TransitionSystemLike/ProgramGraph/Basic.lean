@@ -2,6 +2,7 @@ module
 
 public import Nemonuri.TransitionSystemLike.Basic
 public import Nemonuri.PropositionalLogics.Tactic
+public import Nemonuri.PropositionalLogics.Decidable
 
 /-!
 
@@ -979,7 +980,7 @@ def labeling (pg: ProgramGraph CC EC Var Val) (s: pg.Loc × EC) (ap: pg.Loc ⊕ 
   let ⟨l, η⟩ := s
   match ap with
   | .inl l2 => decide (l = l2)
-  | .inr g => (Indicator.mk (η: PropositionalLogics.Eval (AtomicPropType EC Var Val))).evalFormulaToBool (CondLike.toFormula g) --(Indicator.mk (cl.standardType.indicateAtomicProp η)).evalFormulaToBool (cl.toCond g).formula
+  | .inr g => decide (η ⊨ₚ (CondLike.toFormula g)) --(Indicator.mk (η: PropositionalLogics.Eval (AtomicPropType EC Var Val))).evalFormulaToBool (CondLike.toFormula g) --(Indicator.mk (cl.standardType.indicateAtomicProp η)).evalFormulaToBool (cl.toCond g).formula
 
 
 open PropositionalLogics in
@@ -991,6 +992,43 @@ def toTransitionSystem (pg: ProgramGraph CC EC Var Val) : TransitionSystem where
   AP := pg.Loc ⊕ CC
   tr s1 act s2 := pg.Transition s1.fst s1.snd act s2.fst s2.snd
   L := pg.labeling
+
+open PropositionalLogics in
+theorem toTransitionSystem_Injective : Function.Injective (toTransitionSystem: ProgramGraph CC EC Var Val → TransitionSystem) := by
+    intro pg1 pg2 lm1
+    rcases pg1 with ⟨Loc1, Act, effect1, ctr1, loc01, ⟨fmt1, lm2_1⟩⟩
+    rcases pg2 with ⟨Loc2, Act2, effect2, ctr2, loc02, ⟨fmt2, lm2_2⟩⟩
+    simp at lm1
+    rcases lm1 with ⟨lm1, lm2, lm3, lm4, lm5, lm6⟩
+    subst lm2
+    simp
+    by_cases lm7: Loc1 = Loc2
+    · subst lm7
+      simp only at lm1 lm5; clear lm1 lm5
+      have lm8 : Subsingleton (DecidableEq Loc1) := inferInstance
+      rename_i deq1 deq2
+      replace lm8 := lm8.elim deq1 deq2
+      subst lm8
+      simp_all
+      simp [funext_iff] at lm3 lm6
+      simp [Set.ext_iff, SatRel.defaultAt_isSat_iff] at lm4
+      dsimp [Loc0] at lm4
+/-
+      simp [labeling] at lm6; clear lm6
+      refine ⟨?_, ?_, ?_⟩
+      · simp only [funext_iff]
+        intro act ec
+        have lm5_1 := fun loc1 loc2 => lm3 loc1 ec act loc2 (effect1 act ec)
+        have lm5_2 := fun loc1 loc2 => lm3 loc1 ec act loc2 (effect2 act ec)
+        simp [transition_iff, SatRel.defaultAt_isSat_iff] at lm5_1 lm5_2
+        conv at lm5_1 => ext; ext; rw [← not_iff_not]
+        conv at lm5_2 => ext; ext; rw [← not_iff_not]
+        simp at lm5_1 lm5_2
+-/
+        --rewrite [← not_iff_not] at lm4_1
+        --conv at lm4_2 => ext; ext; lhs; arg 1; ext; arg 2; arg 2; rw [Eq.comm]
+        --have lm4 := fun loc1 loc2 => Iff.trans (lm4_1 loc1 loc2) (lm4_2 loc1 loc2)
+
 
 /-
 inductive OfLoc.{u1, u2, u3, u4, u5, u6}
