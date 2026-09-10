@@ -17,6 +17,15 @@ set_option autoImplicit false
 
 namespace Nemonuri
 
+@[reducible]
+def setLikeOfIndicatorLike (C α: Type*) [FunLike C α Bool] : SetLike C α where
+  coe c := { a | c a = .true }
+  coe_injective := by
+    intro c1 c2 lm1
+    simp only [← DFunLike.coe_injective.eq_iff, funext_iff]
+    simp [Set.ext_iff] at lm1
+    exact lm1
+
 namespace ProgramGraph
 
 structure Eval (Var Val: Type*) where
@@ -52,26 +61,132 @@ structure IsStandardType {Var Val: Type*} (dom : Var → Set Val) (EC: Type*) [E
   type_safe (ec: EC) (var: Var) : (ec var) ∈ (dom var)
   eval_exists (var: Var) (val: Val) (req: val ∈ dom var) : ∃(ec: EC), ec var = val
 
-structure StandardType (EC Var Val: Type*) [EvalLike EC Var Val] where
-  dom : Var → Set Val
-  valid : IsStandardType dom EC
+
+structure StandardTypeStruct (Var Val ValS: Type*) [SetLike ValS Val] where
+  dom : Var → ValS
+
+namespace StandardTypeStruct
+
+variable {Var Val ValS: Type*} [SetLike ValS Val]
+
+def IsValueSafe (s: StandardTypeStruct Var Val ValS) (var: Var) (val: Val) : Prop := val ∈ s.dom var
+
+@[defeq]
+theorem isValueSafe_def {s: StandardTypeStruct Var Val ValS} {var: Var} {val: Val}
+  : s.IsValueSafe var val = (val ∈ s.dom var) :=
+  rfl
+
+def IsValueSetSafe (s: StandardTypeStruct Var Val ValS) (var: Var) (valS: ValS) : Prop := (valS: Set Val) ⊆ s.dom var
+
+@[defeq]
+theorem isValueSetSafe_def {s: StandardTypeStruct Var Val ValS} {var: Var} {valS: ValS}
+  : s.IsValueSetSafe var valS = ((valS: Set Val) ⊆ s.dom var) :=
+  rfl
+
+@[defeq]
+theorem isValueSetSafe_eq_isValueSafe {s: StandardTypeStruct Var Val ValS} {var: Var} {valS: ValS}
+  : s.IsValueSetSafe var valS = (∀val ∈ valS, (s.IsValueSafe var val)) := by
+  dsimp [isValueSafe_def, IsValueSetSafe]
+  exact rfl
+
+
+@[ext]
+theorem value_ext {s1 s2: StandardTypeStruct Var Val ValS} (req: ∀(var: Var) (val: Val), (s1.IsValueSafe var val) ↔ (s2.IsValueSafe var val)) : s1 = s2 := by
+  rcases s1 with ⟨dom1⟩
+  rcases s2 with ⟨dom2⟩
+  simp
+  dsimp [IsValueSafe] at req
+  simp only [funext_iff, SetLike.ext_iff]
+  exact req
+
+@[ext]
+theorem valueSet_ext {s1 s2: StandardTypeStruct Var Val ValS} (req: ∀(var: Var) (valS: ValS), (s1.IsValueSetSafe var valS) ↔ (s2.IsValueSetSafe var valS)) : s1 = s2 := by
+  rw [StandardTypeStruct.value_ext_iff]
+  dsimp [isValueSetSafe_eq_isValueSafe] at req
+  intro var val
+  replace req := fun valS => req var valS
+  have lm1 := req (s1.dom var)
+  have lm2 := req (s2.dom var)
+  dsimp [isValueSafe_def] at lm1 lm2
+  simp at lm1 lm2
+  specialize lm1 val
+  specialize lm2 val
+  dsimp [isValueSafe_def]
+  exact Iff.intro lm1 lm2
+
+@[ext]
+theorem value_valueSet_ext {s1 s2: StandardTypeStruct Var Val ValS} (req: ∀(var: Var) (valS: ValS) (val: Val) (_: val ∈ valS), (s1.IsValueSafe var val) ↔ (s2.IsValueSafe var val)) : s1 = s2 := by
+  rw [StandardTypeStruct.valueSet_ext_iff]
+  intro var valS
+  specialize req var valS
+  dsimp [isValueSetSafe_eq_isValueSafe]
+  exact forall₂_congr req
+
+
+
+end StandardTypeStruct
+
+
+structure StandardType (EC Var Val ValS: Type*) [EvalLike EC Var Val] [SetLike ValS Val]
+  extends toStruct: StandardTypeStruct Var Val ValS where
+  valid: IsStandardType (SetLike.coe ∘ toStruct.dom) EC
+
+/-
+  Nemonuri.ProgramGraph.IsStandardType.type_safe : ∀ (ec : EC) (var : Var), ec var ∈ dom var
+  Nemonuri.ProgramGraph.IsStandardType.eval_exists : ∀ (var : Var), ∀ val ∈ dom var, ∃ ec, ec var = val
+-/
 
 namespace StandardType
 
-variable {EC Var Val: Type*} [EvalLike EC Var Val]
+variable {EC Var Val ValS: Type*} [EvalLike EC Var Val] [SetLike ValS Val]
+
+def IsEvalSafe (sty: StandardType EC Var Val ValS) (var: Var) (ec: EC) : Prop := sty.IsValueSafe var (ec var)
+
+@[defeq]
+theorem isEvalSafe_def {sty: StandardType EC Var Val ValS} {var: Var} {ec: EC} : sty.IsEvalSafe var ec = sty.IsValueSafe var (ec var) := rfl
+
+theorem eval_safe {sty: StandardType EC Var Val ValS} {var: Var} {ec: EC} : sty.IsEvalSafe var ec := by
+  have lm1 := sty.valid.type_safe ec var
+  simp [← StandardTypeStruct.isValueSafe_def] at lm1
+  dsimp [isEvalSafe_def]
+  exact lm1
+
+theorem eval_safe_at {sty: StandardType EC Var Val ValS} (var: Var) (ec: EC) : sty.IsEvalSafe var ec := sty.eval_safe
+
+theorem eval_exists {sty: StandardType EC Var Val ValS} {var: Var} {val: Val} (req: sty.IsValueSafe var val) : ∃(ec: EC), ec var = val := by
+  have lm1 := sty.valid.eval_exists var val
+  simp [← StandardTypeStruct.isValueSafe_def] at lm1
+  exact lm1 req
+
+theorem eval_exists_at {sty: StandardType EC Var Val ValS} (var: Var) (val: Val) (req: sty.IsValueSafe var val) : ∃(ec: EC), ec var = val :=
+  sty.eval_exists req
+
+theorem eval_exists_iff {sty: StandardType EC Var Val ValS} {var: Var} {val: Val}
+  : (sty.IsValueSafe var val) ↔ (∃(ec: EC), ec var = val) := by
+  constructor
+  · exact eval_exists
+  · rintro ⟨ec, lm1⟩
+    rw [Eq.comm] at lm1
+    subst lm1
+    dsimp [← isEvalSafe_def]
+    exact eval_safe
+
+theorem not_mem_iff_forall_eval_ne {sty: StandardType EC Var Val ValS} {var: Var} {val: Val}
+  : (val ∉ sty.dom var) ↔ (∀(ec: EC), ec var ≠ val) := by
+  rw [← not_iff_not]
+  simp
+  exact sty.eval_exists_iff
+
+
+theorem toStruct_injective : Function.Injective (@StandardType.toStruct EC Var Val ValS _ _) := by
+  rintro ⟨s1, _⟩
+  rintro ⟨s2, _⟩
+  simp
 
 @[ext]
-theorem ext {sty1 sty2: StandardType EC Var Val} (req: ∀(var: Var) (val: Val), (val ∈ sty1.dom var) ↔ (val ∈ sty2.dom var)) : sty1 = sty2 := by
-  rcases sty1 with ⟨dom1, lm1⟩
-  rcases sty2 with ⟨dom2, lm2⟩
-  simp at req ⊢
-  simp only [funext_iff, Set.ext_iff]
-  intro var val
-  exact req var val
-
-@[ext]
-theorem eval_ext {sty1 sty2: StandardType EC Var Val} (req: ∀(ec: EC) (var: Var), (ec var ∈ sty1.dom var) ↔ (ec var ∈ sty2.dom var)) : sty1 = sty2 := by
-  simp only [StandardType.ext_iff]
+theorem eval_ext {sty1 sty2: StandardType EC Var Val ValS} (req: ∀(ec: EC) (var: Var), (sty1.IsEvalSafe var ec) ↔ (sty2.IsEvalSafe var ec)) : sty1 = sty2 := by
+  dsimp [isEvalSafe_def] at req
+  rw [← toStruct_injective.eq_iff, StandardTypeStruct.value_ext_iff]
   intro var val
   have lm1_1 := sty1.valid.eval_exists var val
   have lm1_2 := sty2.valid.eval_exists var val
@@ -89,15 +204,38 @@ theorem eval_ext {sty1 sty2: StandardType EC Var Val} (req: ∀(ec: EC) (var: Va
     specialize req ec var
     exact req.mpr lm2
 
-instance subsingleton : Subsingleton (StandardType EC Var Val) where
+
+instance subsingleton : Subsingleton (StandardType EC Var Val ValS) where
   allEq sty1 sty2 := by
     simp only [StandardType.eval_ext_iff]
     intro ec var
     have lm1 := sty1.valid.type_safe ec var
     have lm2 := sty2.valid.type_safe ec var
-    simp only [lm1, lm2]
+    dsimp at lm1 lm2
+    dsimp [isEvalSafe_def, StandardTypeStruct.isValueSafe_def]
+    exact Iff.intro (fun _ => lm2) (fun _ => lm1)
 
 
+
+inductive IsEvalSafeSet (sty: StandardType EC Var Val ValS) (ec: EC) : ValS → Prop where
+  | intro (var: Var) (req: sty.IsEvalSafe var ec) : IsEvalSafeSet sty ec (sty.dom var)
+
+/-
+theorem isEvalSafeSet_iff_eval_safe {sty: StandardType EC Var Val ValS} {ec: EC} {valS: ValS}
+  : (IsEvalSafeSet sty ec valS) ↔ (∃(var: Var), (sty.dom var = valS) ∧ sty.IsEvalSafe var ec) := by
+  constructor
+  · intro lm1
+    rcases lm1 with ⟨var, lm1⟩
+    exists var
+  · rintro ⟨var, lm1, lm2⟩
+    rewrite [Eq.comm] at lm1
+    subst lm1
+    exact .intro var lm2
+-/
+
+
+
+/-
 def IsSafe (sty: StandardType EC Var Val) (v: Var) (D: Set Val) : Prop := D ⊆ sty.dom v
 
 
@@ -105,27 +243,743 @@ theorem isSafe_iff {sty: StandardType EC Var Val} {var: Var} {D: Set Val}
   : IsSafe sty var D ↔ (∀(val: Val), (val ∈ D) → (val ∈ sty.dom var)) := by
   simp [IsSafe, Set.subset_def]
 
-abbrev DecidableSafe (sty: StandardType EC Var Val) : Type _ := (v: Var) → (D: Set Val) → Decidable (sty.IsSafe v D)
+abbrev DecidableSafe (sty: StandardType EC Var Val) (ValS: Type*) [SetLike ValS Val] : Type _ := (v: Var) → (vals: ValS) → Decidable (sty.IsSafe v vals)
 
 namespace DecidableSafe
 
 @[reducible]
-def of_iff {sty: StandardType EC Var Val} (dec: ∀(var: Var) (D: Set Val), Decidable (∀ (val: Val), ((val ∈ D) → (val ∈ sty.dom var))))
-  : sty.DecidableSafe :=
+def of_iff {sty: StandardType EC Var Val} (ValS: Type*) [SetLike ValS Val] (dec: ∀(var: Var) (vals: ValS), Decidable (∀ (val: Val), ((val ∈ vals) → (val ∈ sty.dom var))))
+  : sty.DecidableSafe ValS :=
   fun _ _ => decidable_of_iff' _ sty.isSafe_iff
 
 end DecidableSafe
+-/
+
+@[ext (flat := false)]
+structure ValueSetSafeDecidableStruct (EC Var Val ValS: Type*) [EvalLike EC Var Val] [SetLike ValS Val]
+  extends toBase: StandardTypeStruct Var Val ValS where
+  isValueSetSafe: Var → ValS → Bool
+  --dom : Var → Set Val
+  --isSafe : Var → ValI → Bool
+
+structure IsValueSetSafeDecidable {EC Var Val ValS: Type*} [EvalLike EC Var Val] [SetLike ValS Val] (s: ValueSetSafeDecidableStruct EC Var Val ValS) : Prop
+  extends toBase: IsStandardType (SetLike.coe ∘ s.dom) EC where
+  isValueSetSafe_valid (var: Var) (valS: ValS) : ((s.isValueSetSafe var valS) = .true) ↔ (s.IsValueSetSafe var valS)
+
+structure ValueSetSafeDecidable (EC Var Val ValS: Type*) [EvalLike EC Var Val] [SetLike ValS Val]
+  extends toStruct: ValueSetSafeDecidableStruct EC Var Val ValS where
+  valid: IsValueSetSafeDecidable toStruct
+
+namespace IsValueSetSafeDecidable
+
+variable {EC Var Val ValS: Type*} [EvalLike EC Var Val] [SetLike ValS Val] {s: ValueSetSafeDecidableStruct EC Var Val ValS}
+
+def toStandardType (h: IsValueSetSafeDecidable s) : StandardType EC Var Val ValS := ⟨s.toBase, h.toBase⟩
+
+theorem toStandardType_congr {s1 s2: ValueSetSafeDecidableStruct EC Var Val ValS} {h1: IsValueSetSafeDecidable s1} {h2: IsValueSetSafeDecidable s2}
+  (req: h1.toStandardType = h2.toStandardType)
+  : s1 = s2 := by
+  rewrite [StandardType.eval_ext_iff] at req
+  rcases h1 with ⟨lm1_1, lm2_1⟩
+  rcases h2 with ⟨lm1_2, lm2_2⟩
+  dsimp [toStandardType, StandardType.isEvalSafe_def] at req
+  rw [ValueSetSafeDecidableStruct.ext_iff]
+  refine ⟨?_, ?_⟩
+  · rw [StandardTypeStruct.value_valueSet_ext_iff]
+    intro var valS val lm3
+    have lm4_1 := lm1_1.eval_exists
+    have lm4_2 := lm1_2.eval_exists
+    simp [← StandardTypeStruct.isValueSafe_def] at lm4_1 lm4_2
+    specialize lm4_1 var val
+    specialize lm4_2 var val
+    constructor
+    · intro lm5
+      obtain ⟨ec, lm6⟩ := lm4_1 lm5
+      rewrite [Eq.comm] at lm6
+      subst lm6
+      specialize req ec var
+      exact req.mp lm5
+    · intro lm5
+      obtain ⟨ec, lm6⟩ := lm4_2 lm5
+      rewrite [Eq.comm] at lm6
+      subst lm6
+      specialize req ec var
+      exact req.mpr lm5
+  · simp only [funext_iff]
+    intro var valS
+    specialize lm2_1 var valS
+    specialize lm2_2 var valS
+    have lm4_1 := lm1_1.eval_exists
+    have lm4_2 := lm1_2.eval_exists
+    simp [← StandardTypeStruct.isValueSafe_def] at lm4_1 lm4_2
+    specialize lm4_1 var
+    specialize lm4_2 var
+    dsimp [StandardTypeStruct.isValueSetSafe_eq_isValueSafe] at lm2_1 lm2_2
+    replace req := fun ec => req ec var
+    by_contra lm3
+    rcases lm5: s1.isValueSetSafe var valS
+    · simp [lm5] at lm3
+      simp [lm3] at lm2_2
+      simp [lm5] at lm2_1
+      rcases lm2_1 with ⟨val, lm6, lm7⟩
+      specialize lm2_2 val lm6
+      specialize lm4_2 val lm2_2
+      obtain ⟨ec, lm4_2⟩ := lm4_2
+      rewrite [Eq.comm] at lm4_2
+      subst lm4_2
+      specialize req ec
+      simp [lm2_2, lm7] at req
+    · simp [lm5] at lm3
+      simp [lm3] at lm2_2
+      simp [lm5] at lm2_1
+      rcases lm2_2 with ⟨val, lm6, lm7⟩
+      specialize lm2_1 val lm6
+      specialize lm4_1 val lm2_1
+      obtain ⟨ec, lm4_1⟩ := lm4_1
+      rewrite [Eq.comm] at lm4_1
+      subst lm4_1
+      specialize req ec
+      simp [lm2_1, lm7] at req
+
+theorem toStandardType_congr_iff {s1 s2: ValueSetSafeDecidableStruct EC Var Val ValS} (req1: IsValueSetSafeDecidable s1) (req2: IsValueSetSafeDecidable s2)
+  : (s1 = s2) ↔ (req1.toStandardType = req2.toStandardType) := by
+  constructor
+  · intro lm1; subst lm1; rfl
+  · exact toStandardType_congr
+
+--instance {h: IsValueSetSafeDecidable s} {var: Var} {valS: ValS} : Decidable (s.IsValueSetSafe var valS) :=
+--  decidable_of_iff (s.isValueSetSafe var valS = .true) (by simp)
+
+end IsValueSetSafeDecidable
+
+namespace ValueSetSafeDecidable
+
+variable {EC Var Val ValS: Type*} [EvalLike EC Var Val] [SetLike ValS Val]
+
+def toStandardType (v: ValueSetSafeDecidable EC Var Val ValS) : StandardType EC Var Val ValS := v.valid.toStandardType
+
+theorem toStandardType_injective : Function.Injective (toStandardType: ValueSetSafeDecidable EC Var Val ValS → StandardType EC Var Val ValS) := by
+  rintro ⟨s1, lm1⟩ ⟨s2, lm2⟩
+  simp [toStandardType]
+  exact IsValueSetSafeDecidable.toStandardType_congr
+
+
+instance subsingleton : Subsingleton (ValueSetSafeDecidable EC Var Val ValS) where
+  allEq v1 v2 := by
+    rw [← toStandardType_injective.eq_iff]
+    exact Subsingleton.elim _ _
+
+instance decidableValueSetSafe {s: ValueSetSafeDecidable EC Var Val ValS} {var: Var} {valS: ValS} : Decidable (s.IsValueSetSafe var valS) :=
+  decidable_of_iff (s.isValueSetSafe var valS) (s.valid.isValueSetSafe_valid var valS)
+
+
+end ValueSetSafeDecidable
+
+def TmpeType : Type _ := Type → ((Type → Type) → (Type → Type)) → Type → Type
+
+class HasSafeDecidable (EC Var Val ValS: Type*) [EvalLike EC Var Val] [SetLike ValS Val] where
+  standardType : StandardType.ValueSetSafeDecidable EC Var Val ValS
+  decidableMem (valS: ValS) : DecidablePred (· ∈ valS)
+
+attribute [reducible, instance] HasSafeDecidable.decidableMem
+
+namespace HasSafeDecidable
+
+instance subsingleton : Subsingleton (HasSafeDecidable EC Var Val ValS) where
+  allEq := by
+    rintro ⟨s1, d1⟩ ⟨s2, d2⟩
+    congr
+    · exact Subsingleton.elim _ _
+    · exact Pi.instSubsingleton.elim _ _
+
+abbrev standardTypeAt (EC ValS: Type*) {Var Val: Type*} [EvalLike EC Var Val] [SetLike ValS Val] [HasSafeDecidable EC Var Val ValS] : StandardType.ValueSetSafeDecidable EC Var Val ValS :=
+  HasSafeDecidable.standardType
+
+variable [HasSafeDecidable EC Var Val ValS]
+
+instance toUniqueValueSetSafeDecidable : Unique (StandardType.ValueSetSafeDecidable EC Var Val ValS) where
+  default := standardType
+  uniq x := Subsingleton.elim x _
+
+instance toUniqueStandardType : Unique (StandardType EC Var Val ValS) where
+  default := standardType.toStandardType
+  uniq x := Subsingleton.elim x _
+
+@[defeq]
+theorem standardTypeAt_def : standardTypeAt EC ValS = standardType := rfl
+
+@[defeq]
+theorem standardTypeAt_eq_default : standardTypeAt EC ValS = default := rfl
+
+@[defeq]
+theorem standardTypeAt_toStandardType_eq_default : (standardTypeAt EC ValS).toStandardType = default := rfl
+
+@[defeq]
+theorem standardTypeAt_toStruct_toBase_eq_toStandardType_toStruct : (standardTypeAt EC ValS).toStruct.toBase = (standardTypeAt EC ValS).toStandardType.toStruct := rfl
+
+section SynthExample
+
+set_option trace.Meta.synthInstance true
+
+example {var: Var} {valS: ValS} : Decidable ((standardTypeAt EC ValS).IsValueSetSafe var valS) := inferInstance
+
+example {valS: ValS} : DecidablePred (· ∈ valS) := inferInstance
+
+--example {var: Var} {val: Val} : Decidable ((standardTypeAt EC ValS).IsValueSafe var val) := inferInstance
+
+end SynthExample
+
+
+instance decidalbeValueSafe {var: Var} {val: Val} : Decidable ((HasSafeDecidable.standardType: StandardType.ValueSetSafeDecidable EC Var Val ValS).IsValueSafe var val) :=
+  decidable_of_iff (val ∈ (standardTypeAt EC ValS).dom var) (by dsimp [StandardTypeStruct.isValueSafe_def]; rfl)
 
 
 
-structure AtomicProp (sty: StandardType EC Var Val) where
+end HasSafeDecidable
+
+@[ext]
+structure AtomicPropStruct (Var ValS: Type*) where
   var: Var
-  indicate: Val → Bool
-  valid: sty.IsSafe var { val | indicate val = .true }
+  spec: ValS
+
+namespace AtomicPropStruct
+
+--variable [HasSafeDecidable EC Var Val ValS]
+
+def IsEvalSpecSafe (s: AtomicPropStruct Var ValS) (ec: EC) : Prop := (ec s.var) ∈ s.spec
+
+@[defeq]
+theorem isEvalSpecSafe_def {s: AtomicPropStruct Var ValS} {ec: EC} : s.IsEvalSpecSafe ec = ((ec s.var) ∈ s.spec) := rfl
 
 
-def indicateAtomicProp (sty: StandardType EC Var Val) (ec: EC) (ap: sty.AtomicProp) : Bool :=
-  ap.indicate ((ec: Eval Var Val) ap.var)
+instance decidableEvalSpecSafe {s: AtomicPropStruct Var ValS} {ec: EC} [DecidablePred (· ∈ s.spec)] : Decidable (s.IsEvalSpecSafe ec) :=
+  inferInstanceAs (Decidable ((ec s.var) ∈ s.spec))
+
+
+def decideEvalSpecSafe (s: AtomicPropStruct Var ValS) [DecidablePred (· ∈ s.spec)] (ec: EC) : Bool := decide (s.IsEvalSpecSafe ec)
+
+@[defeq]
+theorem decideEvalSpecSafe_def {s: AtomicPropStruct Var ValS} [DecidablePred (· ∈ s.spec)] {ec: EC}
+  : s.decideEvalSpecSafe ec = decide (s.IsEvalSpecSafe ec) :=
+  rfl
+
+def equivOfToProd : (AtomicPropStruct Var ValS) ≃ (Var × ValS) where
+  toFun s := (s.var, s.spec)
+  invFun prod := ⟨prod.fst, prod.snd⟩
+
+instance toFintype [Fintype Var] [Fintype ValS] : Fintype (AtomicPropStruct Var ValS) := Fintype.ofEquiv _ equivOfToProd.symm
+
+
+structure AreValueSetEquiv (f: Var → ValS) (s1 s2: AtomicPropStruct Var ValS) : Prop where
+  var_equiv: f s1.var = f s2.var
+  spec_eq: s1.spec = s2.spec
+
+theorem areValueSetEquiv_iff {f: Var → ValS} {s1 s2: AtomicPropStruct Var ValS}
+  : (AreValueSetEquiv f s1 s2) ↔ ((f s1.var = f s2.var) ∧ (s1.spec = s2.spec)) := by
+  constructor
+  · rintro ⟨lm1, lm2⟩
+    exact ⟨lm1, lm2⟩
+  · rintro ⟨lm1, lm2⟩
+    exact ⟨lm1, lm2⟩
+
+
+namespace AreValueSetEquiv
+
+--variable {f: Var → ValS} --{s1 s2: AtomicPropStruct Var ValS}
+
+theorem equivalence_of (f: Var → ValS) : Equivalence (AreValueSetEquiv f) where
+  refl s := by refine .mk ?_ ?_ <;> rfl
+  symm := by
+    intro s1 s2
+    rintro ⟨lm1, lm2⟩
+    exact .mk lm1.symm lm2.symm
+  trans := by
+    intro s1 s2 s3
+    rintro ⟨lm1_1, lm2_1⟩ ⟨lm1_2, lm2_2⟩
+    refine .mk ?_ ?_
+    · exact lm1_1.trans lm1_2
+    · exact lm2_1.trans lm2_2
+
+instance is_equiv_of (f: Var → ValS) : IsEquiv (AtomicPropStruct Var ValS) (AreValueSetEquiv f) := .of_equivalence (equivalence_of f)
+
+@[reducible]
+def setoidOf (f: Var → ValS) : Setoid (AtomicPropStruct Var ValS) where
+  r := AreValueSetEquiv f
+  iseqv := equivalence_of f
+
+end AreValueSetEquiv
+
+
+end AtomicPropStruct
+
+structure IsAtomicProp {Var ValS: Type*} (s: AtomicPropStruct Var ValS) (EC Val: Type*) [EvalLike EC Var Val] [SetLike ValS Val] [HasSafeDecidable EC Var Val ValS] : Prop where
+ spec_safe: (HasSafeDecidable.standardTypeAt EC ValS).IsValueSetSafe s.var s.spec
+
+theorem isAtomicProp_iff {Var ValS: Type*} {s: AtomicPropStruct Var ValS} {EC Val: Type*} [EvalLike EC Var Val] [SetLike ValS Val] [HasSafeDecidable EC Var Val ValS]
+  : IsAtomicProp s EC Val ↔ (HasSafeDecidable.standardTypeAt EC ValS).IsValueSetSafe s.var s.spec := by
+  constructor
+  · rintro ⟨lm1⟩; exact lm1
+  · intro lm1; exact .mk lm1
+
+section IsAtomicPropLemmas
+
+open HasSafeDecidable
+
+variable [HasSafeDecidable EC Var Val ValS] {s: AtomicPropStruct Var ValS}
+
+namespace IsAtomicProp
+
+
+instance decidable (s: AtomicPropStruct Var ValS) : Decidable (IsAtomicProp s EC Val) := decidable_of_iff' _ isAtomicProp_iff
+
+theorem value_safe_of_spec_elem (h: IsAtomicProp s EC Val) (val: ↑(s.spec)) : (standardTypeAt EC ValS).IsValueSafe s.var val.val := by
+  revert val
+  simp only [Subtype.forall]
+  have lm1 := h.spec_safe
+  dsimp [StandardTypeStruct.isValueSetSafe_eq_isValueSafe] at lm1
+  exact lm1
+
+theorem spec_subset (h: IsAtomicProp s EC Val) : (s.spec: Set Val) ⊆ (standardTypeAt EC ValS).dom s.var := by
+  have lm1 := h.spec_safe
+  dsimp [StandardTypeStruct.isValueSetSafe_def] at lm1
+  exact lm1
+
+theorem eval_exists_of_spec_elem (h: IsAtomicProp s EC Val) {val: Val} : (val ∈ s.spec) → (∃(ec: EC), ec s.var = val) := by
+  have lm1 := h.value_safe_of_spec_elem
+  simp only [Subtype.forall] at lm1
+  specialize lm1 val
+  intro lm2
+  specialize lm1 lm2
+  dsimp [standardTypeAt_toStruct_toBase_eq_toStandardType_toStruct] at lm1
+  rewrite [StandardType.eval_exists_iff] at lm1
+  exact lm1
+    --let sty := (standardTypeAt EC ValS).toStandardType
+    --simp [(standardTypeAt EC ValS).toStandardType.eval_exists_iff] at lm1
+
+end IsAtomicProp
+
+theorem isAtomicProp_iff_forall_spec_elem_value_safe : (IsAtomicProp s EC Val) ↔ (∀(val: ↑(s.spec)), (standardTypeAt EC ValS).IsValueSafe s.var val.val) := by
+  constructor
+  · exact IsAtomicProp.value_safe_of_spec_elem
+  · intro lm1
+    rw [isAtomicProp_iff]
+    rewrite [Subtype.forall] at lm1
+    dsimp [StandardTypeStruct.isValueSetSafe_eq_isValueSafe]
+    exact lm1
+
+theorem isAtomicProp_iff_spec_subset : (IsAtomicProp s EC Val) ↔ ((s.spec: Set Val) ⊆ (standardTypeAt EC ValS).dom s.var) := by
+  constructor
+  · exact IsAtomicProp.spec_subset
+  · intro lm1
+    refine .mk ?_
+    dsimp [StandardTypeStruct.isValueSetSafe_def]
+    exact lm1
+
+
+end IsAtomicPropLemmas
+
+@[ext]
+structure AtomicProp (EC Var Val ValS: Type*) [EvalLike EC Var Val] [SetLike ValS Val] [HasSafeDecidable EC Var Val ValS]
+  extends toStruct: AtomicPropStruct Var ValS where
+  valid: IsAtomicProp toStruct EC Val
+
+
+namespace AtomicProp
+
+open HasSafeDecidable
+
+variable [HasSafeDecidable EC Var Val ValS]
+
+structure SingletonOPStruct (EC Var Val ValS: Type*) [EvalLike EC Var Val] [SetLike ValS Val] [HasSafeDecidable EC Var Val ValS] where
+  op (var: Var) (val: Val) (req: (standardTypeAt EC ValS).IsValueSafe var val) : AtomicProp EC Var Val ValS
+
+
+structure IsSingletonOP (s: SingletonOPStruct EC Var Val ValS) : Prop where
+  var_eq (var: Var) (val: Val) (req: (standardTypeAt EC ValS).IsValueSafe var val) : (s.op var val req).var = var
+  spec_eq_singleton (var: Var) (val: Val) (req: (standardTypeAt EC ValS).IsValueSafe var val) : ((s.op var val req).spec: Set Val) = {val}
+  --val_mem (var: Var) (val: Val) (req: (standardTypeAt EC ValS).IsValueSafe var val) : val ∈ (s.op var val req).spec
+  --subsingleton (var: Var) (val: Val) (req: (standardTypeAt EC ValS).IsValueSafe var val) : ((s.op var val req).spec: Set Val).Subsingleton
+
+
+structure SingletonOP (EC Var Val ValS: Type*) [EvalLike EC Var Val] [SetLike ValS Val] [HasSafeDecidable EC Var Val ValS]
+  extends toStruct: SingletonOPStruct EC Var Val ValS where
+  valid: IsSingletonOP toStruct
+
+
+instance decidableEvalSpecSafe {ap: AtomicProp EC Var Val ValS} {ec: EC} : Decidable (ap.IsEvalSpecSafe ec) :=
+  ap.toStruct.decidableEvalSpecSafe
+
+
+instance {ap: AtomicProp EC Var Val ValS} : DecidablePred (· ∈ ap.spec) := HasSafeDecidable.decidableMem EC Var ap.spec
+
+@[defeq]
+theorem decideEvalSpecSafe_eq_decide {ap: AtomicProp EC Var Val ValS} {ec: EC}
+  : ap.decideEvalSpecSafe ec = decide (ap.IsEvalSpecSafe ec) :=
+  rfl
+
+@[reducible]
+def setoidOf (EC Var Val ValS: Type*) [EvalLike EC Var Val] [SetLike ValS Val] [HasSafeDecidable EC Var Val ValS] : Setoid (AtomicProp EC Var Val ValS) :=
+  (AtomicPropStruct.AreValueSetEquiv.setoidOf (HasSafeDecidable.standardTypeAt EC ValS).dom).comap AtomicProp.toStruct
+
+def AreValueSetEquiv (ap1 ap2: AtomicProp EC Var Val ValS) : Prop := (setoidOf EC Var Val ValS).r ap1 ap2
+
+theorem areValueSetEquiv_iff {ap1 ap2: AtomicProp EC Var Val ValS}
+  : AreValueSetEquiv ap1 ap2 ↔ AtomicPropStruct.AreValueSetEquiv (HasSafeDecidable.standardTypeAt EC ValS).dom ap1.toStruct ap2.toStruct := by
+  dsimp [AreValueSetEquiv]
+  rw [Setoid.comap_rel]
+  dsimp [Setoid.r]
+  rfl
+
+def SetEmbeddable (EC Var Val ValS: Type*) [EvalLike EC Var Val] [SetLike ValS Val] [HasSafeDecidable EC Var Val ValS] : Type _ :=
+  Quotient (setoidOf EC Var Val ValS)
+
+def toSetEmbeddable (ap: AtomicProp EC Var Val ValS) : SetEmbeddable EC Var Val ValS := Quotient.mk _ ap
+
+theorem decideEvalSpecSafe_injective (sop: SingletonOP EC Var Val ValS) : Function.Injective (fun (ec: EC) (ap: AtomicProp EC Var Val ValS) => ap.decideEvalSpecSafe ec) := by
+  intro ec1 ec2 lm1
+  simp [funext_iff, decideEvalSpecSafe_eq_decide] at lm1
+  simp only [DFunLike.ext_iff]
+  intro var
+  have lm2 := (standardTypeAt EC ValS).toStandardType.eval_safe_at var ec1
+  dsimp [← standardTypeAt_toStruct_toBase_eq_toStandardType_toStruct, isEvalSafe_def] at lm2
+  let sgtAp := sop.op var (ec1 var) lm2
+  specialize lm1 sgtAp
+  dsimp [AtomicPropStruct.isEvalSpecSafe_def] at lm1
+  subst sgtAp
+  have lm3 := sop.valid.spec_eq_singleton var (ec1 var) lm2
+  simp [← SetLike.mem_coe, lm3] at lm1
+  have lm4 := sop.valid.var_eq var (ec1 var) lm2
+  simp [lm4] at lm1
+  exact lm1.symm
+  --simp [lm3] at lm1
+/-
+  replace lm1 := fun s h => lm1 (.mk s h)
+  dsimp [AtomicPropStruct.isEvalSpecSafe_def] at lm1
+  simp [isAtomicProp_iff_forall_spec_elem_value_safe] at lm1
+  simp only [DFunLike.ext_iff]
+  intro var
+  replace lm1 := fun spec => lm1 (.mk var spec)
+  simp at lm1
+  let sgtValS : ValS := sop.op var (ec1 var) ?h1
+  case h1 => dsimp [standardTypeAt_toStruct_toBase_eq_toStandardType_toStruct, ← isEvalSafe_def]; exact eval_safe
+  specialize lm1 sgtValS
+-/
+/-
+
+  let (eq := lm2) sty := standardTypeAt EC ValS
+  simp [← lm2] at lm1
+-/
+/-
+  specialize lm1 (sty.dom var)
+  simp [StandardTypeStruct.isValueSafe_def] at lm1
+  simp [← StandardTypeStruct.isValueSafe_def] at lm1
+  simp [lm2, standardTypeAt_toStruct_toBase_eq_toStandardType_toStruct, ← isEvalSafe_def, eval_safe] at lm1
+-/
+
+/-
+open HasSafeDecidable in
+theorem decideEvalSpecSafe_respects_areValueSetEquiv (ap1 ap2: AtomicProp EC Var Val ValS) (req: AreValueSetEquiv ap1 ap2) : (ap1.decideEvalSpecSafe: EC → Bool) = ap2.decideEvalSpecSafe := by
+  simp [funext_iff, decideEvalSpecSafe_eq_decide]
+  intro ec
+  rewrite [areValueSetEquiv_iff] at req
+  let (eq := lm1) sty := standardTypeAt EC ValS
+  simp [← lm1] at req
+  rcases req with ⟨lm2, lm3⟩
+  dsimp [AtomicPropStruct.isEvalSpecSafe_def]
+  simp [SetLike.ext_iff] at lm3
+-/
+
+
+
+/-
+def indicatorOfEval (ec: EC) (ap: AtomicProp EC Var Val ValS) : Bool :=
+  ap.decideEvalSpecSafe ec
+-/
+
+namespace SetEmbeddable
+
+def mk (ap: AtomicProp EC Var Val ValS) : SetEmbeddable EC Var Val ValS := ap.toSetEmbeddable
+
+/-
+def decideEvalSpecSafe (ec: EC) (aps: SetEmbeddable EC Var Val ValS) : Bool :=
+  Quotient.liftOn aps (fun ap => ap.de)
+-/
+
+end SetEmbeddable
+
+
+
+--
+
+
+/-
+theorem var_eq_iff_isEvalSpecSafe_iff {ap1 ap2: AtomicProp EC Var Val ValS} {ec: EC}
+  : (ap1.var = ap2.var) ↔ (ap1.IsEvalSpecSafe ec ↔ ap2.IsEvalSpecSafe ec) := by
+  let (eq := lm1) sty := HasSafeDecidable.standardTypeAt EC ValS
+  constructor
+  · intro lm2
+    rcases ap1 with ⟨s1, ⟨lm3_1⟩⟩
+    rcases ap2 with ⟨s2, ⟨lm3_2⟩⟩
+    simp at lm2 ⊢
+    simp [← lm1] at lm3_1 lm3_2
+    dsimp [AtomicPropStruct.isEvalSpecSafe_def]
+    dsimp [StandardTypeStruct.isValueSetSafe_eq_isValueSafe] at lm3_1 lm3_2
+    specialize lm3_1 (ec s1.var)
+    specialize lm3_2 (ec s2.var)
+    constructor
+    · intro lm4
+      specialize lm3_1 lm4
+-/
+/-
+    dsimp [AtomicPropStruct.isEvalSpecSafe_def]
+    simp [lm2]
+    have lm3 :=
+-/
+
+theorem spec_eq_of_var_eq_and_forall_isEvalSpecSafe_iff
+  {ap1 ap2: AtomicProp EC Var Val ValS} (req1: ap1.var = ap2.var) (req2: ∀(ec: EC), ap1.IsEvalSpecSafe ec ↔ ap2.IsEvalSpecSafe ec)
+  : ap1.spec = ap2.spec := by
+  dsimp [AtomicPropStruct.isEvalSpecSafe_def] at req2
+  simp only [SetLike.ext_iff]
+  let (eq := lm1) sty := HasSafeDecidable.standardTypeAt EC ValS
+  rcases ap1 with ⟨s1, ⟨lm2_1⟩⟩
+  rcases ap2 with ⟨s2, ⟨lm2_2⟩⟩
+  simp at req1 req2 ⊢
+  intro val
+  simp [← lm1] at lm2_1 lm2_2
+  dsimp [StandardTypeStruct.isValueSetSafe_eq_isValueSafe] at lm2_1 lm2_2
+  specialize lm2_1 val
+  specialize lm2_2 val
+  have lm3 := sty.valid.eval_exists
+  simp [← StandardTypeStruct.isValueSafe_def] at lm3
+  have lm3_1 := lm3 s1.var val
+  have lm3_2 := lm3 s2.var val
+  clear lm3
+  constructor
+  · intro lm4
+    specialize lm2_1 lm4
+    specialize lm3_1 lm2_1
+    obtain ⟨ec, lm3_1⟩ := lm3_1
+    rewrite [Eq.comm] at lm3_1; subst lm3_1
+    specialize req2 ec
+    rw [req1]
+    exact req2.mp lm4
+  · intro lm4
+    specialize lm2_2 lm4
+    specialize lm3_2 lm2_2
+    obtain ⟨ec, lm3_2⟩ := lm3_2
+    rewrite [Eq.comm] at lm3_2; subst lm3_2
+    specialize req2 ec
+    rw [← req1]
+    exact req2.mpr lm4
+
+theorem forall_isEvalSpecSafe_iff_iff_spec_eq_of_var_eq {ap1 ap2: AtomicProp EC Var Val ValS} (req: ap1.var = ap2.var)
+  : (∀(ec: EC), ap1.IsEvalSpecSafe ec ↔ ap2.IsEvalSpecSafe ec) ↔ (ap1.spec = ap2.spec) := by
+  constructor
+  · exact spec_eq_of_var_eq_and_forall_isEvalSpecSafe_iff req
+  · intro lm1 ec
+    rw [SetLike.ext_iff] at lm1
+    dsimp [AtomicPropStruct.isEvalSpecSafe_def]
+    have lm2 := lm1 (ec ap2.var)
+    conv at lm2 => lhs; rw [← req]
+    exact lm2
+
+
+open HasSafeDecidable in
+theorem asdf1 {ap: AtomicProp EC Var Val ValS} (req: ∀(ec: EC), ap.IsEvalSpecSafe ec) (val: Val) (req2: (standardTypeAt EC ValS).IsValueSafe ap.var val) : val ∈ ap.spec := by
+  dsimp [AtomicPropStruct.isEvalSpecSafe_def] at req
+  by_cases lm1: ∃(ec: EC), ec ap.var = val
+  · obtain ⟨ec, lm1⟩ := lm1
+    rewrite [Eq.comm] at lm1
+    subst lm1
+    exact req ec
+  · simp at lm1
+    let (eq := lm2) sty := HasSafeDecidable.standardTypeAt EC ValS
+    have lm3 := sty.valid.eval_exists
+    simp [← StandardTypeStruct.isValueSafe_def] at lm3
+    specialize lm3 ap.var val
+    by_cases lm4: sty.IsValueSafe ap.var val
+    · specialize lm3 lm4
+      obtain ⟨ec, lm3⟩ := lm3
+      rewrite [Eq.comm] at lm3
+      subst lm3
+      specialize lm1 ec
+      simp at lm1
+    · specialize lm4 req2
+      simp at lm4
+
+
+
+/-
+theorem ne_spec : Function.Injective (fun (ec: EC) (ap: AtomicProp EC Var Val ValS) => ap.decideEvalSpecSafe ec) := by
+  intro ec1 ec2
+  dsimp
+  intro lm1
+  simp [funext_iff, decideEvalSpecSafe_eq_decide] at lm1
+  simp only [← DFunLike.coe_injective.eq_iff, funext_iff]
+  intro var
+  dsimp [AtomicPropStruct.isEvalSpecSafe_def] at lm1
+  replace lm1 := fun s h => lm1 (.mk s h)
+  simp [isAtomicProp_iff] at lm1
+  dsimp [StandardTypeStruct.isValueSetSafe_eq_isValueSafe] at lm1
+  replace lm1 := fun spec => lm1 (.mk var spec)
+  simp at lm1
+  let (eq := lm2) sty := HasSafeDecidable.standardTypeAt EC ValS
+  simp [← lm2] at lm1
+  have lm3 := sty.valid.eval_exists var
+  simp [← StandardTypeStruct.isValueSafe_def] at lm3
+  have lm3_1 := lm3 (ec1 var)
+  have lm3_2 := lm3 (ec2 var)
+  clear lm3
+  let Spec : Type _ := { spec: ValS // (∀val ∈ spec, sty.IsValueSafe var val) }
+  by_cases lm4: Nonempty Spec
+  · subst Spec
+    simp at lm4
+    rcases lm4 with ⟨spec, lm4⟩
+    specialize lm1 spec lm4
+    have lm4_1 := lm4 (ec1 var)
+    have lm4_2 := lm4 (ec2 var)
+    clear lm4
+    by_cases lm5: ec1 var ∈ spec
+    · simp [lm5] at lm1
+      specialize lm4_1 lm5
+      specialize lm4_2 lm1
+      specialize lm3_1 lm4_1
+      specialize lm3_2 lm4_2
+-/
+  --have lm4 := fun (spec: { spec: ValS // (∀val ∈ spec, sty.IsValueSafe var val) }) => lm1 spec.val spec.property
+
+  --dsimp [StandardTypeStruct.isValueSafe_def] at lm3_1 lm3_2 lm1
+/-
+  simp [Classical.skolem] at lm3
+  obtain ⟨f, lm3⟩ := lm3
+-/
+
+
+
+
+/-
+theorem ne_var_of_ne_spec {ap1 ap2: AtomicProp EC Var Val ValS} (req: ap1.spec ≠ ap2.spec) : ap1.var ≠ ap2.var := by
+  intro lm1
+  have lm2 := forall_isEvalSpecSafe_iff_iff_spec_eq_of_var_eq lm1
+  revert lm2
+  rw [imp_false, not_iff]
+  simp
+  simp only [not_iff]
+  dsimp [AtomicPropStruct.isEvalSpecSafe_def]
+  symm
+  constructor
+  · intro lm2
+    contradiction
+  · simp
+    intro ec lm2
+    revert req
+    simp
+-/
+
+/-
+    rw [← lm1] at lm2
+    simp [SetLike.ext_iff] at req
+    obtain ⟨val, req⟩ := req
+    rewrite [not_iff] at req
+    by_cases lm3: ec ap1.var = val
+    ·
+-/
+
+/-
+theorem ne_var {ap1 ap2: AtomicProp EC Var Val ValS} : (ap1.var ≠ ap2.var) := by
+  intro lm1
+  have lm2 := forall_isEvalSpecSafe_iff_iff_spec_eq_of_var_eq lm1
+  revert lm2
+  rw [imp_false, not_iff]
+  simp
+  simp only [not_iff]
+  dsimp [AtomicPropStruct.isEvalSpecSafe_def]
+  symm
+  constructor
+  · intro lm2
+    rw [lm1, lm2]
+    simp
+-/
+
+/-
+--set_option pp.notation false in
+theorem decideEvalSpecSafe_injective : Function.Injective (fun (ap: AtomicProp EC Var Val ValS) => (ap.decideEvalSpecSafe: EC → Bool)) := by
+  rintro ap1 ap2 --⟨var1, spec1⟩ ⟨var2, spec2⟩
+  dsimp
+  intro lm1
+  simp [funext_iff, decideEvalSpecSafe_eq_decide] at lm1
+  rcases ap1 with ⟨s1, ⟨lm2_1⟩⟩
+  rcases ap2 with ⟨s2, ⟨lm2_2⟩⟩
+  simp at lm1 ⊢
+  let (eq := lm3) sty := HasSafeDecidable.standardTypeAt EC ValS
+  simp [← lm3] at lm2_1 lm2_2
+  dsimp [AtomicPropStruct.isEvalSpecSafe_def] at lm1
+  dsimp [StandardTypeStruct.isValueSetSafe_eq_isValueSafe] at lm2_1 lm2_2
+  have lm4 := sty.valid.eval_exists
+  simp [← StandardTypeStruct.isValueSafe_def] at lm4
+  rw [AtomicPropStruct.ext_iff]
+  simp only [SetLike.ext_iff]
+  by_cases lm5: s1.var = s2.var
+  · simp [lm5]
+    intro val
+    specialize lm2_1 val
+    specialize lm2_2 val
+    have lm4_1 := lm4 s1.var val
+    have lm4_2 := lm4 s2.var val
+    constructor
+    · intro lm6
+      specialize lm2_1 lm6
+      specialize lm4_1 lm2_1
+      obtain ⟨ec, lm4_1⟩ := lm4_1
+      rewrite [Eq.comm] at lm4_1; subst lm4_1
+      specialize lm1 ec
+      rw [lm5]
+      exact lm1.mp lm6
+    · intro lm6
+      specialize lm2_2 lm6
+      specialize lm4_2 lm2_2
+      obtain ⟨ec, lm4_2⟩ := lm4_2
+      rewrite [Eq.comm] at lm4_2; subst lm4_2
+      specialize lm1 ec
+      rw [← lm5]
+      exact lm1.mpr lm6
+  · simp only [lm5, false_and]
+    have lm4_1 := lm4 s1.var
+    have lm4_2 := lm4 s2.var
+    dsimp [StandardTypeStruct.isValueSafe_def] at lm4_1 lm4_2
+  --by_contra lm5
+  --simp at lm5
+  --simp [] at lm5
+-/
+/-
+  dsimp [StandardTypeStruct.isValueSetSafe_eq_isValueSafe] at lm2_1 lm2_2
+  dsimp [AtomicPropStruct.isEvalSpecSafe_def] at lm1
+  let (eq := lm3) sty := HasSafeDecidable.standardTypeAt EC ValS
+  simp [← lm3] at lm2_1 lm2_2
+  by_cases lm6: (sty.IsValueSetSafe s1.var s1.spec) ↔ (sty.IsValueSetSafe s2.var s2.spec)
+  · by_cases lm7: sty.IsValueSetSafe s1.var s1.spec
+    · simp [lm7] at lm6
+      dsimp []
+-/
+  --rw [AtomicPropStruct.ext_iff]
+/-
+  refine ⟨?_, ?_⟩
+  · rcases sty.valid.toBase with ⟨lm4, lm5⟩
+    simp [← StandardTypeStruct.isValueSafe_def] at lm4 lm5
+-/
+    --have lm6_1 := lm6 s1.var s1.spec
+/-
+    simp [← StandardTypeStruct.isValueSafe_def] at lm5
+    have lm4_1 := lm4 s1.var
+    have lm4_2 := lm4 s2.var
+    clear lm4
+-/
+
+end AtomicProp
+
+--def indicateAtomicProp (sty: StandardType EC Var Val) (ec: EC) (ap: sty.AtomicProp) : Bool :=
+--  ap.indicate ((ec: Eval Var Val) ap.var)
 
 /-
 def indicateAtomicProp_injective (sty: StandardType EC Var Val) : Function.Injective (sty.indicateAtomicProp) := by
