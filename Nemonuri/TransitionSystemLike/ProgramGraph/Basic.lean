@@ -896,8 +896,88 @@ theorem ofAtoms_injective : Function.Injective (ofAtoms: List (AtomicPropType EC
     simp only [ofAtoms_eq_ofAtomsRec]
     exact Cond.ext lm2
 
+def nil : Cond EC Var Val := ⟨.true, .nil⟩
 
---theorem ofAtoms_eq_iff_eq {as1 as2: List sty.AtomicProp} : (ofAtoms as1 = ofAtoms as2) ↔ (as1 = as2) := ⟨ofAtoms_inj, congrArg ofAtoms⟩
+def cons (ap: AtomicPropType EC Var Val) (cond: Cond EC Var Val) : Cond EC Var Val where
+  formula := (Formula.and (.atom ap) cond.formula)
+  valid := StandardType.IsCond.and_iff.mpr cond.valid
+
+open StandardType in
+@[elab_as_elim]
+def recNilCons.{u}
+  {motive: (Cond EC Var Val) → Sort u}
+  (nil: motive Cond.nil)
+  (cons: (ap: AtomicPropType EC Var Val) → (cond: Cond EC Var Val) → motive (Cond.cons ap cond))
+  (t: Cond EC Var Val)
+  : motive t :=
+  match lm1: t.formula  with
+  | .true =>
+    have lm2: Cond.nil = t := by rcases t with ⟨fml, lm2⟩; simp at ⊢ lm1; subst lm1; dsimp [Cond.nil]
+    nil |> lm2.ndrec
+  | .and fml1 fml2 =>
+    match fml1 with
+    | .atom ap =>
+      have lm2 : IsCond EC Var Val fml2 := IsCond.and_iff.mp (lm1.ndrec t.valid)
+      let cond : Cond EC Var Val := ⟨fml2, lm2⟩
+      have lm3 : Cond.cons ap cond = t := by
+        subst cond
+        dsimp [Cond.cons]
+        congr
+        exact lm1.symm
+      cons ap cond |> lm3.ndrec
+    | .and _ _ | .neg _ | .true => absurd t.valid (by intro lm2; rewrite [lm1] at lm2; rcases lm2)
+  | .neg _ | .atom _ => absurd t.valid (by intro lm2; rewrite [lm1] at lm2; rcases lm2)
+
+@[defeq]
+theorem recNilCons_nil {m n c} : (Cond.nil: Cond EC Var Val).recNilCons (motive := m) n c = n := by
+  dsimp [Cond.nil, recNilCons]
+
+@[defeq]
+theorem recNilCons_cons {m n c} {ap: AtomicPropType EC Var Val} {cond: Cond EC Var Val}
+  : (Cond.cons ap cond).recNilCons (motive := m) n c = c ap cond := by
+  dsimp [Cond.cons, recNilCons]
+
+
+theorem size_lt_size_cons {ap: AtomicPropType EC Var Val} {cond: Cond EC Var Val} : sizeOf cond < sizeOf (cons ap cond) := by
+  dsimp [Cond.cons]
+  simp
+  rcases cond with ⟨fml, _⟩
+  simp
+  calc
+    0 < 1 := zero_lt_one
+    _ ≤ _ := Nat.le_add_right _ _
+
+
+set_option linter.unusedVariables false in
+def toAtoms (cond: Cond EC Var Val) : List (AtomicPropType EC Var Val) :=
+  cond.recNilCons (motive := fun x => (x = cond) → List (AtomicPropType EC Var Val)) (fun _ => []) (fun ap cond0 lm1 => ap :: cond0.toAtoms) <| rfl
+  decreasing_by
+    rewrite [Eq.comm] at lm1
+    subst lm1
+    exact size_lt_size_cons
+
+theorem ofAtoms_toAtoms_leftInverse : Function.LeftInverse (ofAtoms: List (AtomicPropType EC Var Val) → Cond EC Var Val) toAtoms := by
+  intro cond
+  rw [ofAtoms_eq_ofAtomsRec]
+  cases cond using recNilCons
+  · unfold toAtoms
+    dsimp [recNilCons_nil]
+    unfold ofAtomsRec
+    dsimp [Cond.nil]
+  · rename_i ap cond
+    unfold toAtoms
+    dsimp [recNilCons_cons]
+    unfold ofAtomsRec
+    dsimp [Cond.cons]
+    congr
+    rw [← ofAtoms_eq_ofAtomsRec]
+    exact ofAtoms_toAtoms_leftInverse _
+  decreasing_by
+    rename_i lm1
+    subst lm1
+    exact size_lt_size_cons
+
+theorem toAtoms_injective : Function.Injective (toAtoms: Cond EC Var Val → List (AtomicPropType EC Var Val)) := ofAtoms_toAtoms_leftInverse.injective
 
 
 end Cond
@@ -993,11 +1073,12 @@ def toTransitionSystem (pg: ProgramGraph CC EC Var Val) : TransitionSystem where
   tr s1 act s2 := pg.Transition s1.fst s1.snd act s2.fst s2.snd
   L := pg.labeling
 
+/-
 open PropositionalLogics in
 theorem toTransitionSystem_Injective : Function.Injective (toTransitionSystem: ProgramGraph CC EC Var Val → TransitionSystem) := by
     intro pg1 pg2 lm1
-    rcases pg1 with ⟨Loc1, Act, effect1, ctr1, loc01, ⟨fmt1, lm2_1⟩⟩
-    rcases pg2 with ⟨Loc2, Act2, effect2, ctr2, loc02, ⟨fmt2, lm2_2⟩⟩
+    rcases pg1 with ⟨Loc1, Act, effect1, ctr1, loc01, cond1⟩
+    rcases pg2 with ⟨Loc2, Act2, effect2, ctr2, loc02, cond2⟩
     simp at lm1
     rcases lm1 with ⟨lm1, lm2, lm3, lm4, lm5, lm6⟩
     subst lm2
@@ -1013,6 +1094,31 @@ theorem toTransitionSystem_Injective : Function.Injective (toTransitionSystem: P
       simp [funext_iff] at lm3 lm6
       simp [Set.ext_iff, SatRel.defaultAt_isSat_iff] at lm4
       dsimp [Loc0] at lm4
+      simp [labeling] at lm6; clear lm6
+      simp [transition_iff, SatRel.defaultAt_isSat_iff] at lm3
+      dsimp [CondLike.toFormula] at lm3
+      conv at lm3 => ext; ext; ext; ext; ext; rw [← not_iff_not]
+      simp at lm3
+      cases cond1 using Cond.recNilCons
+      · cases cond2 using Cond.recNilCons
+        dsimp [Cond.nil, Indicator.evalFormulaToBool] at lm4
+        simp at lm4
+        by_cases lm5: Nonempty EC
+        · rcases lm5 with ⟨ec⟩
+          have lm5 : loc01 = loc02 := by
+            simp [funext_iff]
+            exact fun x => lm4 x ec
+          subst lm5
+          simp at lm4 ⊢; clear lm4
+-/
+          --simp [funext_iff]
+/-
+          replace lm4 := fun loc => lm4 loc ec
+          conv => arg 2; arg 2; arg 1; simp [funext_iff]; rw [eq_true lm4]
+          simp
+          simp [funext_iff]
+-/
+
 /-
       simp [labeling] at lm6; clear lm6
       refine ⟨?_, ?_, ?_⟩
