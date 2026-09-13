@@ -644,7 +644,7 @@ def ofEmbedElem {lb: Label} (x: EmbedElemAt T1 T2 lb) : HUnionElemAt T1 T2 := Su
     · exact Or.inl lm1
     · exact Or.inr lm1 )
 
-def pureAt (T1 T2: Type u1) [HasHUnion T1 T2] (lb: Label) (lv: LeftTypeAt T1 T2 lb) : HUnionElemAt T1 T2 := (ofEmbedElem ∘ EmbedElemAt.pureAt T1 T2 lb) lv
+def pureAt (T1 T2: Type u1) [HasHUnion T1 T2] (lb: Label) (lv: LeftTypeAt T1 T2 lb) : HUnionElemAt T1 T2 := ⟨(embedAt T1 T2 lb lv), (embedAt_hunionSetUnivAt_mem)⟩ --(ofEmbedElem ∘ EmbedElemAt.pureAt T1 T2 lb) lv
 
 @[defeq]
 theorem pureAt_val_eq_embedAt {lb: Label} {lv: LeftTypeAt T1 T2 lb}
@@ -656,6 +656,22 @@ theorem pureAt_eq_embedAt_mk {lb: Label} {lv: LeftTypeAt T1 T2 lb}
   : pureAt T1 T2 lb lv = (Subtype.mk (embedAt T1 T2 lb lv) (embedAt_hunionSetUnivAt_mem)) :=
   Subtype.ext pureAt_val_eq_embedAt
 
+def pureFst (T1 T2: Type u1) [HasHUnion T1 T2] (lv: T1) : HUnionElemAt T1 T2 := pureAt T1 T2 .fst lv
+
+def pureSnd (T1 T2: Type u1) [HasHUnion T1 T2] (lv: T2) : HUnionElemAt T1 T2 := pureAt T1 T2 .snd lv
+
+@[defeq]
+theorem pureFst_def {lv: T1} : pureFst T1 T2 lv = pureAt T1 T2 .fst lv := rfl
+
+@[defeq]
+theorem pureSnd_def {lv: T2} : pureSnd T1 T2 lv = pureAt T1 T2 .snd lv := rfl
+
+
+theorem liftAt_pureAt_eq {rv: HUnionElemAt T1 T2} {lb: Label} (req: rv.val ∈ EmbedRangeAt T1 T2 lb)
+  : pureAt T1 T2 lb (liftAt T1 T2 rv lb req) = rv := by
+  dsimp [pureAt_eq_embedAt_mk]
+  simp [liftAt_embedAt_eq]
+
 def setOfHUnion (s1: Set T1) (s2: Set T2) : Set (HUnionElemAt T1 T2) :=
   (s1.image (pureAt T1 T2 .fst)) ∪ (s2.image (pureAt T1 T2 .snd))
 
@@ -665,6 +681,10 @@ def liftAt (x: HUnionElemAt T1 T2) (lb: Label) (req: x.val ∈ EmbedRangeAt T1 T
 def liftSetAt (x: Set (HUnionElemAt T1 T2)) (lb: Label) : Set (LeftTypeAt T1 T2 lb) := { lv | pureAt T1 T2 lb lv ∈ x }
 
 def ofRightType (x: R T1 T2) (req: x ∈ hunionSetUnivAt T1 T2) : HUnionElemAt T1 T2 := Subtype.mk x req
+
+@[defeq]
+theorem ofRightType_def {x: R T1 T2} {req: x ∈ hunionSetUnivAt T1 T2} : ofRightType x req = ⟨x, req⟩ := rfl
+
 
 /-
 def bindAt.{u3, u4}
@@ -731,6 +751,24 @@ theorem embedRangeAt_mem_of_hinterSetUnivAt_mem_at {rv: R T1 T2} (req: rv ∈ hi
 
 theorem hunionSetUnivAt_mem_of_hinterSetUnivAt_mem {rv: R T1 T2} (req: rv ∈ hinterSetUnivAt T1 T2) : rv ∈ hunionSetUnivAt T1 T2 :=
   embedRangeAt_mem_of_hinterSetUnivAt_mem_at req .fst |> hunionSetUnivAt_mem_of_embedRangeAt_mem
+
+
+namespace HUnionElemAt
+
+def ofInter (rv: R T1 T2) (req: rv ∈ hinterSetUnivAt T1 T2) : HUnionElemAt T1 T2 := ofRightType rv (hunionSetUnivAt_mem_of_hinterSetUnivAt_mem req)
+
+variable {rv: R T1 T2} {req: rv ∈ hinterSetUnivAt T1 T2}
+
+theorem ofInter_eq_pureFst : ofInter rv req = pureFst T1 T2 (HasHUnion.liftAt T1 T2 rv .fst (embedRangeAt_mem_of_hinterSetUnivAt_mem_at req .fst)) := by
+  dsimp [ofInter, ofRightType_def, pureFst_def, pureAt_eq_embedAt_mk]
+  simp [liftAt_embedAt_eq]
+
+theorem ofInter_eq_pureSnd : ofInter rv req = pureSnd T1 T2 (HasHUnion.liftAt T1 T2 rv .snd (embedRangeAt_mem_of_hinterSetUnivAt_mem_at req .snd)) := by
+  dsimp [ofInter, ofRightType_def, pureSnd_def, pureAt_eq_embedAt_mk]
+  simp [liftAt_embedAt_eq]
+
+end HUnionElemAt
+
 
 namespace AreEquivAt
 
@@ -893,6 +931,132 @@ def recDiffInter [DecidableEmbedRange T1 T2]
       <;> rcases lm3 with ⟨lv, lm3⟩
       · exact lm1 lv lm3
       · exact lm2 lv lm3 )
+
+section RecDiffInter
+
+variable [DecidableEmbedRange T1 T2] {m: HUnionElemAt T1 T2 → Sort*}
+         {diffFst: (x: HDiffElemAt T1 T2 .fst) → m (x.toUnion)} {diffSnd: (x: HDiffElemAt T1 T2 .snd) → m (x.toUnion)} {inter: (x: HInterElemAt T1 T2) → m x.toUnion}
+
+@[simp]
+theorem recDiffInter_diffFst {x: HDiffElemAt T1 T2 .fst} : x.toUnion.recDiffInter (motive := m) diffFst diffSnd inter = diffFst x := by
+  have lm1 := x.property |> hdiffSetUnivAt_mem_iff_embedRangAt_mem.mp
+  simp [recDiffInter, isInEmbedRangeAt_eq_true_iff, HDiffElemAt.toUnion, lm1]
+
+@[simp]
+theorem recDiffInter_diffSnd {x: HDiffElemAt T1 T2 .snd} : x.toUnion.recDiffInter (motive := m) diffFst diffSnd inter = diffSnd x := by
+  have lm1 := x.property |> hdiffSetUnivAt_mem_iff_embedRangAt_mem.mp
+  simp [recDiffInter, isInEmbedRangeAt_eq_true_iff, HDiffElemAt.toUnion, lm1]
+
+@[simp]
+theorem recDiffInter_inter {x: HInterElemAt T1 T2} : x.toUnion.recDiffInter (motive := m) diffFst diffSnd inter = inter x := by
+  have lm1 := x.property |> hinterSetUnivAt_mem_iff_embedRangeAt_mem.mp
+  simp [recDiffInter, isInEmbedRangeAt_eq_true_iff, HInterElemAt.toUnion, lm1]
+
+end RecDiffInter
+
+@[elab_as_elim]
+def recDiffInter₂ [DecidableEmbedRange T1 T2]
+  {motive: HUnionElemAt T1 T2 → Sort _}
+  (diff: (lb: Label) → (lv: LeftTypeAt T1 T2 lb) → (req: (embedAt T1 T2 lb lv) ∉ EmbedRangeAt T1 T2 lb.toDual) →
+         motive (HUnionElemAt.pureAt T1 T2 lb lv))
+  (inter: (rv: R T1 T2) → (req: ∀(lb: Label), rv ∈ EmbedRangeAt T1 T2 lb) → motive (HUnionElemAt.ofInter rv (hinterSetUnivAt_mem_iff_embedRangeAt_mem.mpr req)) )
+  (t: HUnionElemAt T1 T2)
+  : motive t :=
+  t.recDiffInter (motive := fun t0 => motive t0)
+    (fun x =>
+      let lv : T1 := HasHUnion.liftAt T1 T2 x.val .fst (embedRangeAt_mem_of_hdiffSetUnivAt_mem x.property)
+      have lm1 : (embedAt T1 T2 .fst lv) ∉ EmbedRangeAt T1 T2 Label.fst.toDual := by
+        subst lv
+        simp [liftAt_embedAt_eq]
+        exact x.property |> hdiffSetUnivAt_mem_iff_embedRangAt_mem.mp |>.right
+      Eq.ndrec (diff .fst lv lm1) (by subst lv; dsimp [pureAt_eq_embedAt_mk, HDiffElemAt.toUnion]; simp [liftAt_embedAt_eq]))
+    (fun x =>
+      let lv : T2 := HasHUnion.liftAt T1 T2 x.val .snd (embedRangeAt_mem_of_hdiffSetUnivAt_mem x.property)
+      have lm1 : (embedAt T1 T2 .snd lv) ∉ EmbedRangeAt T1 T2 Label.snd.toDual := by
+        subst lv
+        simp [liftAt_embedAt_eq]
+        exact x.property |> hdiffSetUnivAt_mem_iff_embedRangAt_mem.mp |>.right
+      Eq.ndrec (diff .snd lv lm1) (by subst lv; dsimp [pureAt_eq_embedAt_mk, HDiffElemAt.toUnion]; simp [liftAt_embedAt_eq]))
+    (fun x =>
+      have lm1 : HUnionElemAt.ofInter x.val x.property = x.toUnion := rfl
+      Eq.ndrec (inter x.val (hinterSetUnivAt_mem_iff_embedRangeAt_mem.mp x.property)) lm1)
+
+
+section RecDiffInter₂
+
+variable [DecidableEmbedRange T1 T2] {m: HUnionElemAt T1 T2 → Sort*}
+         {diff: (lb: Label) → (lv: LeftTypeAt T1 T2 lb) → (req: (embedAt T1 T2 lb lv) ∉ EmbedRangeAt T1 T2 lb.toDual) → m (HUnionElemAt.pureAt T1 T2 lb lv)}
+         {inter: (rv: R T1 T2) → (req: ∀(lb: Label), rv ∈ EmbedRangeAt T1 T2 lb) → m (HUnionElemAt.ofInter rv (hinterSetUnivAt_mem_iff_embedRangeAt_mem.mpr req)) }
+
+
+theorem recDiffInter₂_diff {lb: Label} {lv: LeftTypeAt T1 T2 lb} (req: (embedAt T1 T2 lb lv) ∉ EmbedRangeAt T1 T2 lb.toDual)
+  : recDiffInter₂ (motive := m) diff inter (HUnionElemAt.pureAt T1 T2 lb lv) = diff lb lv req := by
+  dsimp [recDiffInter₂]
+  have lm1 := hdiffSetUnivAt_mem_iff_embedRangAt_mem.mpr (And.intro (EmbedRangeAt.mem_self) req)
+  dsimp [recDiffInter]
+  simp [pureAt_val_eq_embedAt, isInEmbedRangeAt_eq_true_iff]
+  rcases lb
+  · dsimp [Label.toDual] at req
+    simp [req]
+    have lm2 := @embedAt_liftAt_eq T1 T2 _ .fst lv
+    simp [eqRec_eq_cast]
+    symm
+    refine eq_cast_iff_heq.mpr ?_
+    congr
+    · exact lm2.symm
+    · refine proof_irrel_heq ?_ ?_
+  · dsimp [Label.toDual] at req
+    simp [req]
+    have lm2 := @embedAt_liftAt_eq T1 T2 _ .snd lv
+    simp [eqRec_eq_cast]
+    symm
+    refine eq_cast_iff_heq.mpr ?_
+    congr
+    · exact lm2.symm
+    · refine proof_irrel_heq ?_ ?_
+
+theorem recDiffInter₂_inter {rv: R T1 T2} (req: ∀(lb: Label), rv ∈ EmbedRangeAt T1 T2 lb)
+  : recDiffInter₂ (motive := m) diff inter (HUnionElemAt.ofInter rv (hinterSetUnivAt_mem_iff_embedRangeAt_mem.mpr req)) = inter rv req := by
+  dsimp [recDiffInter₂, recDiffInter, ofInter, ofRightType_def]
+  simp [isInEmbedRangeAt_eq_true_iff, req]
+
+
+    --have lm3 := lm2
+    --simp [embedAt_liftAt_eq]
+  --let de : HDiffElemAt T1 T2 lb := ⟨embedAt T1 T2 lb lv, lm1⟩
+  --dsimp [recDiffInter]
+/-
+  have lm3: HUnionElemAt.pureAt T1 T2 lb lv = de.toUnion := by
+    subst de
+    dsimp [HUnionElemAt.pureAt_eq_embedAt_mk, HDiffElemAt.toUnion]
+  have lm4 (x: R T1 T2) h : HUnionElemAt.ofInter x h = HInterElemAt.toUnion ⟨x, h⟩ := rfl
+-/
+
+  --simp [lm4] at inter ⊢
+
+
+
+  --conv at inter =>
+    --ext; ext; simp [lm4]
+
+
+  --
+  --dsimp [lm4]
+  --have lm4 (x: HInterElemAt T1 T2) : HUnionElemAt.ofInter x.val x.property = x.toUnion := rfl
+  --simp [← lm4]
+
+
+  --rcases lb
+  --· refine
+
+  --rcases lb
+  --· dsimp [← pureFst_def]
+
+
+end RecDiffInter₂
+
+
+
 
 @[elab_as_elim]
 def recLiftDiffAt [DecidableEmbedRange T1 T2] (lb: Label)
