@@ -308,6 +308,7 @@ theorem ofFinset_pureAt_mem_iff_mem_cast {lb: Label} {lv: LeftTypeAt L1 L2 lb} {
     exact lm1)
 
 
+
 open LiftableEmbedding in
 theorem finset_empty_embedAt_eq_finset_empty {lb: Label} : embedAt (Finset L1) (Finset L2) lb (lb.casesOn ∅ ∅) = (∅: Finset (HUnionElemAt L1 L2)) := by
   simp only [HasHUnion.R, SetLike.ext_iff]
@@ -333,6 +334,21 @@ theorem liftAt_mem_iff_mem
     simp [EmbedRangeAt.exists_embedAt_iff] at req1
     dsimp [coe_eq_toEmbedding_coe, liftableEmbeddingOfPureAt, embeddingOfPureAt, pureAt_val_eq_embedAt]
     exact req1 )
+
+--↔ (∃(req: embedAt L1 L2 lb lv ∈ EmbedRangeAt L1 L2 lb.toDual), liftAt L1 L2 (embedAt L1 L2 lb lv) lb.toDual req ∈ lfs)
+open HUnionElemAt LiftableEmbedding in
+theorem ofFinset_pureAt_toDual_mem_iff_mem_cast {lb: Label} {lv: LeftTypeAt L1 L2 lb} {lfs: LeftTypeAt (Finset L1) (Finset L2) lb.toDual}
+  : ((pureAt L1 L2 lb lv) ∈ (embedAt (Finset L1) (Finset L2) lb.toDual lfs)) ↔ (∃(lvd: LeftTypeAt L1 L2 lb.toDual), (lvd ∈ lfs) ∧ embedAt L1 L2 lb lv = embedAt L1 L2 lb.toDual lvd) := by
+  rcases lb <;> (
+    dsimp [LeftTypeAt] at lfs
+    dsimp [Label.toDual]
+    conv =>
+      lhs
+      dsimp [embedAt, toLiftableEmbeddingAt, HasHUnion.fst, HasHUnion.snd]
+      dsimp [coe_eq_toEmbedding_coe, mapFinset, liftableEmbeddingOfPureAt]
+      rw [Finset.mem_map]
+      simp [HUnionElemAt.ext_iff, pureAt_val_eq_embedAt, embeddingOfPureAt]
+      conv => arg 1; ext; arg 2; rewrite [Eq.comm] )
 
 
 
@@ -484,28 +500,13 @@ theorem decideEmbedRangeOfFinset_eq_true_iff_embed_range_mem [HasHUnion.Decidabl
           exact lm1 lm6 |> False.elim )
 
 
+instance decidableEmbedRangeOfFinset [DecidableEmbedRange L1 L2] : DecidableEmbedRange (Finset L1) (Finset L2) :=
+  fun lb rfs => decidable_of_iff (decideEmbedRangeOfFinset lb rfs = .true) decideEmbedRangeOfFinset_eq_true_iff_embed_range_mem
 
 
 end ofFinset
 
-/-
-open DecidableEmbedRange in
-theorem decideEmbedRangeOfFinset_eq_true_iff_embed_range_mem [HasHUnion.DecidableEmbedRange L1 L2] {lb: Label} {rfs: (HasHUnion.ofFinset L1 L2).R}
-  : (decideEmbedRangeOfFinset lb rfs = .true) ↔ (rfs ∈ (@EmbedRangeAt (Finset L1) (Finset L2) (HasHUnion.ofFinset L1 L2) lb)) := by
-  let hu : HasHUnion (Finset L1) (Finset L2) := HasHUnion.ofFinset L1 L2
-  dsimp [HasHUnion.R] at rfs
-  dsimp [decideEmbedRangeOfFinset]
-  induction rfs using Finset.cons_induction with
-  | empty =>
-    simp only [Finset.fold_empty, true_iff]
-    --let leftEmpty : Finset (LeftTypeAt L1 L2 lb) := lb.casesOn ∅ ∅
-    rcases lb
-    · have lm1 : (HUnionElemAt.pureAt (Finset L1) (Finset L2) .fst ∅).val = (∅: Finset (HUnionElemAt L1 L2)) := by
-        simp [HUnionElemAt.pureAt_val_eq_embedAt]
--/
 
-
---def deciablemem_ : HasHUnion.DecidableEmbedRange L1 L2
 
 
 namespace RightSet
@@ -672,10 +673,15 @@ def setoidOf (LS1 LS2: Type u1) (L1 L2: Type u2) [SetLike LS1 L1] [SetLike LS2 L
 
 end AreUnionEquiv
 
-/-
-def ofFinset (rfs: (HasHUnion.ofFinset L1 L2).R) : SetLikeProd LS1 LS2 L1 L2 where
-  fst := Finset.fil
--/
+
+def ofFinset [DecidableEmbedRange L1 L2] (rfs: (HasHUnion.ofFinset L1 L2).R) : SetLikeProd (Finset L1) (Finset L2) L1 L2 :=
+  let _ := HasHUnion.ofFinset L1 L2
+  {
+    fst := if lm1: rfs ∈ EmbedRangeAt (Finset L1) (Finset L2) .fst then HasHUnion.liftAt (Finset L1) (Finset L2) rfs .fst lm1 else ∅
+    snd := if lm1: rfs ∈ EmbedRangeAt (Finset L1) (Finset L2) .snd then HasHUnion.liftAt (Finset L1) (Finset L2) rfs .snd lm1 else ∅
+  }
+
+
 
 end SetLikeProd
 
@@ -734,7 +740,6 @@ theorem decideMem_eq_true_iff {s: SetLikeProd LS1 LS2 L1 L2} {rv: HUnionElemAt L
 
 def toRightSet (s: SetLikeUnion LS1 LS2 L1 L2) : Set (HUnionElemAt L1 L2) := { rv | s.decideMem rv = .true }
 
-
 theorem toRightSet_injective : Function.Injective (toRightSet: SetLikeUnion LS1 LS2 L1 L2 → Set (HUnionElemAt L1 L2)) := by
   intro s1 s2 lm1
   cases s1 using SetLikeUnion.ind
@@ -751,8 +756,258 @@ instance toSetLike : SetLike (SetLikeUnion LS1 LS2 L1 L2) (HUnionElemAt L1 L2) w
 
 
 
+def ofFinset (rfs: (HasHUnion.ofFinset L1 L2).R) : SetLikeUnion (Finset L1) (Finset L2) L1 L2 := .mk (.ofFinset rfs)
+
+/-
+open HUnionElemAt in
+theorem ofFinset_injective : Function.Injective (ofFinset: (HasHUnion.ofFinset L1 L2).R → SetLikeUnion (Finset L1) (Finset L2) L1 L2) := by
+  let hu := HasHUnion.ofFinset L1 L2
+  intro rfs1 rfs2 lm1
+  dsimp [ofFinset] at lm1
+  rewrite [mk_eq_iff] at lm1
+  simp only [HasHUnion.R, SetLike.ext_iff]
+  intro rv
+  specialize @lm1 rv
+  --dsimp [SetLikeProd.ofFinset] at lm1
+  by_cases lm2: rfs1 ∈ HasHUnion.hunionSetUnivAt (Finset L1) (Finset L2)
+  · by_cases lm3: rfs2 ∈ HasHUnion.hunionSetUnivAt (Finset L1) (Finset L2)
+    cases lm4: HUnionElemAt.ofRightType rfs1 lm2 using HUnionElemAt.recDiffInter₂ with
+    | diff lb lfs lm5 =>
+      simp [HUnionElemAt.ext_iff, ofRightType_def, pureAt_val_eq_embedAt] at lm4
+      subst lm4
+      cases lm4: HUnionElemAt.ofRightType rfs2 lm3 using HUnionElemAt.recDiffInter₂ with
+      | diff lb2 lfs2 lm6 =>
+        simp [HUnionElemAt.ext_iff, ofRightType_def, pureAt_val_eq_embedAt] at lm4
+        subst lm4
+        cases rv using HUnionElemAt.recDiffInter₂ with
+        | diff lb3 lv lm7 =>
+          by_cases lm8: lb = lb3
+          · subst lm8
+            conv => lhs; rewrite [ofFinset_pureAt_mem_iff_mem_cast]
+            by_cases lm8: lb = lb2
+            · subst lm8
+              conv => rhs; rewrite [ofFinset_pureAt_mem_iff_mem_cast]
+              rcases lb <;> (
+                dsimp [Label.toDual] at ⊢ lm5 lm6
+                simp [SetLikeProd.ofFinset, embedAt_liftAt_eq, lm5, lm6] at lm1
+                simp [isInUnion_iff_exists, Label.exists_iff_fst_or_snd, leftSetAt] at lm1
+                simp [pureAt_val_eq_embedAt, embedAt_injective.eq_iff] at lm1
+                exact lm1 )
+            · simp [Label.ne_iff_eq_toDual_symm] at lm8
+              subst lm8
+              conv => rhs; rewrite [ofFinset_pureAt_toDual_mem_iff_mem_cast]
+              rcases lb <;> (
+                dsimp [Label.toDual] at ⊢ lm5 lm6
+                simp [SetLikeProd.ofFinset, embedAt_liftAt_eq, lm5, lm6] at lm1
+                simp [isInUnion_iff_exists, Label.exists_iff_fst_or_snd, leftSetAt] at lm1
+                simp [pureAt_val_eq_embedAt, embedAt_injective.eq_iff] at lm1
+                conv at lm1 => rhs; arg 1; ext; arg 2; rw [Eq.comm]
+                exact lm1 )
+          · simp [Label.ne_iff_eq_toDual] at lm8
+            subst lm8
+            conv => lhs; rewrite [ofFinset_pureAt_toDual_mem_iff_mem_cast]
+            by_cases lm8: lb3 = lb2
+            · subst lm8
+              conv => rhs; rewrite [ofFinset_pureAt_mem_iff_mem_cast]
+              rcases lb3 <;> (
+                dsimp [Label.toDual] at ⊢ lm5 lm6
+                simp [SetLikeProd.ofFinset, embedAt_liftAt_eq, lm5, lm6] at lm1
+                simp [isInUnion_iff_exists, Label.exists_iff_fst_or_snd, leftSetAt] at lm1
+                simp [pureAt_val_eq_embedAt, embedAt_injective.eq_iff] at lm1
+                conv at lm1 => lhs; arg 1; ext; arg 2; rw [Eq.comm]
+                exact lm1 )
+            · simp [Label.ne_iff_eq_toDual_symm] at lm8
+              subst lm8
+              conv => rhs; rewrite [ofFinset_pureAt_toDual_mem_iff_mem_cast]
+              rcases lb3 <;> (
+                dsimp [Label.toDual] at ⊢ lm5 lm6
+                simp [SetLikeProd.ofFinset, embedAt_liftAt_eq, lm5, lm6] at lm1
+                simp [isInUnion_iff_exists, Label.exists_iff_fst_or_snd, leftSetAt] at lm1
+                simp [pureAt_val_eq_embedAt] at lm1
+                conv at lm1 =>
+                  conv => lhs; arg 1; ext; arg 2; rw [Eq.comm]
+                  conv => rhs; arg 1; ext; arg 2; rw [Eq.comm]
+                exact lm1 )
+        | inter rv lm4 =>
+          cases lm4 lb using EmbedRangeAt.indOnLeftTypeEq
+          rename_i lv lm8
+          subst lm8
+          dsimp [ofInter, ofRightType_def, ← pureAt_eq_embedAt_mk]
+          by_cases lm8: lb = lb2
+          · subst lm8
+            conv =>
+              conv => lhs; rw [ofFinset_pureAt_mem_iff_mem_cast]
+              conv => rhs; rw [ofFinset_pureAt_mem_iff_mem_cast]
+            rcases lb <;> (
+              dsimp [Label.toDual] at ⊢ lm5 lm6
+              simp [SetLikeProd.ofFinset, embedAt_liftAt_eq, lm5, lm6] at lm1
+              simp [isInUnion_iff_exists, Label.exists_iff_fst_or_snd, leftSetAt] at lm1
+              simp [ofInter, ofRightType_def, embedAt_injective.eq_iff] at lm1
+              exact lm1 )
+          · simp [Label.ne_iff_eq_toDual_symm] at lm8
+            subst lm8
+            conv =>
+              conv => lhs; rw [ofFinset_pureAt_mem_iff_mem_cast]
+              conv => rhs; rw [ofFinset_pureAt_toDual_mem_iff_mem_cast]
+            rcases lb <;> (
+              dsimp [Label.toDual] at ⊢ lm5 lm6
+              simp [SetLikeProd.ofFinset, embedAt_liftAt_eq, lm5, lm6] at lm1
+              simp [isInUnion_iff_exists, Label.exists_iff_fst_or_snd, leftSetAt] at lm1
+              simp [ofInter, ofRightType_def, embedAt_injective.eq_iff] at lm1
+              conv => rhs; arg 1; ext; arg 2; rw [Eq.comm]
+              exact lm1 )
+      | inter rfs lm6 =>
+        simp [ofInter, ofRightType_def] at lm4
+        subst lm4
+        cases lm6 lb using EmbedRangeAt.indOnLeftTypeEq
+        rename_i lfs2 lm7
+        subst lm7
+        cases rv using recDiffInter₂ with
+        | diff lb2 lv lm7 =>
+          simp [EmbedRangeAt.exists_embedAt_iff] at lm7
+          by_cases lm8: lb = lb2
+          · subst lm8
+            conv =>
+              conv => lhs; rw [ofFinset_pureAt_mem_iff_mem_cast]
+              conv => rhs; rw [ofFinset_pureAt_mem_iff_mem_cast]
+            rcases lb <;> (
+              dsimp [Label.toDual] at ⊢ lm5 lm6 lm7
+              simp [SetLikeProd.ofFinset, embedAt_liftAt_eq, lm5, lm6] at lm1
+              simp [isInUnion_iff_exists, Label.exists_iff_fst_or_snd, leftSetAt] at lm1
+              simp [pureAt_val_eq_embedAt, embedAt_injective.eq_iff] at lm1
+              refine Iff.trans lm1 ?_
+              simp
+              intro lv2 lm8 lm9
+              exact lm7 lv2 lm9 |> False.elim )
+          · simp [Label.ne_iff_eq_toDual] at lm8
+            subst lm8
+            conv =>
+              conv => lhs; rw [ofFinset_pureAt_toDual_mem_iff_mem_cast]
+              conv => rhs; rw [ofFinset_pureAt_toDual_mem_iff_mem_cast]
+            rcases lb2 <;> (
+              dsimp [Label.toDual] at ⊢ lm5 lm6 lm7 lfs2 lm3
+              simp [SetLikeProd.ofFinset, embedAt_liftAt_eq, lm5, lm6] at lm1
+              simp [isInUnion_iff_exists, Label.exists_iff_fst_or_snd, leftSetAt] at lm1
+              simp [pureAt_val_eq_embedAt, embedAt_injective.eq_iff] at lm1 )
+            · conv at lm1 =>
+                conv => lhs; arg 1; ext; arg 2; rw [Eq.comm]
+                conv => rhs; arg 2; arg 1; ext; arg 2; rw [Eq.comm]
+              refine Iff.trans lm1 ?_
+              simp
+              intro lm8
+              dsimp [Label.toDual] at lm8
+              --have := not_iff
+-/
 
 
+        /-
+        rcases lb <;> (
+          dsimp [Label.toDual] at ⊢ lm5 lm6
+          simp [SetLikeProd.ofFinset, embedAt_liftAt_eq, lm5, lm6] at lm1
+          simp [isInUnion_iff_exists, Label.exists_iff_fst_or_snd, leftSetAt] at lm1
+        )
+        -/
+        --simp [SetLikeProd.ofFinset, lm6] at lm1
+
+
+/-
+        cases rv using HUnionElemAt.recDiffInter₂ with
+        | diff lb2 lv lm7 =>
+          by_cases lm8: lb = lb2
+          · subst lm8
+            conv => lhs; rw [ofFinset_pureAt_mem_iff_mem_cast]
+            rcases lb <;> (
+              dsimp [Label.toDual] at ⊢ lm5 lm6
+              simp [SetLikeProd.ofFinset, embedAt_liftAt_eq, lm5, lm6] at lm1
+              simp [isInUnion_iff_exists, Label.exists_iff_fst_or_snd, leftSetAt] at lm1
+              simp [pureAt_val_eq_embedAt, embedAt_injective.eq_iff] at lm1
+              exact lm1 )
+-/
+/-
+        rcases lb <;> (
+          dsimp [Label.toDual] at ⊢ lm5 lm6
+          simp [SetLikeProd.ofFinset, embedAt_liftAt_eq, lm5, lm6] at lm1
+          simp [isInUnion_iff_exists, Label.exists_iff_fst_or_snd, leftSetAt] at lm1
+        )
+-/
+          --by_cases lm8: lb = lb2
+          --· subst lm8
+/-
+            rcases lb <;> (
+              dsimp [Label.toDual] at ⊢ lm5 lm6
+              simp [SetLikeProd.ofFinset, embedAt_liftAt_eq, lm5, lm6] at lm1
+              simp [isInUnion_iff_exists, Label.exists_iff_fst_or_snd, leftSetAt] at lm1
+              dsimp [ofInter, ofRightType_def] at lm1
+              exact lm1 )
+-/
+
+          --· subst lm8
+
+
+
+
+            --simp [ofFinset_pureAt_mem_iff_mem_cast]
+
+/-
+        rcases lb <;> rcases lb2 <;> (
+          dsimp [Label.toDual] at lm5 lm6
+          simp [lm5, lm6, embedAt_liftAt_eq] at lm1
+          simp [isInUnion_iff_exists] at lm1
+          rcases lm1 with ⟨lm1_1, lm1_2⟩
+          simp at lm1_1 lm1_2
+          cases rv using
+        )
+-/
+    --let r1 := HUnionElemAt.ofRightType rfs1 lm2
+    --let r2 := HUnionElemAt.ofRightType rfs2 lm3
+
+/-
+  cases rv using HUnionElemAt.recDiffInter₂ with
+  | diff lb lv lm2 =>
+    by_cases lm3: rfs1 ∈ EmbedRangeAt (Finset L1) (Finset L2) lb
+    · rcases lb <;> (
+        dsimp [LeftTypeAt] at lv
+        dsimp [Label.toDual] at lm2
+        simp [SetLikeProd.ofFinset, lm3] at lm1
+        cases lm3 using EmbedRangeAt.indOnLeftTypeEq
+        rename_i lfs lm3
+        have lm3_1 := lm3; subst lm3_1
+
+      )
+-/
+/-
+    rcases lb <;> (
+      dsimp [LeftTypeAt] at lv
+      dsimp [Label.toDual] at lm2
+      --dsimp [SetLikeProd.ofFinset] at lm1
+    )
+-/
+  --by_cases lm2: rfs1 ∈ EmbedRangeAt (Finset L1) (Finset L2) .fst
+  --· simp [SetLikeProd.ofFinset, lm2] at lm1
+/-
+
+
+    )
+  --simp [HUnionElemAt.isInUnion_iff_exists] at lm3
+-/
+/-
+  rcases lm3 with ⟨lm3, lm4⟩
+  simp at lm3 lm4
+  constructor
+  · intro lm5
+-/
+  --simp [SetLikeProd.ofFinset] at lm3
+/-
+  cases lm1: ofFinset rfs1 using SetLikeUnion.ind
+  cases lm2: ofFinset rfs2 using SetLikeUnion.ind
+  rename_i sp1 sp2
+  rewrite [lm1, lm2] at lm3
+  simp [mk_eq_iff] at lm3
+  simp only [HasHUnion.R, SetLike.ext_iff]
+  intro rv
+  specialize @lm3 rv
+  dsimp [ofFinset] at lm1 lm2
+-/
 
 end SetLikeUnion
 
