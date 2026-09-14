@@ -1,7 +1,7 @@
 module
 
 public import Nemonuri.TransitionSystemLike.ProgramGraph.Basic
-public import Nemonuri.HasHUnion
+public import Nemonuri.HasHUnion.SetLike
 
 /-!
 

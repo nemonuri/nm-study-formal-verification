@@ -1,6 +1,8 @@
 module
 
 public import Nemonuri.HasHUnion.Basic
+public import Mathlib.Data.Finset.Basic
+public import Mathlib.Data.Finset.Union
 
 @[expose] public section
 
@@ -10,10 +12,133 @@ namespace Nemonuri
 
 abbrev DecidableSetLikeMem (S E: Type*) [SetLike S E] : Type _ := (s: S) → (e: E) → Decidable (e ∈ s)
 
-end Nemonuri
+namespace DecidableSetLikeMem
+
+@[reducible]
+def ofFinset (E: Type*) [DecidableEq E] : DecidableSetLikeMem (Finset E) E := fun s e => (inferInstance: Decidable (e ∈ s))
+
+end DecidableSetLikeMem
 
 
-namespace Nemonuri.HasHUnion
+namespace LiftableEmbedding
+
+protected def id (L: Type*) : LiftableEmbedding L L :=
+  let emb : L ↪ L := ⟨id, Function.injective_id⟩
+  {
+    toEmbedding := emb
+    lift lv req := lv
+    lift_valid := by
+      subst emb
+      simp
+  }
+
+protected def comp (L R1 R2: Type*) (lhs: LiftableEmbedding R1 R2) (rhs: LiftableEmbedding L R1) : LiftableEmbedding L R2 :=
+  let emb : L ↪ R2 := Function.Embedding.mk (lhs.toEmbedding ∘ rhs.toEmbedding) (Function.Injective.comp lhs.toEmbedding.injective rhs.toEmbedding.injective)
+  {
+    toEmbedding := emb
+    lift rv2 req :=
+      let rv1 : R1 := lhs.lift rv2 (by
+        subst emb
+        simp at ⊢ req
+        obtain ⟨lv, lm1⟩ := req
+        exact Exists.intro _ lm1)
+      rhs.lift rv1 (by
+        subst emb
+        subst rv1
+        simp at ⊢ req
+        obtain ⟨lv, lm1⟩ := req
+        rewrite [Eq.comm] at lm1
+        subst lm1
+        rewrite [lhs.lift_valid]
+        exists lv)
+    lift_valid := by
+      intro lv
+      subst emb
+      simp [lhs.lift_valid, rhs.lift_valid]
+  }
+
+
+
+def pureToFinset (L: Type*) : LiftableEmbedding L (Finset L) :=
+  let emb : L ↪ (Finset L) := ⟨fun lv => {lv}, by intro lv1 lv2; simp⟩
+  {
+    toEmbedding := emb
+    lift fs req := fs.choose (fun _ => True) (by
+      subst emb
+      simp at req
+      obtain ⟨lv, lm1⟩ := req
+      rewrite [Eq.comm] at lm1
+      subst lm1
+      simp)
+    lift_valid := by
+      subst emb
+      intro lv
+      simp
+      rw [Finset.choose_eq_iff]
+      simp
+  }
+
+
+/-
+def bindToFinset (L R: Type*) [DecidableEq R] (lemb: LiftableEmbedding L (Finset R)) : LiftableEmbedding (Finset L) (Finset R) :=
+  let emb: (Finset L) ↪ (Finset R) :=
+    Function.Embedding.mk (fun (lfs: Finset L) => lfs.biUnion lemb.toEmbedding) (by
+      intro lfs1 lfs2 lm1
+      simp at lm1 ⊢
+      simp [SetLike.ext_iff] at ⊢ lm1
+      intro lv
+      conv at lm1 => ext; rw [iff_iff_implies_and_implies]; simp
+
+    )
+-/
+
+def mapFinset {L R: Type*} (lemb: LiftableEmbedding L R) : LiftableEmbedding (Finset L) (Finset R) :=
+  let emb: (Finset L) ↪ (Finset R) := Function.Embedding.mk (fun (lfs: Finset L) => lfs.map lemb.toEmbedding) (by intro lfs1 lfs2; simp)
+  let liftImpl (rfs: Finset R) (req: rfs ∈ Set.range emb) : Finset L :=
+    have lm1 (rv) (req2: rv ∈ rfs) : rv ∈ Set.range lemb := by
+      subst emb
+      simp at req ⊢
+      obtain ⟨lv, lm1⟩ := req
+      rewrite [Eq.comm] at lm1
+      subst lm1
+      simp at req2
+      rcases req2 with ⟨_,_,lm2⟩
+      exact Exists.intro _ lm2
+    let liftEmb : { rv // rv ∈ Set.range lemb } ↪ L := Function.Embedding.mk lemb.liftAlt lemb.liftAlt_Injective
+    let mapEmb : { rv // rv ∈ rfs } ↪ { rv // rv ∈ Set.range lemb } := Function.Embedding.mk (Subtype.map id lm1) (by intro _ _; simp [Subtype.map_def])
+    (rfs.attach.map mapEmb).map liftEmb
+  { toEmbedding := emb, lift := liftImpl
+    lift_valid lfs := by
+      subst liftImpl
+      subst emb
+      simp [SetLike.ext_iff]
+      simp [Subtype.map_def, ← LiftableEmbedding.lift_eq_liftAlt, LiftableEmbedding.lift_valid]
+      intro lv _
+      exists lv }
+
+theorem mapFinset_mem_iff_mem {L R: Type*} {lemb: LiftableEmbedding L R} {lv: L} {lfs: Finset L}
+  : (lemb lv ∈ lemb.mapFinset lfs) ↔ (lv ∈ lfs) := by
+  dsimp [coe_eq_toEmbedding_coe, mapFinset]
+  exact Finset.mem_map' lemb.toEmbedding
+
+theorem mapFinset_lift_mem_iff {L R: Type*}
+  {lemb: LiftableEmbedding L R} {rv: R} (req1: rv ∈ Set.range lemb) {rfs: Finset R} (req2: rfs ∈ Set.range lemb.mapFinset)
+  : (lemb.lift rv req1 ∈ lemb.mapFinset.lift rfs req2) ↔ (rv ∈ rfs) := by
+  revert req1 req2
+  simp
+  intro lv lm1 lfs lm2
+  rewrite [Eq.comm] at lm1 lm2
+  subst lm1 lm2
+  dsimp [coe_eq_toEmbedding_coe]
+  simp [lift_valid]
+  exact mapFinset_mem_iff_mem.symm
+
+
+
+end LiftableEmbedding
+
+
+namespace HasHUnion
 
 section EmbedSetAt
 
@@ -115,7 +240,273 @@ instance decidableIsInUnion [DecidableEmbedRange L1 L2] {ls1: Set L1} {ls2: Set 
   decidable_of_iff (decideIsInUnion ls1 ls2 rv = .true) decideIsInUnion_eq_true_iff_in_union
 
 
+theorem pureAt_injective {lb: Label} : Function.Injective (pureAt L1 L2 lb) := by
+  intro _ _ lm1
+  simp [pureAt_eq_embedAt_mk] at lm1
+  exact HasHUnion.embedAt_injective.eq_iff.mp lm1
+
+def embeddingOfPureAt (lb: Label) : LeftTypeAt L1 L2 lb ↪ HUnionElemAt L1 L2 := .mk (pureAt L1 L2 lb) pureAt_injective
+
+def liftableEmbeddingOfPureAt (lb: Label) : LiftableEmbedding (LeftTypeAt L1 L2 lb) (HUnionElemAt L1 L2) where
+  toEmbedding := embeddingOfPureAt lb
+  lift rv req := rv.liftAt lb (by
+    simp [embeddingOfPureAt, Subtype.ext_iff, pureAt_val_eq_embedAt] at req
+    simpa [EmbedRangeAt.exists_embedAt_iff] using req)
+  lift_valid lv := by
+    dsimp [embeddingOfPureAt, HUnionElemAt.liftAt, pureAt_val_eq_embedAt]
+    simp [embedAt_liftAt_eq]
+
+
 end HUnionElemAt
+
+
+@[reducible]
+def ofFinset (L1 L2: Type u1) [HasHUnion.{u1, u2} L1 L2] : HasHUnion (Finset L1) (Finset L2) where
+  R := Finset (HUnionElemAt L1 L2)
+  fst := (HUnionElemAt.liftableEmbeddingOfPureAt .fst).mapFinset
+  snd := (HUnionElemAt.liftableEmbeddingOfPureAt .snd).mapFinset
+
+
+def decideEmbedRangeOfFinset [HasHUnion.DecidableEmbedRange L1 L2] (lb: Label) (rfs: (HasHUnion.ofFinset L1 L2).R) : Bool :=
+  Finset.fold Bool.and .true (fun (rv: HUnionElemAt L1 L2) => DecidableEmbedRange.isInEmbedRangeAt L1 L2 rv.val lb) rfs
+
+section ofFinset
+
+
+attribute [local instance] ofFinset
+
+open DecidableEmbedRange
+
+scoped instance (priority := low) {lb: Label} : Membership (LeftTypeAt L1 L2 lb) (LeftTypeAt (Finset L1) (Finset L2) lb) where
+  mem := lb.casesOn (motive := fun lb0 => (LeftTypeAt (Finset L1) (Finset L2) lb0) → (LeftTypeAt L1 L2 lb0) → Prop)
+                    (fun lfs lv => lv ∈ lfs)
+                    (fun lfs lv => lv ∈ lfs)
+
+scoped instance (priority := low) : Membership (HUnionElemAt L1 L2) (R (Finset L1) (Finset L2)) where
+  mem rfs rv := let rfs' : Finset (HUnionElemAt L1 L2) := rfs; rv ∈ rfs'
+
+
+theorem ofFinset_leftTypeAt_eq {lb: Label} : LeftTypeAt (Finset L1) (Finset L2) lb = Finset (LeftTypeAt L1 L2 lb) := by
+  rcases lb <;> dsimp
+
+
+open HUnionElemAt LiftableEmbedding in
+theorem ofFinset_pureAt_cast_mem_iff_mem {lb: Label} {lv: LeftTypeAt L1 L2 lb} {lfs: Finset (LeftTypeAt L1 L2 lb)}
+  : ((pureAt L1 L2 lb lv) ∈ (embedAt (Finset L1) (Finset L2) lb (cast ofFinset_leftTypeAt_eq.symm lfs))) ↔ (lv ∈ lfs) := by
+  rcases lb <;> dsimp [LeftTypeAt] at lv lfs ⊢
+  dsimp [embedAt, toLiftableEmbeddingAt]
+  · exact mapFinset_mem_iff_mem
+  · exact mapFinset_mem_iff_mem
+
+
+open HUnionElemAt in
+theorem ofFinset_pureAt_mem_iff_mem_cast {lb: Label} {lv: LeftTypeAt L1 L2 lb} {lfs: LeftTypeAt (Finset L1) (Finset L2) lb}
+  : ((pureAt L1 L2 lb lv) ∈ (embedAt (Finset L1) (Finset L2) lb lfs)) ↔ (lv ∈ (cast ofFinset_leftTypeAt_eq lfs)) := by
+  have lm1 := @ofFinset_pureAt_cast_mem_iff_mem L1 L2 _ lb lv
+  rcases lb <;> (
+    dsimp at ⊢ lm1
+    exact lm1)
+
+
+open LiftableEmbedding in
+theorem finset_empty_embedAt_eq_finset_empty {lb: Label} : embedAt (Finset L1) (Finset L2) lb (lb.casesOn ∅ ∅) = (∅: Finset (HUnionElemAt L1 L2)) := by
+  simp only [HasHUnion.R, SetLike.ext_iff]
+  intro rv
+  rcases lb <;> (
+    dsimp [embedAt, toLiftableEmbeddingAt]
+    dsimp [HasHUnion.fst, HasHUnion.snd]
+    dsimp [coe_eq_toEmbedding_coe, LiftableEmbedding.mapFinset]
+    rfl )
+
+
+
+open HUnionElemAt LiftableEmbedding in
+theorem liftAt_mem_iff_mem
+  {rv: HUnionElemAt L1 L2} {rfs: Finset (HUnionElemAt L1 L2)} {lb: Label}
+  (req1: rv.val ∈ EmbedRangeAt L1 L2 lb) (req2: rfs ∈ EmbedRangeAt (Finset L1) (Finset L2) lb)
+  : ((liftAt L1 L2 rv lb req1) ∈ (liftAt (Finset L1) (Finset L2) rfs lb req2)) ↔ (rv ∈ rfs) := by
+  dsimp [liftAt, toLiftableEmbeddingAt]
+  rcases lb <;> (
+    dsimp
+    refine mapFinset_lift_mem_iff ?_ _
+    simp [HUnionElemAt.ext_iff]
+    simp [EmbedRangeAt.exists_embedAt_iff] at req1
+    dsimp [coe_eq_toEmbedding_coe, liftableEmbeddingOfPureAt, embeddingOfPureAt, pureAt_val_eq_embedAt]
+    exact req1 )
+
+
+
+/-
+  rewrite [EmbedRangeAt.exists_embedAt_iff] at req1 req2
+  simp only [Eq.comm] at req1 req2
+  rcases req1 with ⟨lv, lm1⟩
+  rcases req2 with ⟨lfs, lm2⟩
+  rcases rv with ⟨rv, lm3⟩
+  dsimp at lm1 ⊢
+  subst lm1
+  subst lm2
+  simp only [embedAt_liftAt_eq]
+  dsimp [embedAt, toLiftableEmbeddingAt]
+  rcases lb <;> dsimp
+  · conv =>
+      lhs
+      dsimp only [HasHUnion.fst, DFunLike.coe, LiftableEmbedding.mapFinset]
+      simp only [Finset.mem_map]
+      dsimp [HUnionElemAt.liftableEmbeddingOfPureAt, HUnionElemAt.embeddingOfPureAt]
+      simp [HUnionElemAt.ext_iff, HUnionElemAt.pureAt_val_eq_embedAt]
+      dsimp [embedAt, toLiftableEmbeddingAt]
+      dsimp only [DFunLike.coe]
+      simp
+  · conv =>
+      lhs
+      dsimp only [HasHUnion.snd, DFunLike.coe, LiftableEmbedding.mapFinset]
+      simp only [Finset.mem_map]
+      dsimp [HUnionElemAt.liftableEmbeddingOfPureAt, HUnionElemAt.embeddingOfPureAt]
+      simp [HUnionElemAt.ext_iff, HUnionElemAt.pureAt_val_eq_embedAt]
+      dsimp [embedAt, toLiftableEmbeddingAt]
+      dsimp only [DFunLike.coe]
+      simp
+-/
+
+theorem finset_not_mem_iff_lift_not_mem
+  {rv: HUnionElemAt L1 L2} {rfs: Finset (HUnionElemAt L1 L2)} {lb: Label}
+  (req1: rv.val ∈ EmbedRangeAt L1 L2 lb) (req2: rfs ∈ EmbedRangeAt (Finset L1) (Finset L2) lb)
+  : ((liftAt L1 L2 rv lb req1) ∉ (liftAt (Finset L1) (Finset L2) rfs lb req2)) ↔ (rv ∉ rfs) :=
+  not_iff_not.mpr (liftAt_mem_iff_mem req1 req2)
+
+open HUnionElemAt LiftableEmbedding in
+theorem finset_cons
+  {rv: HUnionElemAt L1 L2} {rfs: Finset (HUnionElemAt L1 L2)} {lb: Label}
+  (req1: rv.val ∈ EmbedRangeAt L1 L2 lb) (req2: rfs ∈ EmbedRangeAt (Finset L1) (Finset L2) lb) (req3: rv ∉ rfs)
+  : rfs.cons rv req3 ∈ EmbedRangeAt (Finset L1) (Finset L2) lb := by
+  cases rv using indOnPureAt
+  rename_i lb2 lv2
+  rw [EmbedRangeAt.exists_embedAt_iff] at ⊢
+  cases req2 using EmbedRangeAt.indOnLeftTypeEq
+  rename_i lfs lm1; subst lm1
+  rewrite [pureAt_val_eq_embedAt] at req1
+  cases req1 using EmbedRangeAt.indOnLeftTypeEq
+  rename_i lv1 lm1
+  rewrite [← pureAt_eq_iff_embedAt_eq] at lm1
+  have lm2 := req3
+  rewrite [lm1, ofFinset_pureAt_mem_iff_mem_cast] at lm2
+  rcases lb <;> (
+    dsimp [LeftTypeAt] at lm2 lfs lv1
+    let lfs2 := lfs.cons lv1 lm2
+    exists lfs2
+    simp only [lm1, HasHUnion.R, SetLike.ext_iff]
+    intro rv
+    subst lfs2
+    simp
+    conv =>
+      lhs
+      dsimp [embedAt, toLiftableEmbeddingAt, HasHUnion.fst, HasHUnion.snd]
+      dsimp [coe_eq_toEmbedding_coe, mapFinset, liftableEmbeddingOfPureAt]
+      simp
+      dsimp [embeddingOfPureAt]
+    conv =>
+      rhs
+      arg 2
+      dsimp [embedAt, toLiftableEmbeddingAt, HasHUnion.fst, HasHUnion.snd]
+      dsimp [coe_eq_toEmbedding_coe, mapFinset, liftableEmbeddingOfPureAt]
+      simp
+      dsimp [embeddingOfPureAt] )
+
+
+
+open HUnionElemAt LiftableEmbedding in
+theorem decideEmbedRangeOfFinset_eq_true_iff_embed_range_mem [HasHUnion.DecidableEmbedRange L1 L2] {lb: Label} {rfs: R (Finset L1) (Finset L2)}
+  : (decideEmbedRangeOfFinset lb rfs = .true) ↔ (rfs ∈ EmbedRangeAt (Finset L1) (Finset L2) lb) := by
+  dsimp [decideEmbedRangeOfFinset]
+  let de : DecidableEq (LeftTypeAt L1 L2 lb) := fun _ _ => Classical.propDecidable _
+  induction rfs using Finset.cons_induction with
+  | empty =>
+    simp only [Finset.fold_empty, true_iff]
+    conv => arg 2; rw [← (@finset_empty_embedAt_eq_finset_empty L1 L2 _ lb)]
+    exact EmbedRangeAt.mem_self
+  | cons rv rfs lm1 lm2 =>
+    simp [Finset.fold_cons]
+    conv => lhs; arg 1; rw [isInEmbedRangeAt_eq_true_iff]
+    constructor
+    · rintro ⟨lm3, lm4⟩
+      replace lm4 := lm2.mp lm4
+      exact finset_cons lm3 lm4 lm1
+    · intro lm3
+      cases lm3 using EmbedRangeAt.indOnLeftTypeEq
+      rename_i lfs lm3
+      simp [HasHUnion.R, SetLike.ext_iff, - Subtype.forall] at lm3
+      rcases lb <;> (
+        conv at lm3 =>
+          ext x
+          arg 2
+          dsimp [embedAt, toLiftableEmbeddingAt, HasHUnion.fst, HasHUnion.snd]
+          dsimp [coe_eq_toEmbedding_coe, mapFinset, liftableEmbeddingOfPureAt]
+          simp only [Finset.mem_map]
+          dsimp [embeddingOfPureAt]
+        dsimp [LeftTypeAt] at lfs
+        have lm5 := lm3
+        specialize lm3 rv
+        simp at lm3
+        rcases lm3 with ⟨lv, lm3, lm4⟩
+        rewrite [Eq.comm] at lm4
+        subst lm4
+        simp [pureAt_val_eq_embedAt]
+        simp [EmbedRangeAt.exists_embedAt_iff] at lm2
+        refine lm2.mpr ?_
+        clear lm2
+        simp [HasHUnion.R, SetLike.ext_iff, - Subtype.forall]
+        dsimp [embedAt, toLiftableEmbeddingAt, HasHUnion.fst, HasHUnion.snd]
+        dsimp [coe_eq_toEmbedding_coe, mapFinset, liftableEmbeddingOfPureAt]
+        simp only [Finset.mem_map]
+        dsimp [embeddingOfPureAt]
+        exists (lfs.erase lv)
+        intro rv
+        specialize lm5 rv
+        constructor
+        · rintro ⟨lv2, lm6, lm7⟩
+          obtain ⟨lm6_1, lm6_2⟩ := Finset.mem_erase.mp lm6; clear lm6
+          rewrite [Eq.comm] at lm7
+          subst lm7
+          simp [pureAt_injective.eq_iff] at lm5
+          replace lm5 := lm5.mpr lm6_2
+          rcases lm5 with lm5 | lm5
+          · exact lm6_1 lm5 |> False.elim
+          · exact lm5
+        · intro lm6
+          simp [lm6] at lm5
+          obtain ⟨lv2, lm5, lm7⟩ := lm5
+          rewrite [Eq.comm] at lm7
+          subst lm7
+          simp [pureAt_injective.eq_iff]
+          simp [lm5]
+          intro lm7
+          subst lm7
+          exact lm1 lm6 |> False.elim )
+
+
+
+
+end ofFinset
+
+/-
+open DecidableEmbedRange in
+theorem decideEmbedRangeOfFinset_eq_true_iff_embed_range_mem [HasHUnion.DecidableEmbedRange L1 L2] {lb: Label} {rfs: (HasHUnion.ofFinset L1 L2).R}
+  : (decideEmbedRangeOfFinset lb rfs = .true) ↔ (rfs ∈ (@EmbedRangeAt (Finset L1) (Finset L2) (HasHUnion.ofFinset L1 L2) lb)) := by
+  let hu : HasHUnion (Finset L1) (Finset L2) := HasHUnion.ofFinset L1 L2
+  dsimp [HasHUnion.R] at rfs
+  dsimp [decideEmbedRangeOfFinset]
+  induction rfs using Finset.cons_induction with
+  | empty =>
+    simp only [Finset.fold_empty, true_iff]
+    --let leftEmpty : Finset (LeftTypeAt L1 L2 lb) := lb.casesOn ∅ ∅
+    rcases lb
+    · have lm1 : (HUnionElemAt.pureAt (Finset L1) (Finset L2) .fst ∅).val = (∅: Finset (HUnionElemAt L1 L2)) := by
+        simp [HUnionElemAt.pureAt_val_eq_embedAt]
+-/
+
+
+--def deciablemem_ : HasHUnion.DecidableEmbedRange L1 L2
+
 
 namespace RightSet
 
@@ -281,6 +672,11 @@ def setoidOf (LS1 LS2: Type u1) (L1 L2: Type u2) [SetLike LS1 L1] [SetLike LS2 L
 
 end AreUnionEquiv
 
+/-
+def ofFinset (rfs: (HasHUnion.ofFinset L1 L2).R) : SetLikeProd LS1 LS2 L1 L2 where
+  fst := Finset.fil
+-/
+
 end SetLikeProd
 
 def SetLikeUnion (LS1 LS2: Type u1) (L1 L2: Type u2) [SetLike LS1 L1] [SetLike LS2 L2] [HasHUnion.{u2, u3} L1 L2] : Type _ := Quotient (SetLikeProd.AreUnionEquiv.setoidOf LS1 LS2 L1 L2)
@@ -354,6 +750,10 @@ instance toSetLike : SetLike (SetLikeUnion LS1 LS2 L1 L2) (HUnionElemAt L1 L2) w
   coe_injective := toRightSet_injective
 
 
+
+
+
+
 end SetLikeUnion
 
 
@@ -390,8 +790,18 @@ instance toSetLike : SetLike (RS L1 L2) (HUnionElemAt L1 L2) where
   coe rs := ((rs: SetLikeUnionType L1 L2): Set (HUnionElemAt L1 L2))
   coe_injective := SetLike.coe_injective.comp HasSetLike.coe_injective
 
-
-
+/-
+@[reducible]
+def ofFinset (L1 L2 : Type u2) [HasHUnion.{u2, u3} L1 L2] [DecidableEmbedRange L1 L2] [HasSetLike.{u1, u2, u3, u4} L1 L2] [DecidableEq L1] [DecidableEq L2] : HasSetLike L1 L2 where
+  LS1 := Finset L1
+  leftSetLike1 := inferInstance
+  decidableLeftSetLikeMem1 := DecidableSetLikeMem.ofFinset L1
+  LS2 := Finset L2
+  leftSetLike2 := inferInstance
+  decidableLeftSetLikeMem2 := DecidableSetLikeMem.ofFinset L2
+  leftSetHasHUnion := HasHUnion.ofFinset L1 L2
+  coe rfs :=
+-/
 
 
 end HasSetLike

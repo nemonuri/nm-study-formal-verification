@@ -280,6 +280,17 @@ theorem exists_embedAt_iff {rv: R T1 T2}
   : (rv ∈ EmbedRangeAt T1 T2 lb) ↔ (∃(lv: LeftTypeAt T1 T2 lb), embedAt T1 T2 lb lv = rv) := by
   simp [EmbedRangeAt]
 
+@[elab_as_elim]
+theorem indOnLeftTypeEq {rv: R T1 T2} {lb: Label}
+  {motive: rv ∈ EmbedRangeAt T1 T2 lb → Prop}
+  (lv_eq: (lv: LeftTypeAt T1 T2 lb) → (req: rv = embedAt T1 T2 lb lv) → motive (exists_embedAt_iff.mpr (Exists.intro lv req.symm)))
+  (h: rv ∈ EmbedRangeAt T1 T2 lb)
+  : motive h := by
+  obtain ⟨lv, lm1⟩ := exists_embedAt_iff.mp h
+  specialize lv_eq lv lm1.symm
+  exact lv_eq
+
+
 end EmbedRangeAt
 
 abbrev DecidableEmbedRange (T1 T2: Type u1) [HasHUnion T1 T2] : Type u2 := (lb: Label) → (rv: R T1 T2) → (Decidable (rv ∈ EmbedRangeAt T1 T2 lb))
@@ -646,6 +657,23 @@ def ofEmbedElem {lb: Label} (x: EmbedElemAt T1 T2 lb) : HUnionElemAt T1 T2 := Su
 
 def pureAt (T1 T2: Type u1) [HasHUnion T1 T2] (lb: Label) (lv: LeftTypeAt T1 T2 lb) : HUnionElemAt T1 T2 := ⟨(embedAt T1 T2 lb lv), (embedAt_hunionSetUnivAt_mem)⟩ --(ofEmbedElem ∘ EmbedElemAt.pureAt T1 T2 lb) lv
 
+@[elab_as_elim]
+theorem indOnPureAt {T1 T2: Type u1} [HasHUnion T1 T2]
+  {motive: HUnionElemAt T1 T2 → Prop}
+  (pureAt: (lb: Label) → (lv: LeftTypeAt T1 T2 lb) → motive (HUnionElemAt.pureAt T1 T2 lb lv))
+  (t: HUnionElemAt T1 T2)
+  : motive t := by
+  rcases t with ⟨t, lm1⟩
+  obtain ⟨lb, lm2⟩ := hunionSetUnivAt_mem_iff_embedRangeAt_mem.mp lm1
+  obtain ⟨lv, lm3⟩ := EmbedRangeAt.exists_embedAt_iff.mp lm2
+  specialize pureAt lb lv
+  rewrite [Eq.comm] at lm3
+  subst lm3
+  dsimp [HUnionElemAt.pureAt] at pureAt
+  exact pureAt
+
+
+
 @[defeq]
 theorem pureAt_val_eq_embedAt {lb: Label} {lv: LeftTypeAt T1 T2 lb}
   : (pureAt T1 T2 lb lv).val = embedAt T1 T2 lb lv := by
@@ -655,6 +683,7 @@ theorem pureAt_val_eq_embedAt {lb: Label} {lv: LeftTypeAt T1 T2 lb}
 theorem pureAt_eq_embedAt_mk {lb: Label} {lv: LeftTypeAt T1 T2 lb}
   : pureAt T1 T2 lb lv = (Subtype.mk (embedAt T1 T2 lb lv) (embedAt_hunionSetUnivAt_mem)) :=
   Subtype.ext pureAt_val_eq_embedAt
+
 
 def pureFst (T1 T2: Type u1) [HasHUnion T1 T2] (lv: T1) : HUnionElemAt T1 T2 := pureAt T1 T2 .fst lv
 
@@ -684,6 +713,15 @@ def ofRightType (x: R T1 T2) (req: x ∈ hunionSetUnivAt T1 T2) : HUnionElemAt T
 
 @[defeq]
 theorem ofRightType_def {x: R T1 T2} {req: x ∈ hunionSetUnivAt T1 T2} : ofRightType x req = ⟨x, req⟩ := rfl
+
+@[ext]
+protected def ext {rv1 rv2: HUnionElemAt T1 T2} (req: rv1.val = rv2.val) : rv1 = rv2 := Subtype.ext req
+
+theorem pureAt_eq_iff_embedAt_eq {lb1 lb2: Label} {lv1: LeftTypeAt T1 T2 lb1} {lv2: LeftTypeAt T1 T2 lb2}
+  : (pureAt T1 T2 lb1 lv1 = pureAt T1 T2 lb2 lv2) ↔ (embedAt T1 T2 lb1 lv1 = embedAt T1 T2 lb2 lv2) := by
+  rw [HUnionElemAt.ext_iff]
+  dsimp [pureAt_val_eq_embedAt]
+  rfl
 
 
 /-
