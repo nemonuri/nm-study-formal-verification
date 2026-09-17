@@ -1,7 +1,7 @@
 module
 
-public import Mathlib.Data.Finset.Image
-public import Mathlib.Logic.Embedding.Basic
+
+public import Nemonuri.HasHUnion.LiftableEmbedding
 
 @[expose] public section
 
@@ -9,114 +9,6 @@ set_option autoImplicit false
 
 namespace Nemonuri
 
-theorem LiftableEmbedding.apply_mem {T1 T2: Type*} {emb: T1 ↪ T2} {x: T1} : (emb x) ∈ Set.range emb := by simp
-
-open LiftableEmbedding in
-structure LiftableEmbedding (T1 T2: Type*) extends toEmbedding: T1 ↪ T2 where
-  lift (t2: T2) (req: t2 ∈ Set.range toEmbedding) : T1
-  lift_valid (t1: T1) : lift (toEmbedding t1) (apply_mem) = t1
-
-namespace LiftableEmbedding
-
-variable {L R: Type*}
-
-instance toFunlike : FunLike (LiftableEmbedding L R) L R where
-  coe x := (x.toEmbedding: L → R)
-  coe_injective := by
-    rintro ⟨emb, lift1, lm1⟩ ⟨emb2, lift2, lm2⟩
-    simp
-    intro lm3
-    subst lm3
-    simp [funext_iff]
-    intro t2 t1 lm3
-    have lm4 := lm3.symm
-    subst lm4
-    revert lm3; simp
-    specialize lm1 t1
-    specialize lm2 t1
-    rw [lm1, lm2]
-
-instance : EmbeddingLike (LiftableEmbedding L R) L R where
-  injective' x := x.toEmbedding.injective
-
-@[defeq]
-theorem coe_eq_toEmbedding_coe {l: LiftableEmbedding L R} : (l: L → R) = (l.toEmbedding: L → R) := rfl
-
-def liftAlt (l: LiftableEmbedding L R) (rv: { rv: R // rv ∈ Set.range l }) : L := l.lift rv.val rv.property
-
-@[defeq]
-theorem lift_eq_liftAlt {l: LiftableEmbedding L R} {rv: R} {req: rv ∈ Set.range l}
-  : l.lift rv req = l.liftAlt ⟨rv, req⟩ :=
-  rfl
-
-theorem liftAlt_Injective {l: LiftableEmbedding L R} : Function.Injective (liftAlt l) := by
-  rintro ⟨rv1, lm1⟩ ⟨rv2, lm2⟩ lm3
-  revert lm1 lm2
-  simp [liftAlt]
-  intro lv1 lm1 lv2 lm2 lm3
-  have lm1_1 := lm1.symm
-  have lm2_1 := lm2.symm
-  subst lm1_1 lm2_1
-  revert lm1 lm2
-  simp
-  intro lm3
-  simp only [coe_eq_toEmbedding_coe, LiftableEmbedding.lift_valid] at lm3
-  exact lm3
-
-theorem liftAlt_dom_congr {l: LiftableEmbedding L R} {rv1 rv2: R} (req1: rv1 = rv2) (req2: rv1 ∈ Set.range l)
-  : ((Subtype.mk rv1 req2) = (Subtype.mk rv2 (req1 ▸ req2))) := by
-  simpa using req1
-
-
-
-def refl (L: Type*) : LiftableEmbedding L L where
-  toEmbedding := Function.Embedding.refl L
-  lift rv _ := rv
-  lift_valid lv := Function.Embedding.refl_apply _ lv
-
-instance decidableRangeMemOfRefl (L: Type*) (rv: L) : Decidable (rv ∈ Set.range (refl L)) :=
-  decidable_of_iff True (by simp; exists rv)
-
-
-def sumLeft (L1 L2: Type*) : LiftableEmbedding L1 (L1 ⊕ L2) :=
-  let embedding : Function.Embedding L1 (L1 ⊕ L2) := ⟨Sum.inl, by intro _ _; simp⟩
-  {
-    toEmbedding := embedding
-    lift rv req :=
-      rv.casesOn (motive := fun rv => (rv ∈ Set.range embedding) → L1)
-        (fun l1 _ => l1)
-        (fun l2 h => absurd h (by simp))
-      <| req
-    lift_valid := by subst embedding; simp
-  }
-
-
-instance decidableRangeMemOfSumLeft (L1 L2: Type*) rv : Decidable (rv ∈ Set.range (sumLeft L1 L2)) :=
-  decidable_of_iff (rv.isLeft = .true) (by
-    dsimp [sumLeft, coe_eq_toEmbedding_coe]
-    simp only [Set.mem_range, Sum.isLeft_iff]
-    conv => lhs; arg 1; ext; rw [Eq.comm] )
-
-
-def sumRight (L1 L2: Type*) : LiftableEmbedding L2 (L1 ⊕ L2) :=
-  let embedding : Function.Embedding L2 (L1 ⊕ L2) := ⟨Sum.inr, by intro _ _; simp⟩
-  {
-    toEmbedding := embedding
-    lift rv req :=
-      rv.casesOn (motive := fun rv => (rv ∈ Set.range embedding) → L2)
-        (fun l1 h => absurd h (by simp))
-        (fun l2 _ => l2)
-      <| req
-    lift_valid := by subst embedding; simp
-  }
-
-instance decidableRangeMemOfSumRight (L1 L2: Type*) rv : Decidable (rv ∈ Set.range (sumRight L1 L2)) :=
-  decidable_of_iff (rv.isRight = .true) (by
-    dsimp [sumRight, coe_eq_toEmbedding_coe]
-    simp only [Set.mem_range, Sum.isRight_iff]
-    conv => lhs; arg 1; ext; rw [Eq.comm] )
-
-end LiftableEmbedding
 
 
 class HasHUnion.{u1, u2} (L1 L2: Type u1) where
