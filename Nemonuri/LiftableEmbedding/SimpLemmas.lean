@@ -1,6 +1,6 @@
 module
 
-public meta import Nemonuri.HasHUnion.Attributes
+public meta import Nemonuri.LiftableEmbedding.Attributes
 
 @[expose] public section
 

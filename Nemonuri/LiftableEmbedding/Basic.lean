@@ -1,7 +1,7 @@
 module
 
 --public meta import Nemonuri.HasHUnion.Attributes
-public import Nemonuri.HasHunion.SimpLemmas
+public import Nemonuri.LiftableEmbedding.SimpLemmas
 public import Mathlib.Data.Finset.Image
 public import Mathlib.Logic.Embedding.Basic
 
@@ -159,7 +159,7 @@ theorem induction
   specialize mk lv lm1
   exact mk
 
---theorem apply_eq
+theorem not_iff_forall_ne : (¬l.IsLiftable rv) ↔ (∀(lv: L), rv ≠ l lv) := by simp [← IsLiftable.left_exists_iff]
 
 end IsLiftable
 
@@ -470,13 +470,6 @@ theorem range_mem_iff {l: LiftableEmbedding L R} {rv: R} : rv ∈ l.range ↔ l.
   rfl
 
 
-structure AreLiftable {L1 L2 R: Type*} (l1: LiftableEmbedding L1 R) (l2: LiftableEmbedding L2 R) (rv: R) : Prop where
-  fst: l1.IsLiftable rv
-  snd: l2.IsLiftable rv
-
-inductive AnyLiftable {L1 L2 R: Type*} (l1: LiftableEmbedding L1 R) (l2: LiftableEmbedding L2 R) (rv: R) : Prop where
-  | fst (req: l1.IsLiftable rv)
-  | snd (req: l2.IsLiftable rv)
 
 inductive LiftResult (l: LiftableEmbedding L R) where
   | ok (lv: L)
@@ -485,114 +478,84 @@ inductive LiftResult (l: LiftableEmbedding L R) where
 def lift? (l: LiftableEmbedding L R) (rv: R) [l.DecidableIsLiftable rv] : l.LiftResult :=
   if lm1: l.IsLiftable rv then .ok lm1.lift else .error rv lm1
 
-def embedPi (l: LiftableEmbedding L R) (m: R → Sort*) (pi: (lv: L) → m (l lv)) (rv: R) (req: l.IsLiftable rv) : m rv :=
-  have lm1: l req.lift = rv := req.lift_apply_eq_self
-  let x := pi req.lift
-  lm1.ndrec x
-  --pi req.lift |> cast (by simp [embed_to_right_norm])
-
-
-theorem embedPi_eq {l: LiftableEmbedding L R} {m: R → Sort*} {pi: (lv: L) → m (l lv)} {lv: L}
-  : l.embedPi m pi (l lv) .of_apply = pi lv := by
-  dsimp [embedPi]
-  symm
-  have lm1 := l.liftable_of_apply lv
-  have lm2 := lm1.lift_eq_self
-  have lm3 := lm2.symm.rec (motive := fun lv0 lm3_1 => have lm3_2 : l lv0 = l lv := congrArg l lm3_1.symm; (pi lv = lm3_2.ndrec (pi lv0))) rfl
-  simpa using lm3
-
-
-#print embedPi_eq
-
-  --have lm3 := Eq.refl (pi lv)
-
-  --have lm4 (x: m (l lv)) := @lm3.rec
-  --have lm1 := (l.liftable_of_apply lv).lift_eq_self.symm
-  --symm
-  --have lm2 := HEq.refl (pi lv)
-  --replace lm1 := heq_of_eq lm1
-
-  --refine' lm1.ndrec lm2
-  --have lm3 := @lm1.ndrec
-
-  --have lm2 := HEq.refl lv
-  --have lm2 := @dcongr_heq
-  --have := heq
 
 /-
-  let (eq := lm2) lv2 := lv
-  simp only [← lm2] at lm1
-  have lm3 := lm1.lift_eq_self
--/
-  --generalize lm4: lm
-  --let_to_have
-  --cases lm1
-  --have lm1 := l.liftable_of_apply lv
-/-
-  let (eq := lm1) ml (lv0: L) : Sort u := m (l lv0)
-  simp only [funext_iff] at lm1
-  revert pi
-  conv => simp [← lm1]
--/
+#check Function.invFun
 
-  --conv at pi => ext lv0; simp [← (lm1 lv0)]
-  --simp [← lm1] at pi
-  --
-  --have lm1 := l.liftable_of_apply lv
-  --conv => lhs; arg 5; change lm1
-/-
-  let (eq := lm2) lv2 := lv
-  have lm3 : l.IsLiftable (l lv) = l.IsLiftable (l lv2) := by simp [IsLiftable.of_apply]
-  dsimp [embedPi]
-  rw [lm3]
--/
-
-/-
-  dsimp [embedPi]
-  have lm2 := lm1.lift_eq_self
-  have lm3 := lm1.lift_apply_eq_self
-  let (eq := lm4) rv1 := pi lv
-  rw [← lm4]
-  let (eq := lm5) rv2 := pi lm1.lift
-  rw [← lm5]
--/
-  --simp [← lm2] at lm3
-  --have lm3 := lm1.lift_apply_eq_self
-
-
-
-  --dsimp [embedPi]
-  --refine' apply_eqRec _
-  --have := apply_eqRec
-/-
-  have lm1 := l.liftable_of_apply lv
-  have lm2 := lm1.lift_eq_self
-  let (eq := lm3) lv2 := lv
-  conv at lm2 => rhs; rewrite [← lm3]
-  rw [lm2]
--/
-
-  --extract_lets lm2 lv2
-  --have lm3 := lm1.lift_eq_self
-  --subst lv2
-
-  --dsimp [Eq.ndrec]
-
-  --conv => ext; simp [lm3]
-
-
-  --simp [lift_to_left_norm]
-
-/-
-theorem embedPi_injective {l: LiftableEmbedding L R} {m: R → Sort*} : Function.Injective (l.embedPi m) := by
-  intro pi1 pi2 lm1
+theorem liftPi_injective [Nonempty L] {l: LiftableEmbedding L R} {m: R → Sort*} : Function.Injective (l.liftPi m) := by
+  intro pir1 pir2 lm1
   simp only [funext_iff] at ⊢ lm1
-  intro lv
-  have lm2 := l.liftable_of_apply lv
-  specialize lm1 (l lv) lm2
-  unfold embedPi at lm1
-  extract_lets lm3 x1 x2 at lm1
-  have lm4 := l.apply_injective.eq_iff.mp lm3
+  intro rv
+  dsimp [liftPi] at lm1
+  by_cases lm2: l.IsLiftable rv
+  · cases lm2 using IsLiftable.induction
+    rename_i lv lm2; subst lm2
+    exact lm1 lv
+  · simp [IsLiftable.not_iff_forall_ne] at lm2
+    let lv := Function.invFun l rv
+    specialize lm2 lv
+    specialize lm1 lv
+    subst lv
+    dsimp [Function.invFun] at lm2
+-/
+    --simp [Function.inv] at lm2
+    --have lm3 : Nonempty R := .intro rv
+    --let finv := Function.invFun l
+    --simp [IsLiftable.not_iff_forall_ne] at lm2
+    --have lm3 := e.symm.bijective
+    --let lv := e.symm rv
+    --specialize lm2 lv
+    --specialize lm1 lv
+/-
+    simp [IsLiftable.not_iff_forall_ne] at lm2
+    have lm3 := l.apply_injective.hasLeftInverse
+    dsimp [Function.HasLeftInverse] at lm3
+    obtain ⟨finv, lm3⟩ := lm3
+    have lm4 := lm3.rightInverse.surjective
+    dsimp [Function.Surjective] at lm4
+    dsimp [Function.LeftInverse] at lm3
+    let lv := finv rv
+    specialize lm3 lv
+    specialize lm2 lv
+    specialize lm1 lv
+    specialize lm4 lv
+    obtain ⟨rv2, lm4⟩ := lm4
+    subst lv
+-/
+/-
+    let lv := finv rv
+    specialize lm3 lv
+    specialize lm2 lv
+    specialize lm1 lv
+    subst lv
+-/
+
+
+/-
+inductive IsLiftablePi.{ul, ur, umr} {L: Type ul} {R: Type ur} (l: LiftableEmbedding L R) (m: R → Sort umr) (pir: (rv: R) → (req: l.IsLiftable rv) → m rv) : Prop where
+  | intro (pil: (lv: L) → m (l lv)) (req: pir = l.embedPi m pil)
+
+theorem isLiftablePi_iff {l: LiftableEmbedding L R} {m: R → Sort*} {pir: (rv: R) → (req: l.IsLiftable rv) → m rv}
+  : l.IsLiftablePi m pir ↔ (∃(pil: (lv: L) → m (l lv)), pir = l.embedPi m pil) := by
+  constructor
+  · rintro ⟨pil, lm1⟩
+    exists pil
+  · rintro ⟨pil, lm1⟩
+    exact .intro pil lm1
+
+namespace IsLiftablePi
+
+variable {l: LiftableEmbedding L R} {m: R → Sort*} {pir: (rv: R) → (req: l.IsLiftable rv) → m rv}
+
+def lift (h: l.IsLiftablePi m pir) (lv: L) : m (l lv) := pir (l lv) .of_apply
+
+
+end IsLiftablePi
+-/
+
+/-
+def IsLiftablePi.{u} (l: LiftableEmbedding L R) (m: R → Sort u) (pir: (rv: R) → (req: l.IsLiftable rv) → m rv) : Prop :=
+  pir ∈ Set.range (l.embedPi m)
 -/
 
   --cases lm4 using Eq.rec
