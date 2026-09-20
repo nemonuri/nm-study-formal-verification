@@ -177,7 +177,7 @@ theorem embedPiToRestricted_eq {lem: LiftableEmbedding L R} {m: R → Sort*} {pi
   have lm3 := lm2.symm.rec (motive := fun lv0 lm3_1 => have lm3_2 : lem lv0 = lem lv := congrArg lem lm3_1.symm; (pi lv = lm3_2.ndrec (pi lv0))) rfl
   simpa using lm3
 
-theorem embedPi_injective {l: LiftableEmbedding L R} {m: R → Sort*} : Function.Injective (l.embedPiToRestricted m) := by
+theorem embedPiToRestricted_injective {l: LiftableEmbedding L R} {m: R → Sort*} : Function.Injective (l.embedPiToRestricted m) := by
   intro pi1 pi2 lm1
   simp only [funext_iff] at ⊢ lm1
   intro lv
@@ -205,14 +205,46 @@ instance : DFunLike (lem.Fallback mr) R (fun (rv: R) => (req: ¬lem.IsLiftable r
 
 variable [DecidablePred (lem.IsLiftable ·)]
 
+def mergeToPi (lfb: lem.Fallback mr) (pir: (rv: R) → (req: lem.IsLiftable rv) → mr rv) : (rv: R) → mr rv :=
+  (RestrictedProd.mk pir lfb).toPi
 
 
-def embedPi (lfb: lem.Fallback mr) (pil: (lv: L) → mr (lem lv)) (rv: R) : mr rv :=
+theorem mergeToPi_injective {lfb: lem.Fallback mr} : Function.Injective (lfb.mergeToPi) := by
+  intro pir1 pir2 lm1
+  dsimp [mergeToPi] at lm1
+  have lm2 := (RestrictedProd.equivOfToPi R (lem.IsLiftable ·) mr).left_inv.injective
+  simp [RestrictedProd.equivOfToPi] at lm2
+  rewrite [lm2.eq_iff] at lm1
+  simp at lm1
+  exact lm1
+
+
+def embedPi (lfb: lem.Fallback mr) (pil: (lv: L) → mr (lem lv)) : (rv: R) → mr rv :=
+  lfb.mergeToPi (lem.embedPiToRestricted mr pil)
+
+theorem embedPi_injective (lfb: lem.Fallback mr) : Function.Injective (lfb.embedPi) := by
+  intro pil1 pil2 lm1
+  dsimp [embedPi] at lm1
+  rewrite [mergeToPi_injective.eq_iff] at lm1
+  rewrite [embedPiToRestricted_injective.eq_iff] at lm1
+  exact lm1
+
+
+def toLiftableEmbedding (lfb: lem.Fallback mr) : LiftableEmbedding ((lv: L) → mr (lem lv)) ((rv: R) → mr rv) where
+
+/-
+def liftPi (lfb: lem.Fallback mr) (pir: (rv: R) → mr rv) (_: ∃(pil: (lv: L) → (mr (lem lv))), lfb.embedPi pil = pir) : (lv: L) → (mr (lem lv)) :=
+  lem.comapPi mr pir
+-/
+
+
+/-
   if lm1: lem.IsLiftable rv then
     have lm2: lem lm1.lift = rv := lm1.lift_apply_eq_self
     lm2.ndrec (pil lm1.lift)
   else
     lfb rv lm1
+-/
 
 /-
 theorem embedPi_injective {lfb: lem.Fallback mr} : Function.Injective (lfb.embedPi) := by
