@@ -5,6 +5,8 @@ public import Nemonuri.Functions.Lifting
 public import Nemonuri.Functions.SimpLemmas
 public import Mathlib.Data.Set.Operations
 public import Mathlib.Logic.Embedding.Basic
+public import Mathlib.Data.Finset.Card
+public import Mathlib.Data.Finset.Fold
 
 
 @[expose] public section
@@ -161,6 +163,19 @@ theorem liftable_of_apply (lem: LiftableEmbedding L R) (lv: L) : IsLiftable lem 
 
 def comapPi (lem: LiftableEmbedding L R) (mr: (rv: R) → Sort*) (pir: (rv: R) → mr rv) (lv: L) : mr (lem lv) := pir (lem lv)
 
+@[defeq]
+theorem comapPi_eq {lem: LiftableEmbedding L R} {mr: (rv: R) → Sort*} {pir: (rv: R) → mr rv} {lv: L}
+  : lem.comapPi mr pir lv = pir (lem lv) := by
+  dsimp [comapPi]
+
+/-
+theorem comapPi_injective {lem: LiftableEmbedding L R} {mr: (rv: R) → Sort*} : Function.Injective (lem.comapPi mr) := by
+  intro pir1 pir2 lm1
+  simp only [funext_iff] at ⊢ lm1
+  intro rv
+  dsimp [comapPi] at lm1
+-/
+
 def embedPiToRestricted (lem: LiftableEmbedding L R) (mr: (rv: R) → Sort*) (pi: (lv: L) → mr (lem lv)) (rv: R) (req: lem.IsLiftable rv) : mr rv :=
   have lm1: lem req.lift = rv := req.lift_apply_eq_self
   let x := pi req.lift
@@ -230,7 +245,228 @@ theorem embedPi_injective (lfb: lem.Fallback mr) : Function.Injective (lfb.embed
   exact lm1
 
 
+theorem embedPi_eq {lfb: lem.Fallback mr} {pil: (lv: L) → mr (lem lv)} {lv: L}
+  : lfb.embedPi pil (lem lv) = pil lv := by
+  dsimp [embedPi, mergeToPi, RestrictedProd.toPi]
+  have lm1 := lem.liftable_of_apply lv
+  simp [lm1]
+  exact lem.embedPiToRestricted_eq
+
+
+theorem embedPi_comapPi_eq {lfb: lem.Fallback mr} {pil: (lv: L) → mr (lem lv)} --{rv: R}
+  : lem.comapPi mr (lfb.embedPi pil) = pil := by
+  simp only [funext_iff]
+  intro lv
+  dsimp [comapPi]
+  exact lfb.embedPi_eq
+
+
+theorem comapPi_embedPi_leftInverse {lfb: lem.Fallback mr} : Function.LeftInverse (lem.comapPi mr) lfb.embedPi := by
+  intro pil
+  exact embedPi_comapPi_eq
+
+
+
+variable {mr: (rv: R) → Type*}
+
 def toLiftableEmbedding (lfb: lem.Fallback mr) : LiftableEmbedding ((lv: L) → mr (lem lv)) ((rv: R) → mr rv) where
+  embed pil := lfb.embedPi pil
+  lift pir _ := lem.comapPi mr pir
+  valid := by
+    refine .mk ?_
+    dsimp [RestrictedLeftInverse]
+    intro pil
+    exact lfb.embedPi_comapPi_eq
+
+def IsLiftablePi (lfb: lem.Fallback mr) (pi: (rv: R) → mr rv) : Prop := lfb.toLiftableEmbedding.IsLiftable pi
+
+@[defeq]
+theorem isLiftablePi_def {lfb: lem.Fallback mr} {pi: (rv: R) → mr rv} : lfb.IsLiftablePi pi = lfb.toLiftableEmbedding.IsLiftable pi := rfl
+
+section
+
+variable {lfb: lem.Fallback mr} {pir: (rv: R) → mr rv}
+
+namespace IsLiftablePi
+
+
+theorem eq_fallback (h: lfb.IsLiftablePi pir) (rv: R) (req: ¬lem.IsLiftable rv)
+  : pir rv = lfb rv req := by
+  dsimp [isLiftablePi_def] at h
+  cases h using IsLiftable.induction
+  rename_i pil lm2
+  subst lm2
+  conv => lhs; dsimp only [DFunLike.coe, toLiftableEmbedding]
+  simp [embedPi, mergeToPi, RestrictedProd.toPi, req]
+
+end IsLiftablePi
+
+
+theorem isLiftablePi_iff : (lfb.IsLiftablePi pir) ↔ ((rv: R) → (req: ¬lem.IsLiftable rv) → pir rv = lfb rv req) := by
+  constructor
+  · intro h; exact h.eq_fallback
+  · intro lm1
+    simp [isLiftablePi_def, isLiftable_iff_left_exists]
+    exists (lem.comapPi mr pir)
+    conv => rhs; dsimp only [DFunLike.coe, toLiftableEmbedding]
+    simp only [funext_iff]
+    intro rv
+    specialize lm1 rv
+    by_cases lm2: lem.IsLiftable rv
+    · cases lm2 using IsLiftable.induction
+      rename_i lv lm2
+      subst lm2
+      rw [embedPi_eq, comapPi_eq]
+    · specialize lm1 lm2
+      refine Eq.trans lm1 ?_
+      conv =>
+        rhs
+        dsimp [embedPi, mergeToPi, RestrictedProd.toPi]
+        simp [lm2]
+
+
+namespace IsLiftablePi
+
+theorem mk (lfb: lem.Fallback mr) (pir: (rv: R) → mr rv) (req1: (rv: R) → (req: ¬lem.IsLiftable rv) → pir rv = lfb rv req) : lfb.IsLiftablePi pir :=
+  lfb.isLiftablePi_iff.mpr req1
+
+end IsLiftablePi
+
+def decideIsLiftableOfFinset [(rv: R) → DecidableEq (mr rv)] (lfb: lem.Fallback mr) (pir: (rv: R) → mr rv) (rs: Finset R) : Bool :=
+  rs.fold Bool.and .true (fun rv => if lm1: lem.IsLiftable rv then .true else decide (pir rv = lfb rv lm1))
+
+def decideIsLiftable [Fintype R] [(rv: R) → DecidableEq (mr rv)] (lfb: lem.Fallback mr) (pir: (rv: R) → mr rv) : Bool := lfb.decideIsLiftableOfFinset pir Finset.univ
+
+theorem decideIsLiftableOfFinset_eq_true_iff [(rv: R) → DecidableEq (mr rv)] (lfb: lem.Fallback mr) (pir: (rv: R) → mr rv) (rs: Finset R)
+  : (lfb.decideIsLiftableOfFinset pir rs = .true) ↔ ((rv: rs) → (req: ¬lem.IsLiftable rv.val) → pir rv.val = lfb rv.val req) := by
+  cases rs using Finset.cons_induction
+  · simp [decideIsLiftableOfFinset]
+  · rename_i rv rs lm1 lm2
+    clear lm2
+    have lm3 := lfb.decideIsLiftableOfFinset_eq_true_iff pir rs
+    simp [decideIsLiftableOfFinset] at ⊢ lm3
+    intro lm4
+    exact lm3
+  termination_by rs.card
+
+
+theorem decideIsLiftable_eq_true_iff_isLiftablePi [(rv: R) → DecidableEq (mr rv)] [Fintype R] (lfb: lem.Fallback mr) (pir: (rv: R) → mr rv)
+  : (lfb.decideIsLiftable pir = .true) ↔ lfb.IsLiftablePi pir := by
+  rw [lfb.isLiftablePi_iff]
+  have lm1 := lfb.decideIsLiftableOfFinset_eq_true_iff pir Finset.univ
+  simp at lm1
+  dsimp [decideIsLiftable]
+  exact lm1
+
+
+/-
+def decideIsLiftable [Fintype R] [(rv: R) → DecidableEq (mr rv)] (lfb: lem.Fallback mr) (pir: (rv: R) → mr rv) : Bool :=
+  let fsu : Finset R := Finset.univ
+  fsu.fold (Bool.and) .true (fun rv => if lm1: lem.IsLiftable rv then .true else decide (pir rv = lfb rv lm1) )
+-/
+  --let fs := fsu.filter (¬lem.IsLiftable ·) |>.attach
+  --fs.fold (Bool.and) .true (fun ⟨rv0, lm1⟩ => decide (pir rv0 = lfb rv0 (by subst fsu; simpa using lm1)))
+
+
+
+/-
+theorem isLiftablePi_of_decideIsLiftable_eq_true [Fintype R] [(rv: R) → DecidableEq (mr rv)]
+  (lfb: lem.Fallback mr) (pir: (rv: R) → mr rv) (req: lfb.decideIsLiftable pir = .true)
+  : lfb.IsLiftablePi pir := by
+  rw [isLiftablePi_iff]
+  intro rv lm1
+  dsimp [decideIsLiftable] at req
+  generalize lm2: (Finset.univ: Finset R) = fsu at req
+  have lm3 : rv ∈ fsu := by simp [← lm2]
+  let _ : DecidableEq R := Classical.decEq R
+  cases fsu using Finset.induction
+  · simp at lm3
+  · rename_i rv1 fs1 lm4 lm5
+    simp at lm3 lm5; clear lm5
+    rcases lm3 with lm3 | lm3
+    · subst lm3
+      simp at req
+      rcases req with ⟨lm6, lm7⟩
+      exact lm6 lm1
+    · simp at req
+-/
+
+    --simp at req
+/-
+  unfold decideIsLiftable at req
+  extract_lets fsu fs at req
+  subst fs
+  dsimp at req
+  let deqR : DecidableEq R := Classical.decEq R
+  induction lm2: fsu using Finset.induction
+  · simp [lm2] at req
+-/
+/-
+
+
+  dsimp [decideIsLiftable] at req
+
+  induction lm2: (Finset.univ: Finset R) using Finset.induction
+  · simp [lm2] at req
+-/
+  --dsimp [Finset.fold] at req
+  --have := Finset.fold_congr
+  --have := Multiset.attach
+/-
+#print Fintype.induction_subsingleton_or_nontrivial
+
+theorem decideIsLiftable_eq_true_iff_isLiftablePi [Fintype R] [(rv: R) → DecidableEq (mr rv)]
+  : (lfb.decideIsLiftable pir = .true) ↔ lfb.IsLiftablePi pir := by
+-/
+  --simp [decideIsLiftable]
+  --induction R using Fintype.induction_subsingleton_or_nontrivial
+
+
+
+  --simp [decideIsLiftable]
+  --have := Finset.univ_filt
+  --simp [Finset.filter_attach']
+  --simp [Finset.filter_attach]
+  --have :=
+  --unfold decideIsLiftable
+  --simp [isLiftablePi_iff]
+/-
+  constructor
+  · intro lm1 rv lm2
+    rewrite [Finset.fold_op_distrib] at lm1
+-/
+/-
+    induction lm3: fs using Finset.cons_induction
+    · subst fs
+      simp at lm3
+      specialize @lm3 rv
+      contradiction
+    · rename_i fse fs2 lm4 lm5
+      simp [lm3] at lm1
+-/
+      --rcases fse with ⟨fse, lm6⟩
+      --dsimp at lm1 lm3
+      --subst fs
+/-
+    · rename_i fs1 fs1e fs2 fs2e lm4
+      by_cases lm5: fs = fs2
+      · exact lm4 lm5
+      · clear lm4
+-/
+        --subst fs
+        --simp at lm1 lm3 lm5
+/-
+  constructor
+  · intro lm1
+    dsimp [decideIsLiftable] at lm1
+-/
+
+
+
+end
+
+
+
 
 /-
 def liftPi (lfb: lem.Fallback mr) (pir: (rv: R) → mr rv) (_: ∃(pil: (lv: L) → (mr (lem lv))), lfb.embedPi pil = pir) : (lv: L) → (mr (lem lv)) :=
