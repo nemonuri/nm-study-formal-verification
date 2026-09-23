@@ -13,7 +13,7 @@ namespace SimpLemmas
 universe u1 u2
 
 @[range_mem_simp, lift_to_left_norm]
-theorem exists_apply_eq_iff {L: Type u1} {R: Type u2} {f: L → R} {rv: R}
+theorem exists_apply_eq_iff {L: Sort u1} {R: Sort u2} {f: L → R} {rv: R}
   : (∃(lv: L), f lv = rv) ↔ (∃(lv: L), rv = f lv) := by
   constructor
   · rintro ⟨lv, lm1⟩

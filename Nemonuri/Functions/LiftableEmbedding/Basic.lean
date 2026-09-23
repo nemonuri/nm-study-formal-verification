@@ -16,19 +16,19 @@ set_option autoImplicit false
 namespace Nemonuri.Functions
 
 
-structure LiftableEmbeddingStructure (L R: Type*) where
+structure LiftableEmbeddingStructure (L R: Sort*) where
   embed: L → R
-  lift (rv: R) (req: rv ∈ Set.range embed) : L
+  lift (rv: R) (req: ∃(lv: L), embed lv = rv) : L
 
-structure IsLiftableEmbedding {L R: Type*} (s: LiftableEmbeddingStructure L R) : Prop where
-  restrictedLeftInverse : RestrictedLeftInverse (· ∈ Set.range s.embed) s.lift s.embed (Set.mem_range_self)
+structure IsLiftableEmbedding {L R: Sort*} (s: LiftableEmbeddingStructure L R) : Prop where
+  restrictedLeftInverse : RestrictedLeftInverse (∃(lv: L), s.embed lv = ·) s.lift s.embed (exists_apply_eq_apply _)
 
-structure LiftableEmbedding (L R: Type*) extends toStruct: LiftableEmbeddingStructure L R where
+structure LiftableEmbedding (L R: Sort*) extends toStruct: LiftableEmbeddingStructure L R where
   valid: IsLiftableEmbedding toStruct
 
 namespace LiftableEmbedding
 
-variable {L R: Type*}
+variable {L R: Sort*}
 
 
 theorem embed_ext {lem1 lem2: LiftableEmbedding L R} (req: lem1.embed = lem2.embed) : lem1 = lem2 := by
@@ -71,15 +71,14 @@ theorem coe_injective {lem: LiftableEmbedding L R} : Function.Injective lem := l
 instance : EmbeddingLike (LiftableEmbedding L R) L R where
   injective' lem := lem.coe_injective
 
-def IsLiftable (lem: LiftableEmbedding L R) (rv: R) : Prop := rv ∈ Set.range lem
+def IsLiftable (lem: LiftableEmbedding L R) (rv: R) : Prop := ∃(lv: L), lem lv = rv
 
 @[defeq]
-theorem isLiftable_def {lem: LiftableEmbedding L R} {rv: R} : IsLiftable lem rv = (rv ∈ Set.range lem) := rfl
+theorem isLiftable_def {lem: LiftableEmbedding L R} {rv: R} : IsLiftable lem rv = ∃(lv: L), lem lv = rv := rfl
 
 @[lift_to_left_norm, range_mem_simp ←]
 theorem isLiftable_iff_left_exists {lem: LiftableEmbedding L R} {rv: R} : IsLiftable lem rv ↔ (∃(lv: L), rv = lem lv) := by
   dsimp [isLiftable_def]
-  simp only [Set.mem_range]
   exact SimpLemmas.exists_apply_eq_iff
 
 namespace IsLiftable
@@ -111,6 +110,27 @@ def lift (h: lem.IsLiftable rv) : L := lem.lift rv (isLiftable_def ▸ h)
 theorem lift_eq_self {lv: L} (h: lem.IsLiftable (lem lv)) : h.lift = lv := by
   dsimp [lift]
   exact lem.valid.restrictedLeftInverse.eq lv
+
+theorem pred_lift_iff_self {lv: L} (h: lem.IsLiftable (lem lv)) (pred: (lv: L) → Prop)
+  : pred h.lift ↔ pred lv := by
+  have lm1 := h.lift_eq_self
+  replace lm1 := congrArg pred lm1
+  exact propext_iff.mp lm1
+
+theorem pred_lift_iff_iff_self_iff {pred1 pred2: (lv: L) → Prop} {lv1 lv2: L} {h1: lem.IsLiftable (lem lv1)} {h2: lem.IsLiftable (lem lv2)}
+  : (pred1 h1.lift ↔ pred2 h2.lift) ↔ (pred1 lv1 ↔ pred2 lv2) := by
+  constructor
+  · intro lm1
+    calc
+      pred1 lv1 ↔ _ := (h1.pred_lift_iff_self pred1).symm
+      _ ↔ _ := lm1
+      _ ↔ _ := h2.pred_lift_iff_self pred2
+  · intro lm1
+    calc
+      pred1 h1.lift ↔ _ := h1.pred_lift_iff_self pred1
+      _ ↔ _ := lm1
+      _ ↔ _ := (h2.pred_lift_iff_self pred2).symm
+
 
 @[embed_to_right_norm]
 theorem lift_apply_eq_self (h: IsLiftable lem rv) : lem h.lift = rv := by
@@ -160,10 +180,10 @@ def toLifting (lfb: lem.Fallback) : Lifting R L where
 end Fallback
 -/
 
-def range (lem: LiftableEmbedding L R) : Set R := { rv: R | lem.IsLiftable rv }
+def range {L R: Type*} (lem: LiftableEmbedding L R) : Set R := { rv: R | lem.IsLiftable rv }
 
 @[defeq, simp]
-theorem range_mem_def {lem: LiftableEmbedding L R} {rv: R} : (rv ∈ lem.range) = lem.IsLiftable rv := rfl
+theorem range_mem_def {L R: Type*} {lem: LiftableEmbedding L R} {rv: R} : (rv ∈ lem.range) = lem.IsLiftable rv := rfl
 
 
 
@@ -176,6 +196,42 @@ def comapPi (lem: LiftableEmbedding L R) (mr: (rv: R) → Sort*) (pir: (rv: R) �
 theorem comapPi_eq {lem: LiftableEmbedding L R} {mr: (rv: R) → Sort*} {pir: (rv: R) → mr rv} {lv: L}
   : lem.comapPi mr pir lv = pir (lem lv) := by
   dsimp [comapPi]
+
+
+theorem comapPred (lem: LiftableEmbedding L R) (pred: (rv: R) → Prop) (req: (rv: R) → pred rv) (lv: L) : pred (lem lv) := lem.comapPi pred req lv
+
+
+noncomputable instance decidableIsLiftableOfClassical (lem: LiftableEmbedding L R) : DecidablePred (lem.IsLiftable ·) := Classical.decPred _
+
+
+def embedPred (lem: LiftableEmbedding L R) (pred: L → Prop) (rv: R) : Prop := if lm1: lem.IsLiftable rv then pred lm1.lift else False
+
+theorem embedPred_injective {lem: LiftableEmbedding L R} : Function.Injective (lem.embedPred) := by
+  intro pl1 pl2 lm1
+  rewrite [funext_iff] at ⊢ lm1
+  intro lv
+  specialize lm1 (lem lv)
+  simp [embedPred, IsLiftable.of_apply] at lm1
+  have lm2 := lem.liftable_of_apply lv
+  refine propext ?_
+  exact IsLiftable.pred_lift_iff_iff_self_iff.mp lm1
+
+def liftPred (lem: LiftableEmbedding L R) (pred: R → Prop) (lv: L) : Prop := pred (lem lv)
+
+theorem liftPred_embedPred_leftInverse {lem: LiftableEmbedding L R} : Function.LeftInverse lem.liftPred lem.embedPred := by
+  intro pred
+  refine funext ?_
+  intro lv
+  dsimp [liftPred]
+  simp [embedPred, IsLiftable.of_apply]
+  refine propext_iff.mp ?_
+  refine congrArg pred ?_
+  exact IsLiftable.lift_eq_self _
+
+theorem liftPred_surjective {lem: LiftableEmbedding L R} : Function.Surjective (lem.liftPred) := lem.liftPred_embedPred_leftInverse.surjective
+
+
+
 
 /-
 theorem comapPi_injective {lem: LiftableEmbedding L R} {mr: (rv: R) → Sort*} : Function.Injective (lem.comapPi mr) := by
@@ -341,6 +397,7 @@ theorem mk (lfb: lem.Fallback mr) (pir: (rv: R) → mr rv) (req1: (rv: R) → (r
 
 end IsLiftablePi
 
+/-
 def decideIsLiftableOfFinset [(rv: R) → DecidableEq (mr rv)] (lfb: lem.Fallback mr) (pir: (rv: R) → mr rv) (rs: Finset R) : Bool :=
   rs.fold Bool.and .true (fun rv => if lm1: lem.IsLiftable rv then .true else decide (pir rv = lfb rv lm1))
 
@@ -369,22 +426,13 @@ theorem decideIsLiftable_eq_true_iff_isLiftablePi [(rv: R) → DecidableEq (mr r
 
 instance decidableIsLiftable [(rv: R) → DecidableEq (mr rv)] [Fintype R] (lfb: lem.Fallback mr) (pir: (rv: R) → mr rv) : Decidable (lfb.IsLiftablePi pir) :=
   decidable_of_iff (lfb.decideIsLiftable pir = .true) (lfb.decideIsLiftable_eq_true_iff_isLiftablePi)
+-/
 
 end
 
 end Fallback
 
-/-
-def embedMotive.{u} (lem: LiftableEmbedding L R) [DecidablePred (lem.IsLiftable ·)] (compl: (rv: R) → (req: ¬lem.IsLiftable rv) → Sort u) (ml: (lv: L) → Sort u) (rv: R) : Sort u :=
-  if lm1: lem.IsLiftable rv then ml lm1.lift else compl rv lm1
--/
 
-/-
-inductive IsEmbedableMotive.{u} (lem: LiftableEmbedding L R) (ml: (lv: L) → Sort u) (mr: (rv: R) → Sort u) : Prop where
-  | intro (compl: (rv: R) → (req: ¬lem.IsLiftable rv) → Sort u)
-          (req1: (lv: L) → ml lv = mr (lem lv))
-          (req2: (rv: R) → (req: ¬lem.IsLiftable rv) → compl rv req = mr rv)
--/
 
 structure EmbedableMotiveStruct.{u} (lem: LiftableEmbedding L R) (ml: (lv: L) → Sort u) (mr: (rv: R) → Sort u) where
   complType (rv: R) (req: ¬lem.IsLiftable rv) : Sort u
