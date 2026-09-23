@@ -63,6 +63,8 @@ instance : FunLike (LiftableEmbedding L R) L R where
     dsimp at lm1
     exact embed_ext lm1
 
+@[defeq]
+theorem coe_def {lem: LiftableEmbedding L R} {lv: L} : lem lv = lem.embed lv := rfl
 
 theorem coe_injective {lem: LiftableEmbedding L R} : Function.Injective lem := lem.embed_injective
 
@@ -157,6 +159,13 @@ def toLifting (lfb: lem.Fallback) : Lifting R L where
 
 end Fallback
 -/
+
+def range (lem: LiftableEmbedding L R) : Set R := { rv: R | lem.IsLiftable rv }
+
+@[defeq, simp]
+theorem range_mem_def {lem: LiftableEmbedding L R} {rv: R} : (rv ∈ lem.range) = lem.IsLiftable rv := rfl
+
+
 
 theorem liftable_of_apply (lem: LiftableEmbedding L R) (lv: L) : IsLiftable lem (lem lv) := IsLiftable.of_apply
 
