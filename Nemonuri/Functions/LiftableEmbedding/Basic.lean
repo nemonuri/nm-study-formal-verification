@@ -31,6 +31,11 @@ namespace LiftableEmbedding
 variable {L R: Sort*}
 
 
+theorem nonempty_right {lem: LiftableEmbedding L R} [Nonempty L] : Nonempty R := by
+  have lm1 : Nonempty L := inferInstance
+  rcases lm1 with ⟨lv⟩
+  exact .intro (lem.embed lv)
+
 theorem embed_ext {lem1 lem2: LiftableEmbedding L R} (req: lem1.embed = lem2.embed) : lem1 = lem2 := by
   rcases lem1 with ⟨⟨emb1 ,lif1⟩, lm_v1⟩
   rcases lem2 with ⟨⟨emb2, lif2⟩, lm_v2⟩
@@ -131,12 +136,29 @@ theorem pred_lift_iff_iff_self_iff {pred1 pred2: (lv: L) → Prop} {lv1 lv2: L} 
       _ ↔ _ := lm1
       _ ↔ _ := (h2.pred_lift_iff_self pred2).symm
 
+/-
+    have lm2: lem lm1.lift = rv := lm1.lift_apply_eq_self
+    lm2.ndrec (pi lm1.lift)
+-/
+
 
 @[embed_to_right_norm]
 theorem lift_apply_eq_self (h: IsLiftable lem rv) : lem h.lift = rv := by
   obtain ⟨lv, lm1⟩ := h.left_exists
   subst lm1
   simp [lift_to_left_norm]
+
+
+theorem pi_lift_eq_self {mr: R → Sort*} {pi: (lv: L) → mr (lem lv)} {lv: L}
+  : have lm1 : lem.IsLiftable (lem lv) := .of_apply;
+    lm1.lift_apply_eq_self.ndrec (pi lm1.lift) = pi lv := by
+  extract_lets lm1
+  have lm2 := lm1.lift_eq_self
+  symm
+  have lm3 req3_1 := lm2.rec (motive := fun lv0 lm3_1 => (req3_2: lem lm1.lift = lem lv0) → pi lv0 = req3_2.ndrec (pi lm1.lift)) req3_1
+  refine lm3 ?_ _
+  simp
+
 
 end IsLiftable
 
@@ -190,16 +212,6 @@ theorem range_mem_def {L R: Type*} {lem: LiftableEmbedding L R} {rv: R} : (rv �
 theorem liftable_of_apply (lem: LiftableEmbedding L R) (lv: L) : IsLiftable lem (lem lv) := IsLiftable.of_apply
 
 
-def comapPi (lem: LiftableEmbedding L R) (mr: (rv: R) → Sort*) (pir: (rv: R) → mr rv) (lv: L) : mr (lem lv) := pir (lem lv)
-
-@[defeq]
-theorem comapPi_eq {lem: LiftableEmbedding L R} {mr: (rv: R) → Sort*} {pir: (rv: R) → mr rv} {lv: L}
-  : lem.comapPi mr pir lv = pir (lem lv) := by
-  dsimp [comapPi]
-
-
-theorem comapPred (lem: LiftableEmbedding L R) (pred: (rv: R) → Prop) (req: (rv: R) → pred rv) (lv: L) : pred (lem lv) := lem.comapPi pred req lv
-
 
 noncomputable instance decidableIsLiftableOfClassical (lem: LiftableEmbedding L R) : DecidablePred (lem.IsLiftable ·) := Classical.decPred _
 
@@ -240,6 +252,18 @@ theorem comapPi_injective {lem: LiftableEmbedding L R} {mr: (rv: R) → Sort*} :
   intro rv
   dsimp [comapPi] at lm1
 -/
+
+/-
+def comapPi (lem: LiftableEmbedding L R) (mr: (rv: R) → Sort*) (pir: (rv: R) → mr rv) (lv: L) : mr (lem lv) := pir (lem lv)
+
+@[defeq]
+theorem comapPi_eq {lem: LiftableEmbedding L R} {mr: (rv: R) → Sort*} {pir: (rv: R) → mr rv} {lv: L}
+  : lem.comapPi mr pir lv = pir (lem lv) := by
+  dsimp [comapPi]
+
+
+theorem comapPred (lem: LiftableEmbedding L R) (pred: (rv: R) → Prop) (req: (rv: R) → pred rv) (lv: L) : pred (lem lv) := lem.comapPi pred req lv
+
 
 def embedPiToRestricted (lem: LiftableEmbedding L R) (mr: (rv: R) → Sort*) (pi: (lv: L) → mr (lem lv)) (rv: R) (req: lem.IsLiftable rv) : mr rv :=
   have lm1: lem req.lift = rv := req.lift_apply_eq_self
@@ -471,7 +495,7 @@ variable {lem: LiftableEmbedding L R} {ml: (lv: L) → Sort u} {mr: (rv: R) → 
 end IsEmbedableMotive
 -/
 
-
+-/
 end LiftableEmbedding
 
 
