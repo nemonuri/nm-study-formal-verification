@@ -128,6 +128,7 @@ def AnyLiftable (il: Interleaving Univ ss) (uv: Univ) : Prop := ∀⦃bs: List B
 
 def AllLiftable (il: Interleaving Univ ss) (uv: Univ) : Prop := ∀⦃bs: List Bool⦄ ⦃_: il.MapsToIsLiftable uv bs⦄, bs.Forall (· = .true)
 
+/-
 @[ext]
 structure Builder (Univ: Sort uu) (len: Nat) (GetSub: (Fin len) → Sort us) where
   getLiftableEmbedding (n: Fin len) : LiftableEmbedding (GetSub n) Univ
@@ -327,83 +328,6 @@ theorem ofInterleaving_toInterleaving_leftInverse (len: Nat) (GetSub: (Fin len) 
       dsimp [toInterleaving, recNilCons_cons, recNilCons_nil]
       have lm2 := getSub_eq_default (fun a => (default: Sort us))
 -/
-      --rw []
-/-
-      dsimp
-      conv => rhs; dsimp [cons]
-      congr
-      simp [funext_iff]
-      dsimp [toInterleaving, recNilCons_cons]
--/
-/-
-      have lm2 := Unique.eq_default gs
-      revert bd
-      rw [lm2]
-      intro bd lm1
--/
-      --rw [recNilCons_nil]
-      --rw [lm2]
-
-/-
-    conv => rhs; dsimp [cons]
-    unfold ofInterleaving
-    extract_lets lm2
-    congr
-    refine funext ?_
-    intro i
-    revert lm2
-    dsimp
--/
-    --extract_lets i2 lm3
-    --rcases i2 with ⟨i2, lm4⟩
-    --dsimp [Interleaving.GetSub, Interleaving.subs] at lm3
-
-
-    --simp [Interleaving.GetSub, Interleaving.subs] at lm3
-/-
-    simp [Builder.ext_iff, funext_iff] at ⊢ lm1
-    intro i
-    cases i using Fin.induction
--/
-    --dsimp [ofInterleaving, toInterleaving, Builder.cons]
-
-/-
-    simp [funext_iff]
-    intro i
-    simp [LiftableEmbedding.embed_ext_iff, funext_iff]
-    unfold consGetSub
-    intro ss2
-    cases i using Fin.induction
-    · dsimp at ss2 ⊢
--/
-      --dsimp [recNilCons, recNilConsOnGetSub]
-
-
-    --intro ss2
-/-
-    cases i using Fin.induction
-    · dsimp [recNilCons]
--/
-    --dsimp [ofInterleaving, toInterleaving] at ⊢ lm1
-    --simp [Builder.ext_iff, funext_iff] at ⊢ lm1
-    --intro i
-    --cases i using Fin.induction
-
-/-
-    dsimp [cons, ofInterleaving] at ⊢ lm1
-    congr
-    simp [funext_iff]
-    intro i
--/
-/-
-    conv => rhs; dsimp [cons]
-    dsimp [ofInterleaving]
-    congr
-    simp [funext_iff]
-    intro i
-    dsimp [toInterleaving, recNilCons, recNilConsOnGetSub]
--/
-
 
 /-
 @[elab_as_elim]
@@ -424,6 +348,7 @@ def equivOfToInterleaving {len: Nat} {GetSub: (Fin len) → Sort us} : Builder U
 -/
 
 end Builder
+-/
 
 /-
 def recNilCons.{u}
@@ -462,11 +387,12 @@ def toInterleaving {len: Nat} {GetSub: (Fin len) → Sort us} (bd: Builder Univ 
     len GetSub bd
 -/
 
-
+/-
 def toBuilder (il: Interleaving Univ ss) : Builder Univ ss.length (ss.get) where
   getLiftableEmbedding i := il.getLiftableEmbedding i
 
 def ofBuilder (bd: Builder Univ ss.length (ss.get)) : Interleaving Univ ss := (List.ofFn_get ss) ▸ bd.toInterleaving
+-/
 
 /-
 theorem ofBuilder_toBuilder_leftInverse : Function.LeftInverse (ofBuilder) (toBuilder: Interleaving Univ ss → Builder Univ ss.length (ss.get)) := by
@@ -495,7 +421,7 @@ def equivOfToBuilder : Interleaving Univ ss ≃ Builder Univ ss.length (ss.get) 
 
 
 
-/-
+
 structure Builder (Univ: Sort uu) (len: Nat) where
   GetSub (n: Fin len) : Sort us
   getLiftableEmbedding (n: Fin len) : LiftableEmbedding (GetSub n) Univ
@@ -581,14 +507,17 @@ def toInterleavingAt (len: Nat) (bd: Builder Univ len) : Interleaving Univ (List
 
 def toInterleaving {len: Nat} (bd: Builder Univ len) : Interleaving Univ (List.ofFn bd.GetSub) := bd.toInterleavingAt len
 
+def toInterleavingSigma {len: Nat} (bd: Builder Univ len) : (ss: List (Sort us)) ×' (Interleaving Univ ss) := ⟨List.ofFn bd.GetSub, bd.toInterleaving⟩
+
 
 def ofInterleaving (il: Interleaving Univ ss) : Builder Univ il.length where
   GetSub := il.GetSub
   getLiftableEmbedding := il.getLiftableEmbedding
 
+def ofInterleavingSigma (ils: (ss: List (Sort us)) ×' (Interleaving Univ ss)) : Builder Univ ils.snd.length := ofInterleaving ils.snd
 
 end Builder
--/
+
 
 end Interleaving
 
