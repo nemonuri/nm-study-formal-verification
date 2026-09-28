@@ -1,6 +1,6 @@
 module
 
-public import Nemonuri.Functions.LiftableEmbedding.Basic
+public import Nemonuri.Functions.LiftableEmbedding.Equiv
 public import Mathlib.Data.List.OfFn
 
 @[expose] public section
@@ -9,556 +9,344 @@ set_option autoImplicit false
 
 namespace Nemonuri.Functions.LiftableEmbedding
 
-
-inductive Interleaving.{uu, us} (Univ: Sort uu) : List (Sort us) → Sort _ where
-  | nil: Interleaving Univ []
-  | cons {sub: Sort us} (lem: LiftableEmbedding sub Univ) {subs: List (Sort us)} : Interleaving Univ subs → Interleaving Univ (sub::subs)
-
-namespace Interleaving
-
 universe uu us
-variable {Univ: Sort uu} {ss: List (Sort us)}
-
-def subs (_: Interleaving Univ ss) : List (Sort us) := ss
-
-def length (il: Interleaving Univ ss) : Nat := il.subs.length
-
-@[defeq]
-theorem length_def {il: Interleaving Univ ss} : il.length = ss.length := rfl
-
-@[defeq]
-theorem nil_length_eq_zero : (.nil : Interleaving Univ []).length = 0 := by
-  dsimp [length_def]
-
-instance nil_subsingleton : Subsingleton (Interleaving Univ []) where
-  allEq := by rintro ⟨⟩ ⟨⟩; rfl
-
-@[defeq]
-theorem cons_length_eq {s: Sort us} {lem: LiftableEmbedding s Univ} {ss: List (Sort us)} {il: Interleaving Univ ss}
-  : (cons lem il).length = il.length + 1 := by
-  dsimp [length_def]
 
 
-def GetSub (il: Interleaving Univ ss) (n: Fin il.length) : Sort us := il.subs.get n
+structure SubBundled (Univ: Sort uu) where
+  Sub: Sort us
+  liftableEmbedding: LiftableEmbedding Sub Univ
 
-@[defeq]
-theorem cons_getSub_eq {s: Sort us} {lem: LiftableEmbedding s Univ} {ss: List (Sort us)} {il: Interleaving Univ ss} {n: Fin il.length}
-  : (cons lem il).GetSub (Fin.mk (n+1) (by simp [cons_length_eq])) = il.GetSub n := by
-  dsimp [GetSub, subs]
+namespace SubBundled
 
+variable {Univ: Sort uu}
 
-def getLiftableEmbeddingAt (ss: List (Sort us)) (il: Interleaving Univ ss) (n: Fin il.length) : LiftableEmbedding (il.GetSub n) Univ :=
-  match ss, il with
-  | [], .nil => Fin.elim0 (nil_length_eq_zero ▸ n)
-  | s::ss, .cons lem il =>
-  match n with
-  | ⟨0, _⟩ => lem
-  | ⟨n+1, lm1⟩ =>
-    have lm2: n < il.length := by simpa [cons_length_eq] using lm1
-    getLiftableEmbeddingAt ss il ⟨n, lm2⟩
-
-
-def getLiftableEmbedding (il: Interleaving Univ ss) (n: Fin il.length) : LiftableEmbedding (il.GetSub n) Univ := il.getLiftableEmbeddingAt ss n
-
-
-inductive MapsToIsLiftable {Univ: Sort uu} (uv: Univ) : {ss: List (Sort us)} → Interleaving Univ ss → List Bool → Prop where
-  | nil : MapsToIsLiftable uv (.nil) []
-  | cons_true {s: Sort us} (lem: LiftableEmbedding s Univ) {ss: List (Sort us)} (il: Interleaving Univ ss) (req: lem.IsLiftable uv) (bs: List Bool)
-        : il.MapsToIsLiftable uv bs → (il.cons lem).MapsToIsLiftable uv (.true::bs)
-  | cons_false {s: Sort us} (lem: LiftableEmbedding s Univ) {ss: List (Sort us)} (il: Interleaving Univ ss) (req: ¬lem.IsLiftable uv) (bs: List Bool)
-        : il.MapsToIsLiftable uv bs → (il.cons lem).MapsToIsLiftable uv (.false::bs)
-
-
-namespace MapsToIsLiftable
-
-theorem length_eq_at (uv: Univ) (ss: List (Sort us)) (bs: List Bool) (il: Interleaving Univ ss) (h: il.MapsToIsLiftable uv bs) : il.length = bs.length := by
-  dsimp [il.length_def]
-  cases ss with
-  | nil =>
-    cases bs with
-    | nil => dsimp
-    | cons b bs => rcases h
-  | cons s ss =>
-    cases bs with
-    | nil => rcases h
-    | cons b bs =>
-      simp
-      cases h <;> (
-        rename_i il h
-        rewrite [← il.length_def]
-        exact h.length_eq_at )
-
-variable {il: Interleaving Univ ss} {uv: Univ} in
-theorem length_eq {bs: List Bool} (h: il.MapsToIsLiftable uv bs) : il.length = bs.length := h.length_eq_at
-
-
-theorem bool_list_eq_at (uv: Univ) (ss: List (Sort us)) (il: Interleaving Univ ss) (bs1: List Bool) (h1: il.MapsToIsLiftable uv bs1) (bs2: List Bool) (h2: il.MapsToIsLiftable uv bs2) : bs1 = bs2 := by
-  have lm1 := h1.length_eq.symm.trans h2.length_eq
-  rcases bs1 with _ | ⟨b1, bs1⟩
-  · simp at lm1
-    replace lm1 := lm1.symm
-    simpa using lm1
-  · simp at lm1
-    rcases bs2 with _ | ⟨b2, bs2⟩
-    · simp at lm1
-    · simp at lm1 ⊢
-      rcases b1 <;> rcases b2
-      · simp only [true_and]
-        rcases h1; rename_i il _ h1
-        rcases h2; rename_i h2
-        exact bool_list_eq_at uv _ il _ h1 _ h2
-      · rcases h1; rcases h2
-        contradiction
-      · rcases h1; rcases h2
-        contradiction
-      · simp only [true_and]
-        rcases h1; rename_i il _ h1
-        rcases h2; rename_i h2
-        exact bool_list_eq_at uv _ il _ h1 _ h2
-
-
-variable {il: Interleaving Univ ss} {uv: Univ} in
-theorem bool_list_eq {bs1 bs2: List Bool} (h1: il.MapsToIsLiftable uv bs1) (h2: il.MapsToIsLiftable uv bs2) : bs1 = bs2 := bool_list_eq_at _ _ _ _ h1 _ h2
-
-
-
-end MapsToIsLiftable
-
-def AnyLiftable (il: Interleaving Univ ss) (uv: Univ) : Prop := ∀⦃bs: List Bool⦄ ⦃_: il.MapsToIsLiftable uv bs⦄, bs.Mem .true
-
-def AllLiftable (il: Interleaving Univ ss) (uv: Univ) : Prop := ∀⦃bs: List Bool⦄ ⦃_: il.MapsToIsLiftable uv bs⦄, bs.Forall (· = .true)
-
-/-
 @[ext]
-structure Builder (Univ: Sort uu) (len: Nat) (GetSub: (Fin len) → Sort us) where
-  getLiftableEmbedding (n: Fin len) : LiftableEmbedding (GetSub n) Univ
+protected theorem ext {sb1 sb2: SubBundled Univ} (req1: sb1.Sub = sb2.Sub) (req2: sb1.liftableEmbedding.embed ≍ sb2.liftableEmbedding.embed) : sb1 = sb2 := by
+  rcases sb1 with ⟨s1, lm1⟩
+  rcases sb2 with ⟨s2, lm2⟩
+  dsimp at req1
+  subst req1
+  simp at req2 ⊢
+  exact LiftableEmbedding.embed_ext req2
 
 
-namespace Builder
+def toPLifted (sb: SubBundled Univ) : SubBundled (PLift Univ) where
+  Sub := sb.Sub
+  liftableEmbedding := sb.liftableEmbedding.compEquiv (Equiv.refl _) (Equiv.plift.symm)
+
+def ofPLifted (sb: SubBundled.{uu+1, us} (PLift.{uu} Univ)) : SubBundled.{uu, us} Univ where
+  Sub := sb.Sub
+  liftableEmbedding := sb.liftableEmbedding.compEquiv (Equiv.refl _) (Equiv.plift)
 
 
---scoped instance uniqueOfGetSub : Unique ((Fin 0) → Sort us) := Pi.uniqueOfIsEmpty _
-
-def getSub_eq_default (gs: Fin 0 → Sort us) : gs = default := by simp [funext_iff] --(Pi.uniqueOfIsEmpty _).eq_default gs
-
-
-def nil (Univ: Sort uu) : Builder.{uu, us} Univ 0 default := ⟨(Pi.uniqueOfIsEmpty _).default⟩
-
-@[elab_as_elim]
-def recNil.{u}
-  {motive: (GetSub: (Fin 0) → Sort us) → (Builder Univ 0 GetSub) → Sort u}
-  (nil: motive default (.nil Univ))
-  {GetSub: (Fin 0) → Sort us}
-  (t: Builder Univ 0 GetSub)
-  : motive GetSub t :=
-  have lm1: motive GetSub t = motive default (.nil _) := by
-    have lm2: GetSub = default := by simp [funext_iff]
-    subst lm2
-    congr
-    rcases t with ⟨t⟩
-    dsimp [Builder.nil]
-    congr
-    simp [funext_iff]
-  lm1.mpr nil
-
-
-def consGetSub (Sub: Sort us) {len: Nat} (GetSub: (Fin len) → Sort us) (i: Fin (len+1)) : Sort us := i.induction Sub (fun i0 _ => GetSub i0)
-
-def cons (Sub: Sort us) (lem: LiftableEmbedding Sub Univ) {len: Nat} {GetSub: (Fin len) → Sort us} (bd: Builder Univ len GetSub) : Builder Univ (len+1) (consGetSub Sub GetSub) where
-  getLiftableEmbedding i := i.induction lem (fun i0 _ => bd.getLiftableEmbedding i0)
-
-
-def tailGetSub {len: Nat} (GetSub: (Fin (len+1)) → Sort us) (i: Fin len) : Sort us := GetSub i.succ
-
-def tail {len: Nat} {Sub: Sort us} {GetSub: (Fin len) → Sort us} (bd: Builder Univ (len+1) (consGetSub Sub GetSub)) : Builder Univ len GetSub where
-  getLiftableEmbedding i := bd.getLiftableEmbedding i.succ
-
---bd0 : Builder Univ (len0 + 1) (consGetSub s0 gs0)
-
-theorem tailGetSub_consGetSub_eq {len: Nat} (GetSub: (Fin (len+1)) → Sort us) : consGetSub (GetSub 0) (tailGetSub GetSub) = GetSub := by
-  simp only [funext_iff]
-  intro i
-  dsimp [consGetSub, tailGetSub]
-  cases i using Fin.succRec <;> dsimp
-
-
-def recConsOnGetSub.{u} {len: Nat}
-  {motive: (GetSub: (Fin (len+1)) → Sort us) → Sort u}
-  (cons: (Sub: Sort us) → (GetSub: (Fin len) → Sort us) → motive (consGetSub Sub GetSub))
-  (t: (Fin (len+1)) → Sort us)
-  : motive t :=
-  (tailGetSub_consGetSub_eq t).ndrec (cons (t 0) (tailGetSub t))
-
-
-@[elab_as_elim]
-def recNilConsOnGetSub.{u}
-  {motive: (len: Nat) → (GetSub: (Fin len) → Sort us) → Sort u}
-  (nil: motive 0 default)
-  (cons: (Sub: Sort us) → (len: Nat) → (GetSub: (Fin len) → Sort us) → motive len GetSub → motive (len+1) (consGetSub Sub GetSub))
-  (len: Nat) (t: (Fin len) → Sort us)
-  : motive len t :=
-  match len with
-  | 0 =>
-    have lm1: default = t := by simp [funext_iff]
-    lm1.ndrec nil
-  | len + 1 =>
-    (tailGetSub_consGetSub_eq t).ndrec (cons (t 0) len (tailGetSub t) (recNilConsOnGetSub nil cons len (tailGetSub t)))
-
-section RecNilConsOnGetSub
-
-universe um
-variable {m: (len: Nat) → (GetSub: (Fin len) → Sort us) → Sort um}
-         {nil0: m 0 default}
-         {cons0: (Sub: Sort us) → (len: Nat) → (GetSub: (Fin len) → Sort us) → m len GetSub → m (len+1) (consGetSub Sub GetSub)}
-
-
-@[defeq]
-theorem recNilConsOnGetSub_nil : recNilConsOnGetSub (motive := m) nil0 cons0 0 default = nil0 := by
-  dsimp [recNilConsOnGetSub]
-
-@[defeq]
-theorem recNilConsOnGetSub_cons {len: Nat} {Sub: Sort us} {t: (Fin len) → Sort us}
-  : recNilConsOnGetSub (motive := m) nil0 cons0 (len+1) (consGetSub Sub t) = cons0 Sub len t (recNilConsOnGetSub nil0 cons0 len t) := by
-  conv => lhs; dsimp [recNilConsOnGetSub]
+theorem ofPLifted_toPLifted_leftInverse : Function.LeftInverse ofPLifted (@toPLifted Univ) := by
+  rintro ⟨Sub, lem⟩
+  dsimp [toPLifted, ofPLifted]
   rfl
 
-end RecNilConsOnGetSub
-
-/-
-@[elab_as_elim]
-def recCons.{u} {len: Nat}
-  {motive: (Sub: Sort us) → (GetSub: (Fin len) → Sort us) → (Builder Univ (len+1) (consGetSub Sub GetSub)) → Sort u}
-  (cons: (Sub: Sort us) → (lem: LiftableEmbedding Sub Univ) → (GetSub: (Fin len) → Sort us) → (bd: Builder Univ len GetSub) → motive Sub GetSub (Builder.cons Sub lem bd))
-  (Sub: Sort us) (GetSub: (Fin len) → Sort us) (t: Builder Univ (len+1) (consGetSub Sub GetSub))
-  : motive Sub GetSub t :=
-  have lm1: Builder.cons Sub (t.getLiftableEmbedding 0) t.tail = t := by
-    dsimp [Builder.cons, tail]
-    congr
-    simp only [funext_iff]
-    intro i
-    cases i using Fin.succRec <;> dsimp
-  lm1.ndrec (cons Sub (t.getLiftableEmbedding 0) GetSub t.tail)
--/
-
-@[elab_as_elim]
-def recNilCons.{u}
-  {motive: (len: Nat) → (GetSub: (Fin len) → Sort us) → Builder Univ len GetSub → Sort u}
-  (nil: motive 0 default (.nil Univ))
-  (cons: (Sub: Sort us) → (lem: LiftableEmbedding Sub Univ) → (len: Nat) → (GetSub: (Fin len) → Sort us) → (bd: Builder Univ len GetSub) → motive len GetSub bd → motive (len+1) (consGetSub Sub GetSub) (Builder.cons Sub lem bd))
-  (len: Nat) (GetSub: (Fin len) → Sort us) (t: Builder Univ len GetSub)
-  : motive len GetSub t :=
-  recNilConsOnGetSub (motive := fun len0 gs0 => (bd0: Builder Univ len0 gs0) → motive len0 gs0 bd0)
-    (fun bd0 => bd0.recNil nil)
-    (fun s0 len0 gs0 m0 bd0 =>
-      --let bd1 : Builder Univ len0 gs0 := ⟨fun i => bd0.getLiftableEmbedding i.succ⟩
-      have lm1: Builder.cons s0 (bd0.getLiftableEmbedding 0) bd0.tail = bd0 := by
-        simp [tail]
-        rcases bd0 with ⟨bd0⟩
-        dsimp [Builder.cons]
-        congr
-        rw [funext_iff]
-        intro i
-        cases i using Fin.succRec <;> dsimp
-      lm1.ndrec (cons s0 (bd0.getLiftableEmbedding 0) len0 gs0 bd0.tail (m0 bd0.tail))) len GetSub t
-
-section RecNilCons
-
-universe um
-variable {m: (len: Nat) → (GetSub: (Fin len) → Sort us) → Builder Univ len GetSub → Sort um}
-         {nil0: m 0 default (.nil Univ)}
-         {cons0: (Sub: Sort us) → (lem: LiftableEmbedding Sub Univ) → (len: Nat) → (GetSub: (Fin len) → Sort us) → (bd: Builder Univ len GetSub) → m len GetSub bd → m (len+1) (consGetSub Sub GetSub) (Builder.cons Sub lem bd)}
-
-@[defeq]
-theorem recNilCons_nil : recNilCons (motive := m) nil0 cons0 0 default (.nil Univ) = nil0 := by
-  dsimp [recNilCons, recNilConsOnGetSub, recNil]
-
---#print List.rec
-
-@[defeq]
-theorem recNilCons_cons {s: Sort us} {lem: LiftableEmbedding s Univ} {len: Nat} {gs: (Fin len) → Sort us} {t: Builder Univ len gs} --{t: Builder Univ (len+1) (consGetSub s gs)}
-  : recNilCons (motive := m) nil0 cons0 (len+1) (consGetSub s gs) (t.cons s lem) = cons0 s lem len gs t (recNilCons nil0 cons0 len gs t) := by
-  dsimp [recNilCons, recNilConsOnGetSub_cons]
+theorem ofPLifted_toPLifted_rightInverse : Function.RightInverse ofPLifted (@toPLifted Univ) := by
+  rintro ⟨Sub, lem⟩
+  dsimp [toPLifted, ofPLifted]
   rfl
-  --: recNilCons (motive := m) nil0 cons0 (len+1) gs t = cons0 (gs 0)
-
-end RecNilCons
-
---def toInterleavingAux {len: Nat} {GetSub: (Fin len) → Sort us} (bd: Builder Univ len GetSub) : Interleaving Univ (List.ofFn GetSub) :=
---#check List.ofFnRec
 
 
+def equivToPLifted : SubBundled Univ ≃ SubBundled (PLift Univ) where
+  toFun := toPLifted
+  invFun := ofPLifted
 
-def toInterleaving {len: Nat} {GetSub: (Fin len) → Sort us} (bd: Builder Univ len GetSub) : Interleaving Univ (List.ofFn GetSub) :=
-  recNilCons (motive := fun len0 gs0 bd0 => Interleaving Univ (List.ofFn gs0))
-    (.nil: Interleaving Univ [])
-    (fun Sub lem len0 gs0 bd0 m0 =>
-      have lm1: (Sub :: List.ofFn gs0) = (List.ofFn (consGetSub Sub gs0)) := by rw [List.ofFn_succ]; dsimp [consGetSub]
-      lm1.ndrec (Interleaving.cons lem m0))
-    len GetSub bd
+end SubBundled
 
 
-def ofInterleaving {len: Nat} {GetSub: (Fin len) → Sort us} (il: Interleaving Univ (List.ofFn GetSub)) : Builder Univ len GetSub :=
-  have lm1: len = il.length := by simp only [length_def, List.length_ofFn]
-  ⟨fun i =>
-    let i2 : Fin il.length := i.cast lm1
-    have lm2: il.GetSub i2 = GetSub i := by
-      subst i2
-      dsimp [Interleaving.GetSub, subs]
-      simp only [List.getElem_ofFn, Fin.eta]
-    lm2 ▸ (il.getLiftableEmbedding i2)⟩
+def Interleaving (Univ: Sort uu) : Type (max uu us) := List ((SubBundled.{uu+1, us} (PLift.{uu} Univ)))
 
-
-/-
-theorem ofInterleaving_toInterleaving_leftInverse (len: Nat) (GetSub: (Fin len) → Sort us)
-  : Function.LeftInverse ofInterleaving (toInterleaving: Builder Univ len GetSub → Interleaving Univ (List.ofFn GetSub)) := by
-  intro bd
-  induction len, GetSub, bd using recNilCons with
-  | nil =>
-    dsimp [nil, ofInterleaving]
-    congr
-    exact Subsingleton.elim _ _
-  | cons s lem len gs bd lm1 =>
-    dsimp [ofInterleaving]
-    cases len with
-    | zero =>
-      cases bd using recNil
-      conv => rhs; dsimp [cons]
-      congr
-      simp [funext_iff]
-      dsimp [toInterleaving, recNilCons_cons, recNilCons_nil]
-      have lm2 := getSub_eq_default (fun a => (default: Sort us))
--/
-
-/-
-@[elab_as_elim]
-def recNilCons'.{u} --{len: Nat} {GetSub: (Fin len) → Sort us}
-  {motive: (len: Nat) → (GetSub: (Fin len) → Sort us) → Builder Univ len GetSub → Sort u}
-  (nil: motive 0 default (.nil Univ))
-  (cons: (Sub: Sort us) → (lem: LiftableEmbedding Sub Univ) → (len: Nat) → (GetSub: (Fin len) → Sort us) → (bd: Builder Univ len GetSub) → motive len GetSub bd → motive (len+1) (consGetSub Sub GetSub) (Builder.cons Sub lem bd))
-  {len: Nat} {GetSub: (Fin len) → Sort us} (t: Builder Univ len GetSub)
-  : motive len GetSub t :=
-  recNilCons nil cons len GetSub t
--/
-
---#check List.equiv
-/-
-def equivOfToInterleaving {len: Nat} {GetSub: (Fin len) → Sort us} : Builder Univ len GetSub ≃ Interleaving Univ (List.ofFn GetSub) where
-  toFun bd := bd.toInterleaving
-  invFun il := ofInterleaving il
--/
-
-end Builder
--/
-
-/-
-def recNilCons.{u}
-  {motive: (len: Nat) → (GetSub: (Fin len) → Sort us) → Builder Univ len GetSub → Sort u}
-  (nil: motive 0 default (.nil Univ))
-  (cons: (Sub: Sort us) → (lem: LiftableEmbedding Sub Univ) → (len: Nat) → (GetSub: (Fin len) → Sort us) → (bd: Builder Univ len GetSub) → motive len GetSub bd → motive (len+1) (consGetSub Sub GetSub) (Builder.cons Sub lem bd))
-  (len: Nat) (GetSub: (Fin len) → Sort us) (t: Builder Univ len GetSub)
--/
-
-
-
-
-/-
-open Builder in
-def consOfFn {Sub: Sort us} (lem: LiftableEmbedding Sub Univ) {len: Nat} (GetSub: (Fin len) → Sort us) (il: Interleaving Univ (List.ofFn GetSub)) : Interleaving Univ (List.ofFn (consGetSub Sub GetSub)) :=
-  recNilConsOnGetSub (motive := fun len0 gs0 => Interleaving Univ (List.ofFn gs0))
-    (.nil)
-    (fun s0 len0 gs0 m0 => _)
-    len GetSub
--/
-
-/-
-def recOfFn.{u}
-  {motive: (len: Nat) → (GetSub: (Fin len) → Sort us) → Interleaving Univ (List.ofFn GetSub) → Sort u}
-  (nil: motive 0 default .nil)
-  (cons: (Sub: Sort us) → (lem: LiftableEmbedding Sub Univ) → (len: Nat) → (GetSub: (Fin len) → Sort us) → (il: Interleaving Univ (List.ofFn GetSub)) → motive len GetSub il → motive (len+1) (Builder.consGetSub Sub GetSub) )
--/
-
-/-
-def toInterleaving {len: Nat} {GetSub: (Fin len) → Sort us} (bd: Builder Univ len GetSub) : Interleaving Univ (List.ofFn GetSub) :=
-  recNilCons (motive := fun len0 gs0 bd0 => Interleaving Univ (List.ofFn gs0))
-    (.nil: Interleaving Univ [])
-    (fun Sub lem len0 gs0 bd0 m0 =>
-      have lm1: (Sub :: List.ofFn gs0) = (List.ofFn (consGetSub Sub gs0)) := by rw [List.ofFn_succ]; dsimp [consGetSub]
-      lm1.ndrec (Interleaving.cons lem m0))
-    len GetSub bd
--/
-
-/-
-def toBuilder (il: Interleaving Univ ss) : Builder Univ ss.length (ss.get) where
-  getLiftableEmbedding i := il.getLiftableEmbedding i
-
-def ofBuilder (bd: Builder Univ ss.length (ss.get)) : Interleaving Univ ss := (List.ofFn_get ss) ▸ bd.toInterleaving
--/
-
-/-
-theorem ofBuilder_toBuilder_leftInverse : Function.LeftInverse (ofBuilder) (toBuilder: Interleaving Univ ss → Builder Univ ss.length (ss.get)) := by
-  intro il
-  cases il with
-  | nil => exact nil_subsingleton.elim _ _
-  | cons lem il =>
-    rename_i s ss
-    generalize (s :: ss) = ss2
--/
-    --generalize lm3: (cons lem il).toBuilder = bd
-    --generalize lm1: (s :: ss).length = len at lm3
-    --generalize lm2: (s :: ss).get = gs
-
-    --let bd2: Builder Univ len gs :=
-
-    --rcases bd with ⟨bd⟩
-
-
-
-/-
-def equivOfToBuilder : Interleaving Univ ss ≃ Builder Univ ss.length (ss.get) where
-  toFun il := il.toBuilder
-  invFun bd := ofBuilder bd
--/
-
-
-
-
-structure Builder (Univ: Sort uu) (len: Nat) where
-  GetSub (n: Fin len) : Sort us
-  getLiftableEmbedding (n: Fin len) : LiftableEmbedding (GetSub n) Univ
-
-namespace Builder
-
-
-def nil (Univ: Sort uu) : Builder.{uu, us} Univ 0 where
-  GetSub n := n.elim0
-  getLiftableEmbedding n := n.elim0
-
-instance zero_subsingleton : Subsingleton (Builder Univ 0) where
-  allEq := by
-    rintro ⟨gs1, gl1⟩ ⟨gs2, gl2⟩
-    have lm1: gs1 = gs2 := by simp [funext_iff]
-    subst lm1
-    simp [funext_iff]
-
-
-def cons (Sub: Sort us) (lem: LiftableEmbedding Sub Univ) {len: Nat} (bd: Builder Univ len) : Builder Univ (len+1) :=
-  let getSub (n: Fin (len + 1)) : Sort us := n.induction Sub (fun n0 _ => bd.GetSub n0)
-  have lm1 : getSub 0 = Sub := Fin.induction_zero _ _
-  {
-    GetSub := getSub
-    getLiftableEmbedding (n: Fin (len + 1)) :=
-      n.induction (motive := fun n0 => LiftableEmbedding (getSub n0) Univ)
-                  (lm1.symm ▸ lem)
-                  (fun n0 _ =>
-                    have lm2: bd.GetSub n0 = getSub (n0.succ) := by subst getSub; simp only [Fin.induction_succ]
-                    lm2 ▸ (bd.getLiftableEmbedding n0))
-  }
-
-
-def tail {len: Nat} (bd: Builder Univ (len+1)) : Builder Univ len where
-  GetSub n := bd.GetSub n.succ
-  getLiftableEmbedding n := bd.getLiftableEmbedding n.succ
-
-@[elab_as_elim]
-def recCons.{u} {len: Nat}
-  {motive: Builder Univ (len+1) → Sort u}
-  (cons: (Sub: Sort us) → (lem: LiftableEmbedding Sub Univ) → (bd: Builder Univ len) → motive (.cons Sub lem bd))
-  (t: Builder Univ (len+1))
-  : motive t :=
-    let Sub : Sort us := t.GetSub 0
-    let lem : LiftableEmbedding Sub Univ := t.getLiftableEmbedding 0
-    have lm1: Builder.cons Sub lem t.tail = t := by
-      subst Sub lem
-      rcases t with ⟨gs, gl⟩
-      dsimp [Builder.cons, Builder.tail]
-      simp
-      refine (And.intro ?_ ?_)
-      · simp [funext_iff]
-        intro n0
-        cases n0 using Fin.succRec <;> dsimp
-      · refine Function.hfunext (Eq.refl _) ?_
-        intro n1 n2 lm1
-        rewrite [heq_eq_eq] at lm1
-        subst lm1
-        cases n1 using Fin.succRec <;> (dsimp; rfl)
-    lm1.ndrec (cons Sub lem t.tail)
-
-@[elab_as_elim]
-def recNilCons.{u}
-  {motive : (len: Nat) → Builder Univ len → Sort u}
-  (nil: motive 0 (.nil Univ))
-  (cons: (Sub: Sort us) → (lem: LiftableEmbedding Sub Univ) → (len: Nat) → (bd: Builder Univ len) → motive (len+1) (.cons Sub lem bd))
-  {len: Nat} (t: Builder Univ len)
-  : motive len t :=
-  match len with
-  | 0 =>
-    have lm1: Builder.nil Univ = t := zero_subsingleton.elim _ _
-    lm1.ndrec nil
-  | len + 1 =>
-    t.recCons (fun Sub lem bd => cons Sub lem len bd)
-
-
-def toInterleavingAt (len: Nat) (bd: Builder Univ len) : Interleaving Univ (List.ofFn bd.GetSub) :=
-  match len, bd with
-  | 0, _ => (.nil: Interleaving Univ [])
-  | len+1, bd2 => bd2.recCons (fun Sub lem bd0 =>
-      have lm1: Sub :: List.ofFn bd0.GetSub = List.ofFn (bd0.cons Sub lem).GetSub := by simp [cons]
-      lm1.ndrec (Interleaving.cons lem (toInterleavingAt len bd0)))
-
-def toInterleaving {len: Nat} (bd: Builder Univ len) : Interleaving Univ (List.ofFn bd.GetSub) := bd.toInterleavingAt len
-
-def toInterleavingSigma {len: Nat} (bd: Builder Univ len) : (ss: List (Sort us)) ×' (Interleaving Univ ss) := ⟨List.ofFn bd.GetSub, bd.toInterleaving⟩
-
-
-def ofInterleaving (il: Interleaving Univ ss) : Builder Univ il.length where
-  GetSub := il.GetSub
-  getLiftableEmbedding := il.getLiftableEmbedding
-
-def ofInterleavingSigma (ils: (ss: List (Sort us)) ×' (Interleaving Univ ss)) : Builder Univ ils.snd.length := ofInterleaving ils.snd
-
-end Builder
-
-
-end Interleaving
-
-/-
-inductive IsLiftableVector (rv: R) : (bs: List (LeftTypeBundled.{ur, ul} R)) → (Interleaving R bs) → List Bool → Prop where
-  | nil : IsLiftableVector rv [] (Interleaving.nil) []
-  | cons_true (b: LeftTypeBundled R) (bs: List (LeftTypeBundled R)) (il: Interleaving R bs)
-              (b2: b.liftableEmbedding.IsLiftable rv) (bs2: List Bool)
-        : IsLiftableVector rv bs il bs2 → IsLiftableVector rv (b::bs) (il.cons b) (.true::bs2)
-  | cons_false (b: LeftTypeBundled R) (bs: List (LeftTypeBundled R)) (il: Interleaving R bs)
-               (b2: ¬b.liftableEmbedding.IsLiftable rv) (bs2: List Bool)
-        : IsLiftableVector rv bs il bs2 → IsLiftableVector rv (b::bs) (il.cons b) (.false::bs2)
-
-
-
-structure LeftTypeBundled.{ur, ul} (R: Type ur) where
-  L: Type ul
-  liftableEmbedding: LiftableEmbedding L R
-
-namespace LeftTypeBundled
-
-def ofLiftableEmbedding {L R: Type*} (lem: LiftableEmbedding L R) : LeftTypeBundled R := .mk L lem
-
-end LeftTypeBundled
-
-
-inductive Interleaving.{ur, ul} (R: Type ur) : List (LeftTypeBundled.{ur, ul} R) → Type _ where
-  | nil : Interleaving R []
-  | cons (b: LeftTypeBundled R) (bs: List (LeftTypeBundled R)) : (Interleaving R bs) → (Interleaving R (b::bs))
+@[defeq]
+theorem interleaving_def {Univ: Sort uu} : Interleaving Univ = List (SubBundled (PLift.{uu} Univ)) := rfl
 
 namespace Interleaving
 
-universe ur ul
+variable {Univ: Sort uu}
 
-variable {R: Type ur}
+def equivToList : Interleaving Univ ≃ List (SubBundled (PLift Univ)) := Equiv.cast interleaving_def
+
+def consSub (Sub: Sort us) (lem: LiftableEmbedding Sub Univ) (il: Interleaving Univ) : Interleaving Univ := il.cons (SubBundled.equivToPLifted ⟨Sub, lem⟩)
+
+@[defeq]
+theorem consSub_ofPLifted (sb: SubBundled (PLift Univ)) (il: Interleaving Univ)
+  : consSub sb.ofPLifted.Sub sb.ofPLifted.liftableEmbedding il = il.cons sb :=
+  rfl
+
+@[defeq]
+theorem consSub_length {Sub: Sort us} {lem: LiftableEmbedding Sub Univ} {il: Interleaving Univ}
+  : (consSub Sub lem il).length = il.length + 1 := by
+  dsimp [consSub]
+
+@[defeq]
+theorem consSub_length_at (Sub: Sort us) (lem: LiftableEmbedding Sub Univ) (il: Interleaving Univ)
+  : (consSub Sub lem il).length = il.length + 1 :=
+  consSub_length
+
+@[elab_as_elim]
+def recNilConsSub.{um}
+  {motive: Interleaving.{uu, us} Univ → Sort um}
+  (nil: motive [])
+  (consSub: (Sub: Sort us) → (lem: LiftableEmbedding Sub Univ) → (il: Interleaving Univ) → motive il → motive (il.consSub Sub lem))
+  (il: Interleaving Univ)
+  : motive il :=
+  match il with
+  | [] => nil
+  | sb::il =>
+    let sb2 := sb.ofPLifted
+    consSub sb2.Sub sb2.liftableEmbedding il (recNilConsSub nil consSub il)
 
 
-end Interleaving
+--#check List.issuf
+
+def getSubBundled (il: Interleaving Univ) (i: Fin il.length) : SubBundled Univ := SubBundled.equivToPLifted.symm (il.get i)
+
+def getSub (il: Interleaving Univ) (i: Fin il.length) : Sort us := (il.getSubBundled i).Sub
+
+@[defeq]
+theorem getSub_eq_get_Sub {il: Interleaving Univ} {i: Fin il.length} : il.getSub i = (il.get i).Sub := by
+  dsimp [getSub, getSubBundled, SubBundled.equivToPLifted, SubBundled.ofPLifted]
+
+
+#check List.recNeNil
+
+
+
+def getLiftableEmbedding (il: Interleaving Univ) (i: Fin il.length) : LiftableEmbedding (il.getSub i) Univ := (il.getSubBundled i).liftableEmbedding
+
+section ConsSub
+
+variable {Sub: Sort us} {lem: LiftableEmbedding Sub Univ} {il: Interleaving Univ}
+
+theorem consSub_length_pos : 0 < (consSub Sub lem il).length := by simp [consSub_length]
+
+
+@[defeq]
+theorem consSub_getSub_zero : (consSub Sub lem il).getSub ⟨0, consSub_length_pos⟩ = Sub := by
+  dsimp [getSub, getSubBundled, consSub]
+  simp only [Equiv.symm_apply_apply]
+
+@[defeq]
+theorem consSub_getSub_zero_at (Sub: Sort us) (lem: LiftableEmbedding Sub Univ) (il: Interleaving Univ) : (consSub Sub lem il).getSub ⟨0, consSub_length_pos⟩ = Sub :=
+  consSub_getSub_zero
+
+@[defeq]
+theorem consSub_getSub_succ {n: Nat} (req: n + 1 < (consSub Sub lem il).length)
+  : (consSub Sub lem il).getSub ⟨n+1, req⟩ = il.getSub ⟨n, Nat.lt_of_succ_lt_succ req⟩ := by
+  dsimp [consSub, getSub, getSubBundled]
+
+
+end ConsSub
+
+
+@[elab_as_elim]
+def recIndex.{um}
+  {motive: (il: Interleaving.{uu, us} Univ) → (i: Fin il.length) → Sort um}
+  (consSub_zero: (Sub: Sort us) → (lem: LiftableEmbedding Sub Univ) → (il: Interleaving.{uu, us} Univ) → motive (consSub Sub lem il) ⟨0, consSub_length_pos⟩)
+  (consSub_succ: (Sub: Sort us) → (lem: LiftableEmbedding Sub Univ) → (il: Interleaving.{uu, us} Univ) → (i: Fin il.length) → motive il i → motive (consSub Sub lem il) i.succ)
+  (il: Interleaving Univ) (i: Fin il.length)
+  : motive il i :=
+  match il with
+  | [] => i.elim0
+  | sb::il2 =>
+    let sb2 := sb.ofPLifted
+    match i with
+    | ⟨0, _⟩ => consSub_zero sb2.Sub sb2.liftableEmbedding il2
+    | ⟨i2+1, lm1⟩ =>
+      have lm2: i2 < il2.length := by simpa using lm1
+      let i2_1 : Fin il2.length := ⟨i2, lm2⟩
+      consSub_succ sb2.Sub sb2.liftableEmbedding il2 i2_1 (recIndex consSub_zero consSub_succ il2 i2_1)
+
+--#print recIndex._f
+
+/-
+def recIndex.{um}
+  {motive: (il: Interleaving.{uu, us} Univ) → (i: Fin il.length) → Sort um}
+  (singleton: (Sub: Sort us) → (lem: LiftableEmbedding Sub Univ) → motive (consSub Sub lem []) (0: Fin 1))
+  (cons: (Sub: Sort us) → (lem: LiftableEmbedding Sub Univ) → (il: Interleaving Univ) → (i: Fin il.length) → motive il i → motive (consSub Sub lem il) i.succ)
+  (il: Interleaving Univ) (i: Fin il.length)
+  : motive il i :=
+  match il with
+  | [] => i.elim0
+  | sb::il2 =>
+  match lm1: il2 with
+  | [] => singleton sb.ofPLifted.Sub sb.ofPLifted.liftableEmbedding |> cast (by
+      congr
+      revert i
+      simp)
+  | _::_ =>
+    let i2 : Fin il2.length := ⟨i.val - 1, by
+      rcases i with ⟨i, lm2⟩
+      simp at ⊢ lm2
+      subst lm1
+      simp
+      omega⟩
+    cons sb.ofPLifted.Sub sb.ofPLifted.liftableEmbedding il2 i2 (recIndex singleton cons il2 i2) |> cast (by
+      subst lm1
+      congr
+      subst i2
+      refine Fin.ext ?_
+      simp
+      rcases i with ⟨i, lm1⟩
+      simp at ⊢ lm1
+    )
+-/
+/-
+    let il2 : Interleaving Univ := il2_1
+    let sb2 := sb.ofPLifted
+    il2.recNilConsSub (motive := fun il0 => motive (il0.consSub sb2.Sub sb2.liftableEmbedding) ⟨i.val - (il2.length - il0.length), by simp⟩ )
+-/
+    --(il2: Interleaving Univ)
+/-
+  | [sb] =>
+    let sb2 := sb.ofPLifted
+    singleton sb2.Sub sb2.liftableEmbedding |> cast (by
+      congr
+      revert i
+      simp)
+  | sb1::sb2::il2_1 =>
+    let sb1_2 := sb1.ofPLifted
+    let sb2_2 := sb2.ofPLifted
+    let il2 :=
+-/
+/-
+    let sb2 := sb.ofPLifted
+    have lm1: consSub sb2.Sub sb2.liftableEmbedding il2 = sb :: il2 := by subst sb2; exact consSub_ofPLifted _ _
+    match i with
+    | ⟨0, _⟩ => lm1 ▸ (singleton sb2.Sub sb2.liftableEmbedding)
+-/
+/-
+    let sb2 := sb.ofPLifted
+    let i2 : Fin (il2.length + 1) := i
 -/
 
 
+      --(fun i0 il0 hh => )
+    --recNilConsSub (motive := fun il0 =>  )
+
+
+--#check List.get_cons_succ
+--#check SubBundled.ext_iff
+
+/-
+protected theorem ext_get {il1 il2: Interleaving Univ}
+  (req1: il1.length = il2.length)
+  (req2: ∀(n: Nat), (req2_1: n < il1.length) → (req2_2: n < il2.length) → il1.getSub ⟨n, req2_1⟩ = il2.getSub ⟨n, req2_2⟩)
+  (req3: ∀(n: Nat), (req2_1: n < il1.length) → (req2_2: n < il2.length) → (il1.getLiftableEmbedding ⟨n, req2_1⟩).embed ≍ (il2.getLiftableEmbedding ⟨n, req2_2⟩).embed)
+  : il1 = il2 := by
+  simp [interleaving_def, List.ext_get_iff, req1]
+  intro n lm1
+  simp [SubBundled.ext_iff]
+  simp [req1] at req2 --req3
+  specialize req2 n lm1
+  have lm2 := req1.symm.subst lm1
+  dsimp [getSub_eq_get_Sub] at req2
+  simp [req2]
+  rcases lm3: List.get il2 ⟨n, lm1⟩ with ⟨Sub2, lem2⟩
+  rcases lm4: List.get il1 ⟨n, lm2⟩ with ⟨Sub1, lem1⟩
+  dsimp at lm3 lm4
+  rewrite [lm3, lm4] at req2 ⊢
+  dsimp at req2 ⊢
+  subst req2
+  simp [funext_iff]
+  intro s1
+  specialize req3 n lm2 lm1
+  cases il1 using recNilConsSub with
+  | nil => simp at lm2
+  | consSub Sub11 lem11 il11
+-/
+  --dsimp [getLiftableEmbedding, getSubBundled, SubBund- led.equivToPLifted, SubBundled.ofPLifted, LiftableEmbedding.compEquiv, LiftableEmbedding.compEquivAndEmbed] at req3
+  --simp only [Equiv.plift_apply] at req3
+  --dsimp only [DFunLike.coe] at req3
+  --conv at req3 =>
+    --lhs; simp [lm4]
+/-
+  have lm2_1: (List.get il2 ⟨n, lm1⟩).liftableEmbedding.embed ≍ lem2.embed := by
+    dsimp
+    rw [lm3]
+  have lm2_2: (List.get il1 ⟨n, req1.symm.subst lm1⟩).liftableEmbedding.embed ≍ lem1.embed := by
+    dsimp
+    rw [lm4]
+  dsimp at lm2_1 lm2_2
+  rewrite [lm3] at lm2_1
+-/
+/-
+  dsimp at lm3
+  simp [lm3] at req2
+  rewrite [Eq.comm] at req2
+  subst req2
+  specialize req3 n lm1
+  dsimp [getLiftableEmbedding, getSubBundled, SubBundled.equivToPLifted, SubBundled.ofPLifted, LiftableEmbedding.compEquiv, LiftableEmbedding.compEquivAndEmbed] at req3
+  simp only [Equiv.plift_apply] at req3
+  dsimp only [DFunLike.coe] at req3
+  have lm2: (List.get il2 ⟨n, lm1⟩).liftableEmbedding.embed ≍ lem.embed := by
+    dsimp
+    rw [lm3]
+  dsimp at lm2
+  rcases lem with ⟨⟨lem,li⟩,lm4⟩
+  dsimp at lm2
+-/
+  --have lm2 := congra
+
+  --
+
+
+
+  --refine Function.hfunext req2 ?_
+
+  --intro s1 s2 lm3
+  --
+
+  --dsimp at lm4
+  --simp
+/-
+
+
+  simp at req3
+  dsimp only [DFunLike.coe] at req3
+-/
+
+  --dsimp only [DFunLike.coe] at req3
+  --simp at req3
+  --have := dcong
+
+  --dsimp only [GetElem.getElem]
+/-
+  cases il1 using recNilConsSub with
+  | nil =>
+    cases il2 using recNilConsSub
+    · rfl
+    · simp [consSub_length] at req1
+  | consSub Sub1 lem1 il1 h =>
+    clear h
+    simp [consSub_length] at req1 --req2 req3
+    cases il2 using recNilConsSub with
+    | nil => simp at req1
+    | consSub Sub2 lem2 il2 h =>
+      clear h
+      simp [consSub_length] at req1-- req2 req3
+      have lm1_1 := req2 0
+      dsimp [consSub_getSub_zero] at lm1_1
+      simp [consSub_length_pos] at lm1_1
+      subst lm1_1
+-/
+      --have lm2_1 := consSub_getSub_zero_at Sub1 lem1 il1
+      --have lm2_2 := consSub_getSub_zero_at Sub2 lem2 il2
+
+
+      --rewrite [consSub_length] at lm2_1 lm2_2
+      --rewrite [consSub_getSub_zero_at Sub1 lem1 il1] at lm1_1
+      --rw [il1.consSub_getSub_zero] at lm1_1
+
+--def getLiftableEmbedding (il: Interleaving Univ) (i: Fin il.length) : LiftableEmbedding (il.getSub i) Univ := (il.get i).of
+
+
+
+
+
+end Interleaving
 
 end Nemonuri.Functions.LiftableEmbedding
 
