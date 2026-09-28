@@ -103,6 +103,13 @@ def recNilConsSub.{um}
 
 def getSubBundled (il: Interleaving Univ) (i: Fin il.length) : SubBundled Univ := SubBundled.equivToPLifted.symm (il.get i)
 
+
+theorem getSubBundled_eq_iff_get_eq {il1 il2: Interleaving Univ} {i1: Fin il1.length} {i2: Fin il2.length}
+  : (il1.getSubBundled i1 = il2.getSubBundled i2) ↔ (il1.get i1 = il2.get i2) := by
+  dsimp [getSubBundled]
+  exact SubBundled.equivToPLifted.symm.injective.eq_iff
+
+
 def getSub (il: Interleaving Univ) (i: Fin il.length) : Sort us := (il.getSubBundled i).Sub
 
 @[defeq]
@@ -110,7 +117,7 @@ theorem getSub_eq_get_Sub {il: Interleaving Univ} {i: Fin il.length} : il.getSub
   dsimp [getSub, getSubBundled, SubBundled.equivToPLifted, SubBundled.ofPLifted]
 
 
-#check List.recNeNil
+
 
 
 
@@ -144,8 +151,8 @@ end ConsSub
 @[elab_as_elim]
 def recIndex.{um}
   {motive: (il: Interleaving.{uu, us} Univ) → (i: Fin il.length) → Sort um}
-  (consSub_zero: (Sub: Sort us) → (lem: LiftableEmbedding Sub Univ) → (il: Interleaving.{uu, us} Univ) → motive (consSub Sub lem il) ⟨0, consSub_length_pos⟩)
-  (consSub_succ: (Sub: Sort us) → (lem: LiftableEmbedding Sub Univ) → (il: Interleaving.{uu, us} Univ) → (i: Fin il.length) → motive il i → motive (consSub Sub lem il) i.succ)
+  (zero: (Sub: Sort us) → (lem: LiftableEmbedding Sub Univ) → (il: Interleaving.{uu, us} Univ) → motive (consSub Sub lem il) ⟨0, consSub_length_pos⟩)
+  (succ: (Sub: Sort us) → (lem: LiftableEmbedding Sub Univ) → (il: Interleaving.{uu, us} Univ) → (i: Fin il.length) → motive il i → motive (consSub Sub lem il) i.succ)
   (il: Interleaving Univ) (i: Fin il.length)
   : motive il i :=
   match il with
@@ -153,91 +160,73 @@ def recIndex.{um}
   | sb::il2 =>
     let sb2 := sb.ofPLifted
     match i with
-    | ⟨0, _⟩ => consSub_zero sb2.Sub sb2.liftableEmbedding il2
+    | ⟨0, _⟩ => zero sb2.Sub sb2.liftableEmbedding il2
     | ⟨i2+1, lm1⟩ =>
       have lm2: i2 < il2.length := by simpa using lm1
       let i2_1 : Fin il2.length := ⟨i2, lm2⟩
-      consSub_succ sb2.Sub sb2.liftableEmbedding il2 i2_1 (recIndex consSub_zero consSub_succ il2 i2_1)
-
---#print recIndex._f
-
-/-
-def recIndex.{um}
-  {motive: (il: Interleaving.{uu, us} Univ) → (i: Fin il.length) → Sort um}
-  (singleton: (Sub: Sort us) → (lem: LiftableEmbedding Sub Univ) → motive (consSub Sub lem []) (0: Fin 1))
-  (cons: (Sub: Sort us) → (lem: LiftableEmbedding Sub Univ) → (il: Interleaving Univ) → (i: Fin il.length) → motive il i → motive (consSub Sub lem il) i.succ)
-  (il: Interleaving Univ) (i: Fin il.length)
-  : motive il i :=
-  match il with
-  | [] => i.elim0
-  | sb::il2 =>
-  match lm1: il2 with
-  | [] => singleton sb.ofPLifted.Sub sb.ofPLifted.liftableEmbedding |> cast (by
-      congr
-      revert i
-      simp)
-  | _::_ =>
-    let i2 : Fin il2.length := ⟨i.val - 1, by
-      rcases i with ⟨i, lm2⟩
-      simp at ⊢ lm2
-      subst lm1
-      simp
-      omega⟩
-    cons sb.ofPLifted.Sub sb.ofPLifted.liftableEmbedding il2 i2 (recIndex singleton cons il2 i2) |> cast (by
-      subst lm1
-      congr
-      subst i2
-      refine Fin.ext ?_
-      simp
-      rcases i with ⟨i, lm1⟩
-      simp at ⊢ lm1
-    )
--/
-/-
-    let il2 : Interleaving Univ := il2_1
-    let sb2 := sb.ofPLifted
-    il2.recNilConsSub (motive := fun il0 => motive (il0.consSub sb2.Sub sb2.liftableEmbedding) ⟨i.val - (il2.length - il0.length), by simp⟩ )
--/
-    --(il2: Interleaving Univ)
-/-
-  | [sb] =>
-    let sb2 := sb.ofPLifted
-    singleton sb2.Sub sb2.liftableEmbedding |> cast (by
-      congr
-      revert i
-      simp)
-  | sb1::sb2::il2_1 =>
-    let sb1_2 := sb1.ofPLifted
-    let sb2_2 := sb2.ofPLifted
-    let il2 :=
--/
-/-
-    let sb2 := sb.ofPLifted
-    have lm1: consSub sb2.Sub sb2.liftableEmbedding il2 = sb :: il2 := by subst sb2; exact consSub_ofPLifted _ _
-    match i with
-    | ⟨0, _⟩ => lm1 ▸ (singleton sb2.Sub sb2.liftableEmbedding)
--/
-/-
-    let sb2 := sb.ofPLifted
-    let i2 : Fin (il2.length + 1) := i
--/
+      succ sb2.Sub sb2.liftableEmbedding il2 i2_1 (recIndex zero succ il2 i2_1)
 
 
-      --(fun i0 il0 hh => )
-    --recNilConsSub (motive := fun il0 =>  )
-
-
---#check List.get_cons_succ
---#check SubBundled.ext_iff
-
-/-
+attribute [- simp] List.get_eq_getElem in
+@[ext]
 protected theorem ext_get {il1 il2: Interleaving Univ}
   (req1: il1.length = il2.length)
   (req2: ∀(n: Nat), (req2_1: n < il1.length) → (req2_2: n < il2.length) → il1.getSub ⟨n, req2_1⟩ = il2.getSub ⟨n, req2_2⟩)
   (req3: ∀(n: Nat), (req2_1: n < il1.length) → (req2_2: n < il2.length) → (il1.getLiftableEmbedding ⟨n, req2_1⟩).embed ≍ (il2.getLiftableEmbedding ⟨n, req2_2⟩).embed)
   : il1 = il2 := by
   simp [interleaving_def, List.ext_get_iff, req1]
-  intro n lm1
+  intro n lm2
+  have lm1 := req1.symm.subst lm2
+  specialize req2 n lm1 lm2
+  specialize req3 n lm1 lm2
+  generalize lm3_1: (Fin.mk n lm1) = i1
+  generalize lm3_2: (Fin.mk n lm2) = i2
+  rewrite [lm3_1, lm3_2] at req2 req3
+  have lm4: il1.getSubBundled i1 = il2.getSubBundled i2 := by
+    dsimp [getSub] at req2
+    dsimp [getLiftableEmbedding] at req3
+    exact SubBundled.ext req2 req3
+  rewrite [getSubBundled_eq_iff_get_eq] at lm4
+  exact lm4
+
+
+
+/-
+  simp [SubBundled.ext_iff]
+  dsimp [← getSub_eq_get_Sub]
+  simp [req2]
+-/
+
+
+  --dsimp [getLiftableEmbedding] at req3
+/-
+  cases il1, i1 using recIndex with
+  | zero Sub1 lem1 il1 =>
+    simp at lm3_1
+    subst lm3_1
+    cases il2, i2 using recIndex with
+    | zero Sub2 lem2 il2 =>
+      simp [consSub_getSub_zero] at req2
+      subst req2
+-/
+      --dsimp [getLiftableEmbedding, getSubBundled, consSub, List.get_eq_getElem] at req3
+      --dsimp [SubBundled.equivToPLifted] at req3
+      --have lm4_1 := SubBundled.ofPLifted_toPLifted_leftInverse.eq ⟨Sub1, lem1⟩
+      --have lm4_2 := SubBundled.ofPLifted_toPLifted_leftInverse.eq ⟨Sub1, lem2⟩
+
+      --simp [lm4] at req3
+      --simp at req3
+      --dsimp only [DFunLike.coe] at req3
+      --dsimp [consSub, SubBundled.equivToPLifted, ] at req3
+
+  --simp [← getSub_eq_get_Sub]
+/-
+  have lm3 := req2
+  dsimp [getSub_eq_get_Sub] at lm3
+  simp [lm3]
+  let i1 := (Fin.mk n lm1)
+-/
+/-
   simp [SubBundled.ext_iff]
   simp [req1] at req2 --req3
   specialize req2 n lm1
@@ -253,10 +242,15 @@ protected theorem ext_get {il1 il2: Interleaving Univ}
   simp [funext_iff]
   intro s1
   specialize req3 n lm2 lm1
+-/
+  --generalize (Fin.mk n lm2) = i1 at req3
+  --generalize (Fin.mk n lm1) = i2 at req3
+/-
   cases il1 using recNilConsSub with
   | nil => simp at lm2
   | consSub Sub11 lem11 il11
 -/
+
   --dsimp [getLiftableEmbedding, getSubBundled, SubBund- led.equivToPLifted, SubBundled.ofPLifted, LiftableEmbedding.compEquiv, LiftableEmbedding.compEquivAndEmbed] at req3
   --simp only [Equiv.plift_apply] at req3
   --dsimp only [DFunLike.coe] at req3
