@@ -1,6 +1,6 @@
 module
 
-public import Nemonuri.Functions.LiftableEmbedding.Equiv
+public import Nemonuri.Functions.LiftableEmbedding.SubBundled
 public import Mathlib.Data.List.OfFn
 
 @[expose] public section
@@ -10,80 +10,6 @@ set_option autoImplicit false
 namespace Nemonuri.Functions.LiftableEmbedding
 
 universe uu us
-
-
-structure SubBundled (Univ: Sort uu) where
-  Sub: Sort us
-  liftableEmbedding: LiftableEmbedding Sub Univ
-
-namespace SubBundled
-
-variable {Univ: Sort uu}
-
-@[ext]
-protected theorem ext {sb1 sb2: SubBundled Univ} (req1: sb1.Sub = sb2.Sub) (req2: sb1.liftableEmbedding.embed ≍ sb2.liftableEmbedding.embed) : sb1 = sb2 := by
-  rcases sb1 with ⟨s1, lm1⟩
-  rcases sb2 with ⟨s2, lm2⟩
-  dsimp at req1
-  subst req1
-  simp at req2 ⊢
-  exact LiftableEmbedding.embed_ext req2
-
-@[ext]
-protected theorem ext_lift {sb1 sb2: SubBundled Univ}
-  (req1: sb1.Sub = sb2.Sub)
-  (req2: ∀(uv: Univ), sb1.liftableEmbedding.IsLiftable uv ↔ sb2.liftableEmbedding.IsLiftable uv)
-  (req3: ∀(uv: Univ) (req3_1: sb1.liftableEmbedding.IsLiftable uv) (req3_2: sb2.liftableEmbedding.IsLiftable uv), req3_1.lift ≍ req3_2.lift)
-  : sb1 = sb2 := by
-  rcases sb1 with ⟨Sub1, lem1⟩
-  rcases sb2 with ⟨Sub2, lem2⟩
-  dsimp at req1
-  subst req1
-  simp at req2 req3 ⊢
-  simp [DFunLike.ext_iff]
-  intro s1
-  let uv : Univ := lem1 s1
-  specialize req2 uv
-  specialize req3 uv
-  have lm1 : lem1.IsLiftable uv := by subst uv; exact IsLiftable.of_apply
-  simp [lm1] at req2
-  specialize req3 lm1 req2
-  subst uv
-  rewrite [lm1.lift_eq_self] at req3
-  cases req2 using IsLiftable.induction
-  rename_i s2 lm2
-  conv at req3 => rhs; simp only [lm2]; rewrite [IsLiftable.lift_eq_self]
-  subst req3
-  exact lm2
-
-
---  (req: ∀(sv1: sb1.Sub) (sv2: sb2.Sub) (req_1: sb1.liftableEmbedding.IsLiftable (sb2.liftableEmbedding sv2) ))
-
-def toPLifted (sb: SubBundled Univ) : SubBundled (PLift Univ) where
-  Sub := sb.Sub
-  liftableEmbedding := sb.liftableEmbedding.compEquiv (Equiv.refl _) (Equiv.plift.symm)
-
-def ofPLifted (sb: SubBundled.{uu+1, us} (PLift.{uu} Univ)) : SubBundled.{uu, us} Univ where
-  Sub := sb.Sub
-  liftableEmbedding := sb.liftableEmbedding.compEquiv (Equiv.refl _) (Equiv.plift)
-
-
-theorem ofPLifted_toPLifted_leftInverse : Function.LeftInverse ofPLifted (@toPLifted Univ) := by
-  rintro ⟨Sub, lem⟩
-  dsimp [toPLifted, ofPLifted]
-  rfl
-
-theorem ofPLifted_toPLifted_rightInverse : Function.RightInverse ofPLifted (@toPLifted Univ) := by
-  rintro ⟨Sub, lem⟩
-  dsimp [toPLifted, ofPLifted]
-  rfl
-
-
-def equivToPLifted : SubBundled Univ ≃ SubBundled (PLift Univ) where
-  toFun := toPLifted
-  invFun := ofPLifted
-
-end SubBundled
 
 
 def Interleaving (Univ: Sort uu) : Type (max uu us) := List ((SubBundled.{uu+1, us} (PLift.{uu} Univ)))
@@ -217,6 +143,36 @@ protected theorem ext_get {il1 il2: Interleaving Univ}
     exact SubBundled.ext req2 req3
   rewrite [getSubBundled_eq_iff_get_eq] at lm4
   exact lm4
+
+
+
+def mapSubBundled (il: Interleaving Univ) {α: Type*} (f: SubBundled Univ → α) : List α :=
+  match il with
+  | [] => []
+  | sb::il => (f sb.ofPLifted)::(mapSubBundled il f)
+
+
+theorem mapSubBundled_length_eq_at (il: Interleaving Univ) {α: Type*} (f: SubBundled Univ → α) : (il.mapSubBundled f).length = il.length := by
+  rcases il with _ | ⟨sb, il⟩
+  · simp [mapSubBundled]
+  · simp [mapSubBundled]
+    exact mapSubBundled_length_eq_at il f
+
+theorem mapSubBundled_length_eq {il: Interleaving Univ} {α: Type*} {f: SubBundled Univ → α} : (il.mapSubBundled f).length = il.length := il.mapSubBundled_length_eq_at f
+
+theorem mapSubBundled_get_eq_at (il: Interleaving Univ) {α: Type*} (f: SubBundled Univ → α) (i: Fin il.length)
+  : (il.mapSubBundled f).get (i.cast mapSubBundled_length_eq.symm) = f (il.getSubBundled i) := by
+  induction il, i using recIndex with
+  | zero => dsimp [consSub, getSubBundled, mapSubBundled, SubBundled.equivToPLifted]
+  | succ Sub lem il2 i2 lm1 =>
+    dsimp [consSub, getSubBundled, mapSubBundled, SubBundled.equivToPLifted]
+    dsimp [getSubBundled, SubBundled.equivToPLifted] at lm1
+    exact lm1
+
+theorem mapSubBundled_get_eq {il: Interleaving Univ} {α: Type*} {f: SubBundled Univ → α} {n: Nat} {req1: n < il.length} {req2: n < (il.mapSubBundled f).length}
+  : (il.mapSubBundled f).get ⟨n, req2⟩ = f (il.getSubBundled ⟨n, req1⟩) :=
+  mapSubBundled_get_eq_at il f ⟨n, req1⟩
+
 
 
 

@@ -36,6 +36,15 @@ theorem nonempty_right {lem: LiftableEmbedding L R} [Nonempty L] : Nonempty R :=
   rcases lm1 with ⟨lv⟩
   exact .intro (lem.embed lv)
 
+theorem isEmpty_left_of_isEmpty_right {lem: LiftableEmbedding L R} [IsEmpty R] : IsEmpty L := by
+  by_contra lm1
+  simp at lm1
+  have lm2 : Nonempty R := lem.nonempty_right
+  rcases lm2 with ⟨rv⟩
+  exact IsEmpty.false rv
+
+
+
 theorem embed_ext {lem1 lem2: LiftableEmbedding L R} (req: lem1.embed = lem2.embed) : lem1 = lem2 := by
   rcases lem1 with ⟨⟨emb1 ,lif1⟩, lm_v1⟩
   rcases lem2 with ⟨⟨emb2, lif2⟩, lm_v2⟩
