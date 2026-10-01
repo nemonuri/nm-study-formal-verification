@@ -1,6 +1,7 @@
 module
 
 public import Nemonuri.Relations.Heterogeneous.MemAt
+public import Nemonuri.Relations.Heterogeneous.IsSub
 
 @[expose] public section
 
@@ -35,33 +36,20 @@ structure IsIntersection (s: IntersectionStruct α β) where
 structure Intersection (α β: Sort uh) extends toStruct: IntersectionStruct α β where
   valid: IsIntersection toStruct
 
-
-/-
-variable {α β: Sort uh}
-
-structure Intersection (rel: α → β → Prop) where
-  fst: α
-  snd: β
-  valid: rel fst snd
-
 namespace Intersection
 
-variable {rel: α → β → Prop}
+structure ConcreteStruct (α β: Sort uh) extends toBasic: IntersectionStruct α β where
+  superFun: α → β
+  superFunInv: β → α
 
-def get (i: Intersection rel) (lb: Label) : lb.MatchSort α β := lb.casesOn i.fst i.snd
+structure IsConcrete (s: ConcreteStruct α β) : Prop extends toBasic: IsIntersection s.toBasic where
+  subOfEquiv: IsSubOfEquiv s.rel s.superFun s.superFunInv
 
-@[defeq, simp]
-theorem get_fst {i: Intersection rel} : i.get Label.fst = i.fst := rfl
-
-@[defeq, simp]
-theorem get_snd {i: Intersection rel} : i.get Label.snd = i.snd := rfl
+structure Concrete (α β: Sort uh) extends toStruct: ConcreteStruct α β where
+  valid: IsConcrete toStruct
 
 end Intersection
 
-inductive Union (rel: α → β → Prop) where
-  | inter (fst: α) (snd: β) (req: rel fst snd)
-  | diff (label: Label) (val: label.MatchSort α β) (req: NotMemAt rel label val)
--/
 
 
 end Nemonuri.Relations.Heterogeneous

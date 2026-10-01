@@ -42,6 +42,23 @@ inductive IsUnion (rel: α → β → Prop) : UnionStruct.InterDiff α β → Pr
 structure Union (α β: Sort uh) extends toStruct: UnionStruct α β where
   valid: IsUnion toStruct.rel toStruct.interDiff
 
+
+namespace Union
+
+structure ConcreteStruct (α β: Sort uh) extends toBasic: UnionStruct α β where
+  superFun: α → β
+  superFunInv: β → α
+
+structure IsConcrete (s: ConcreteStruct α β) : Prop where
+  toBasic: IsUnion s.rel s.toBasic.interDiff
+  subOfEquiv: IsSubOfEquiv s.rel s.superFun s.superFunInv
+
+structure Concrete (α β: Sort uh) extends toStruct: ConcreteStruct α β where
+  valid: IsConcrete toStruct
+
+end Union
+
+
 end Nemonuri.Relations.Heterogeneous
 
 end

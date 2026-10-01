@@ -1,6 +1,5 @@
 module
 
-public import Nemonuri.Relations.Heterogeneous.Intersection
 public import Mathlib.Logic.IsEmpty.Basic
 public import Mathlib.Logic.Unique
 
@@ -21,9 +20,53 @@ theorem isSub_def {α β: Sort*} {r1 r2: α → β → Prop} : IsSub r1 r2 = (�
 
 def IsSubOfFunction {α β: Sort*} (rel: α → β → Prop) (f: α → β) : Prop := IsSub rel (OfFunction f)
 
+namespace IsSubOfFunction
+
+variable {α β: Sort*} {rel: α → β → Prop} {f1 f2: α → β}
+
+theorem fun_apply_eq (h1: IsSubOfFunction rel f1) (h2: IsSubOfFunction rel f2) {a: α} {b: β} (req: rel a b) : f1 a = f2 a := by
+  dsimp [IsSubOfFunction, OfFunction, isSub_def] at h1 h2
+  specialize h1 a b req
+  specialize h2 a b req
+  rw [h1, h2]
+
+theorem rel_of_self_apply (h: IsSubOfFunction rel f1) {a: α} {b: β} (req: rel a b) : rel a (f1 a) := by
+  dsimp [IsSubOfFunction, OfFunction, isSub_def] at h
+  specialize h a b req
+  rewrite [h]
+  exact req
+
+
+
+end IsSubOfFunction
+
 structure IsSubOfEquiv {α β: Sort*} (rel: α → β → Prop) (f: α → β) (fi: β → α) : Prop where
   basic: IsSubOfFunction rel f
   filp: IsSubOfFunction (flip rel) fi
+
+
+namespace IsSubOfEquiv
+
+variable {α β: Sort*} {rel: α → β → Prop} {f: α → β} {fi: β → α}
+
+theorem fun_apply_inv_apply_eq_self (h: IsSubOfEquiv rel f fi) {a: α} {b: β} (req: rel a b) : fi (f a) = a := by
+  rcases h with ⟨lm1, lm2⟩
+  dsimp [IsSubOfFunction, OfFunction, isSub_def, Function.flip_def] at lm1 lm2
+  specialize lm2 b a req
+  specialize lm1 a b req
+  conv => rhs; rw [← lm2]
+  exact congrArg fi lm1
+
+theorem fun_apply_inv_apply_eq_self' (h: IsSubOfEquiv rel f fi) {a: α} {b: β} (req: rel a b) : f (fi b) = b := by
+  rcases h with ⟨lm1, lm2⟩
+  dsimp [IsSubOfFunction, OfFunction, isSub_def, Function.flip_def] at lm1 lm2
+  specialize lm2 b a req
+  specialize lm1 a b req
+  conv => rhs; rw [← lm1]
+  exact congrArg f lm2
+
+end IsSubOfEquiv
+
 
 def HasSuperEquiv {α β: Sort*} (rel: α → β → Prop) : Prop := ∃(f: α → β) (fi: β → α), IsSubOfEquiv rel f fi
 
@@ -71,6 +114,8 @@ theorem hasSuperEquiv_of_biUnique {α β: Sort*} {rel: α → β → Prop} [None
     have lm5 : ∃(a0: α), rel a0 b2 := Exists.intro a2 lm3
     simp [lm5]
     exact lm5.choose_spec
+
+
 
 
 
