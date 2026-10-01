@@ -36,7 +36,10 @@ theorem rel_of_self_apply (h: IsSubOfFunction rel f1) {a: α} {b: β} (req: rel 
   rewrite [h]
   exact req
 
-
+theorem not_rel_of_not_rel (h: IsSubOfFunction rel f1) {a: α} (req: ¬rel a (f1 a)) (b: β) : ¬(rel a b) := by
+  intro lm1
+  have lm2 := h.rel_of_self_apply lm1
+  exact req lm2
 
 end IsSubOfFunction
 

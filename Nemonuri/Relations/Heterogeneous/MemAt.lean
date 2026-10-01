@@ -19,6 +19,10 @@ inductive MemAt (rel: α → β → Prop) : (lb: Label) → (lb.MatchSort α β)
 
 namespace MemAt
 
+structure Decider (rel: α → β → Prop) where
+  decRel (a: α) (b: β) : Decidable (rel a b)
+  decMemAt (lb: Label) (x: lb.MatchSort α β) : Decidable (MemAt rel lb x)
+
 variable {rel: α → β → Prop}
 
 /-
