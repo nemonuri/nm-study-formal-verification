@@ -19,11 +19,13 @@ inductive MemAt (rel: α → β → Prop) : (lb: Label) → (lb.MatchSort α β)
 
 namespace MemAt
 
+/-
 structure Decider (rel: α → β → Prop) where
   decRel (a: α) (b: β) : Decidable (rel a b)
   decMemAt (lb: Label) (x: lb.MatchSort α β) : Decidable (MemAt rel lb x)
 
 variable {rel: α → β → Prop}
+-/
 
 /-
 theorem rel_of_fst_snd_of_biUnique {a: α} {b: β} (req1: MemAt rel .fst a) (req2: MemAt rel .snd b) (req3: Relator.BiUnique rel) : rel a b := by --(req1: Relator.BiUnique rel)
@@ -76,6 +78,22 @@ end MemAt
 inductive NotMemAt (rel: α → β → Prop) : (lb: Label) → (lb.MatchSort α β) → Prop where
   | fst (a: α) (req: ∀(b: β), ¬(rel a b)) : NotMemAt rel .fst a
   | snd (b: β) (req: ∀(a: α), ¬(rel a b)) : NotMemAt rel .snd b
+
+namespace NotMemAt
+
+variable {rel: α → β → Prop}
+
+theorem fst_forall_not {fst: α} (h: NotMemAt rel .fst fst) (snd: β) : ¬(rel fst snd) := by
+  revert snd
+  rcases h
+  assumption
+
+theorem snd_forall_not {snd: β} (h: NotMemAt rel .snd snd) (fst: α) : ¬(rel fst snd) := by
+  revert fst
+  rcases h
+  assumption
+
+end NotMemAt
 
 theorem memAt_or_notMemAt (rel: α → β → Prop) (lb: Label) (x: lb.MatchSort α β) : MemAt rel lb x ∨ NotMemAt rel lb x := by
   rcases lb <;> dsimp at x

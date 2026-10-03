@@ -1,8 +1,8 @@
 module
 
 --public import Mathlib.Logic.Relation
---public import Mathlib.Logic.Equiv.Defs
-public meta import Mathlib.Tactic.TypeStar
+public import Mathlib.Logic.Equiv.Defs
+--public meta import Mathlib.Tactic.TypeStar
 
 @[expose] public section
 
@@ -112,11 +112,67 @@ end ProjectProd
 
 def MatchSort (lb: Label) (α β: Sort uh) : Sort uh := lb.casesOn α β
 
-@[defeq, simp]
-theorem matchSort_fst {α β: Sort uh} : Label.fst.MatchSort α β = α := rfl
+namespace MatchSort
 
 @[defeq, simp]
-theorem matchSort_snd {α β: Sort uh} : Label.snd.MatchSort α β = β := rfl
+theorem fst_eq {α β: Sort uh} : Label.fst.MatchSort α β = α := rfl
+
+@[defeq, simp]
+theorem snd_eq {α β: Sort uh} : Label.snd.MatchSort α β = β := rfl
+
+def ofCases.{u} {lb: Label} {α β: Sort uh} (fst: α → Sort u) (snd: β → Sort u) : MatchSort lb (α → Sort u) (β → Sort u) := lb.casesOn fst snd
+
+theorem motive_eq.{u} {lb: Label} {α β: Sort uh} : MatchSort lb (α → Sort u) (β → Sort u) = (MatchSort lb α β → Sort u) := by
+  rcases lb <;> dsimp
+
+def equivOfMotive.{u} {lb: Label} {α β: Sort uh} : MatchSort lb (α → Sort u) (β → Sort u) ≃ (MatchSort lb α β → Sort u) := Equiv.cast motive_eq
+
+def equivOfPred {lb: Label} {α β: Sort uh} : MatchSort lb (α → Prop) (β → Prop) ≃ (MatchSort lb α β → Prop) := equivOfMotive.{uh, 0}
+
+def mergeMotive.{uh2} (lb: Label) {α β: Sort uh} (fst: α → Sort uh2) (snd: β → Sort uh2) : MatchSort lb α β → Sort uh2 := equivOfMotive (ofCases fst snd)
+
+@[defeq, simp]
+theorem mergeMotive_fst {α β: Sort _} {fst: α → Sort _} {snd: β → Sort _} : mergeMotive .fst fst snd = fst := by
+  dsimp only [mergeMotive, ofCases, equivOfMotive, Equiv.cast_apply, cast]
+
+@[defeq, simp]
+theorem mergeMotive_snd {α β: Sort _} {fst: α → Sort _} {snd: β → Sort _} : mergeMotive .snd fst snd = snd := by
+  dsimp only [mergeMotive, ofCases, equivOfMotive, Equiv.cast_apply, cast]
+
+def mergePred (lb: Label) {α β: Sort uh} (fst: α → Prop) (snd: β → Prop) : MatchSort lb α β → Prop := mergeMotive.{uh, 0} lb fst snd
+
+
+theorem fun_eq.{u} {lb: Label} {α β: Sort uh} {α2 β2: Sort u} : MatchSort lb (α → α2) (β → β2) = (MatchSort lb α β → MatchSort lb α2 β2) := by
+  rcases lb <;> dsimp
+
+def equivOfFun.{uh2} {lb: Label} {α β: Sort uh} {α2 β2: Sort uh2} : MatchSort lb (α → α2) (β → β2) ≃ (MatchSort lb α β → MatchSort lb α2 β2) := Equiv.cast fun_eq
+
+
+inductive Mem {α β: Sort uh} (f1: α → β) (f2: β → α) : (lb1: Label) → (lb1.MatchSort α β) → (lb2: Label) → (lb2.MatchSort α β → Prop) → Prop where
+  | label_eq (lb: Label) (val: lb.MatchSort α β) (pred: lb.MatchSort α β → Prop) (req: pred val) : Mem f1 f2 lb val lb pred
+  | fst_snd (val: α) (pred: β → Prop) (req: pred (f1 val)) : Mem f1 f2 .fst val .snd pred
+  | snd_fst (val: β) (pred: α → Prop) (req: pred (f2 val)) : Mem f1 f2 .snd val .fst pred
+
+def mapFun.{uh2} {α β: Sort uh} {α2 β2: Sort uh2} (f1: α → β) (f2: β → α) (f3: α2 → β2) (f4: β2 → α2)
+  (lb1: Label) (f: MatchSort lb1 α β → MatchSort lb1 α2 β2)
+  (lb2: Label) (x: lb2.MatchSort α β) : lb2.MatchSort α2 β2 :=
+  match lb1, lb2 with
+  | .fst, .fst => f x
+  | .snd, .snd => f x
+  | .fst, .snd => f3 (f (f2 x))
+  | .snd, .fst => f4 (f (f1 x))
+
+
+def pi_eq.{uh2} {lb: Label} {α1 α2: Sort uh} {β1: α1 → Sort uh2} {β2: α2 → Sort uh2}
+  : MatchSort lb ((x: α1) → β1 x) ((x: α2) → β2 x) = ((x: MatchSort lb α1 α2) → mergeMotive lb β1 β2 x) := by
+  rcases lb <;> dsimp
+
+def equivOfPi.{uh2} {lb: Label} {α1 α2: Sort uh} {β1: α1 → Sort uh2} {β2: α2 → Sort uh2} : MatchSort lb ((x: α1) → β1 x) ((x: α2) → β2 x) ≃ ((x: MatchSort lb α1 α2) → mergeMotive lb β1 β2 x) :=
+  Equiv.cast pi_eq
+
+
+
+end MatchSort
 
 end Label
 
