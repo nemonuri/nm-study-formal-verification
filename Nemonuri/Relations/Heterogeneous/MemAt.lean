@@ -19,12 +19,25 @@ inductive MemAt (rel: α → β → Prop) : (lb: Label) → (lb.MatchSort α β)
 
 namespace MemAt
 
+variable {rel: α → β → Prop}
+
+theorem fst_req_exists {x1: α} (h: MemAt rel .fst x1) : ∃(x2: β), rel x1 x2 := by
+  cases h
+  rename_i b lm1
+  exists b
+
+theorem snd_req_exists {x2: β} (h: MemAt rel .snd x2) : ∃(x1: α), rel x1 x2 := by
+  cases h
+  rename_i a lm1
+  exists a
+
+
 /-
 structure Decider (rel: α → β → Prop) where
   decRel (a: α) (b: β) : Decidable (rel a b)
   decMemAt (lb: Label) (x: lb.MatchSort α β) : Decidable (MemAt rel lb x)
 
-variable {rel: α → β → Prop}
+
 -/
 
 /-
