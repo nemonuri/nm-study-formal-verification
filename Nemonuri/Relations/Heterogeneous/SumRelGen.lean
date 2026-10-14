@@ -1,0 +1,170 @@
+module
+
+public import Mathlib.Logic.Relation
+
+@[expose] public section
+
+set_option autoImplicit false
+
+namespace Nemonuri.Relations.Heterogeneous
+
+variable {αl αr: Type*}
+
+inductive SumRelGen (rel: αl → αr → Prop) : (αl ⊕ αr) → (αl ⊕ αr) → Prop where
+  | intro (l: αl) (r: αr) (req: rel l r) : SumRelGen rel (.inl l) (.inr r)
+
+variable {rel: αl → αr → Prop} {s1 s2: (αl ⊕ αr)}
+
+namespace SumRelGen
+
+theorem rel_exists (h: SumRelGen rel s1 s2) : ∃l r, rel l r ∧ s1 = .inl l ∧ s2 = .inr r := by
+  rcases h with ⟨l, r, lm1⟩
+  exists l; exists r
+
+end SumRelGen
+
+theorem sumRelGen_iff : (SumRelGen rel s1 s2) ↔ (∃l r, rel l r ∧ s1 = .inl l ∧ s2 = .inr r) := by
+  constructor
+  · exact SumRelGen.rel_exists
+  · rintro ⟨l, r, lm1, lm2, lm3⟩
+    subst lm2 lm3
+    refine .intro _ _ lm1
+
+def SumEquivGen (rel: αl → αr → Prop) : (αl ⊕ αr) → (αl ⊕ αr) → Prop := Relation.EqvGen (SumRelGen rel)
+
+@[defeq]
+theorem sumEquivGen_def {rel: αl → αr → Prop} : SumEquivGen rel = Relation.EqvGen (SumRelGen rel) := rfl
+
+
+
+namespace SumEquivGen
+
+theorem eq_or_rel_exists (h: SumEquivGen rel s1 s2) (req: Relator.BiUnique rel) : (s1 = s2) ∨ (∃l r, rel l r ∧ ((s1 = .inl l ∧ s2 = .inr r) ∨ (s1 = .inr r ∧ s2 = .inl l))) := by
+  dsimp [sumEquivGen_def] at h
+  induction h with
+  | rel _ _ lm1 =>
+    rcases lm1.rel_exists with ⟨l, r, lm2, lm3, lm4⟩
+    refine Or.inr ?_
+    exists l; exists r
+    refine ⟨lm2, ?_⟩
+    refine Or.inl ?_
+    exact ⟨lm3, lm4⟩
+  | refl =>
+    refine Or.inl ?_
+    rfl
+  | symm _ _ lm1 lm2 =>
+    rcases lm2 with lm2 | lm2
+    · exact Or.inl lm2.symm
+    · rcases lm2 with ⟨l, r, lm2, lm3⟩
+      refine Or.inr ?_
+      exists l; exists r
+      refine ⟨lm2, ?_⟩
+      rcases lm3 with ⟨lm3, lm4⟩ | ⟨lm3, lm4⟩
+      <;> (subst lm3 lm4; simp)
+  | trans s1 s3 s2 _ _ lm1 lm2 =>
+    rcases lm1 with lm1 | lm1
+    <;> rcases lm2 with lm2 | lm2
+    · exact Or.inl (lm1.trans lm2)
+    · subst lm1
+      rcases lm2 with ⟨l, r, lm2, lm3⟩
+      rcases lm3 with ⟨lm3, lm4⟩ | ⟨lm3, lm4⟩
+      <;> (subst lm3 lm4; simp)
+      · exact lm2
+      · exists l; exists r
+    · subst lm2
+      rcases lm1 with ⟨l, r, lm1, lm2⟩
+      rcases lm2 with ⟨lm2, lm3⟩ | ⟨lm2, lm3⟩
+      <;> (subst lm2 lm3; simp)
+      · exact lm1
+      · exists l; exists r
+    · rcases lm1 with ⟨l, r, lm1, lm3⟩
+      rcases lm3 with ⟨lm3, lm4⟩ | ⟨lm3, lm4⟩
+      <;> (subst lm3 lm4; simp at lm2 ⊢)
+      · rcases lm2 with ⟨l2, r2, lm2, lm3, lm4⟩
+        subst lm3 lm4
+        simp
+        exact req.left lm1 lm2
+      · rcases lm2 with ⟨l2, r2, lm2, lm3, lm4⟩
+        subst lm3 lm4
+        simp
+        exact req.right lm1 lm2
+
+
+    --dsimp only [← sumEquivGen_def] at lm1 lm2
+    --have lm1 := SumEquivGen.eq_or_rel_exists_at s1 s3 lm1
+    --have lm2 := SumEquivGen.eq_or_rel_exists_at s3 s2 lm2
+    --have lm2 := @SumEquivGen.eq_or_rel_exists _ lm1
+
+
+
+end SumEquivGen
+
+/-
+theorem sumEquivGen_iff_or {rel: αl → αr → Prop} {s1 s2: (αl ⊕ αr)}
+  : (SumEquivGen rel) s1 s2 ↔ (s1 = s2 ∨ (∃(l: αl) (r: αr), rel l r ∧ ((s1 = .inl l ∧ s2 = .inr r) ∨ (s1 = .inr r ∧ s2 = .inl l)))) := by
+  constructor
+  · intro lm1
+    dsimp [sumEquivGen_def] at lm1
+    induction lm1 with
+    | rel _ _ lm1 =>
+      rcases lm1 with ⟨l, r, lm1⟩
+      refine Or.inr ?_
+      exists l
+      exists r
+      simp [lm1]
+    | refl =>
+      refine Or.inl ?_
+      rfl
+    | symm s1 s2 lm1 lm2 =>
+      rcases lm2 with lm2 | lm2
+      · exact Or.inl lm2.symm
+      · rcases lm2 with ⟨l, r, lm2, lm3⟩
+        refine Or.inr ?_
+        exists l; exists r
+        simp [lm2]
+        rcases lm3 with ⟨lm3, lm4⟩ | ⟨lm3, lm4⟩
+        <;> (subst lm3 lm4; simp)
+    | trans s1 s2 s3 lm1 lm2 lm3 lm4 =>
+      rcases lm3 with lm3 | lm3
+      · subst lm3
+        rcases lm4 with lm4 | lm4
+        · exact Or.inl lm4
+        · rcases lm4 with ⟨l, r, lm4, lm5⟩
+          refine Or.inr ?_
+          exists l; exists r
+      · rcases lm3 with ⟨l1, r1, lm3_1, lm3_2⟩
+        rcases lm4 with lm4 | lm4
+        · subst lm4
+          refine Or.inr ?_
+          exists l1; exists r1
+        · rcases lm4 with ⟨l2, r2, lm4_1, lm4_2⟩
+          rcases lm3_2 with ⟨lm3_2, lm3_3⟩ | ⟨lm3_2, lm3_3⟩
+          <;> (subst lm3_2 lm3_3; simp at lm4_2 ⊢)
+          · rcases lm4_2 with ⟨lm4_2, lm4_3⟩
+            subst lm4_2 lm4_3
+            simp
+-/
+/-
+          rcases lm4 with ⟨l2, r2, lm4_1, lm4_2⟩
+          rcases lm3_2 with ⟨lm3_2, lm3_3⟩ | ⟨lm3_2, lm3_3⟩
+          <;> subst lm3_2 lm3_3
+          · simp at lm4_2
+            rcases lm4_2 with ⟨lm4_2, lm4_3⟩
+            subst lm4_2 lm4_3
+            refine Or.inr ?_
+            exists l2; exists r1
+            simp [lm4_1]
+-/
+
+
+namespace SumEquivGen
+
+@[reducible]
+def setoidOf (rel: αl → αr → Prop) : Setoid (αl ⊕ αr) := Relation.EqvGen.setoid (SumEquivGen rel)
+
+
+end SumEquivGen
+
+end Nemonuri.Relations.Heterogeneous
+
+end
