@@ -102,6 +102,28 @@ theorem eq_or_rel_exists (h: SumEquivGen rel s1 s2) (req: Relator.BiUnique rel) 
 
 end SumEquivGen
 
+
+theorem sumEquivGen_iff_of_biUnique (req: Relator.BiUnique rel) : SumEquivGen rel s1 s2 ↔ ((s1 = s2) ∨ (∃l r, rel l r ∧ ((s1 = .inl l ∧ s2 = .inr r) ∨ (s1 = .inr r ∧ s2 = .inl l)))) := by
+  constructor
+  · intro lm1
+    exact SumEquivGen.eq_or_rel_exists lm1 req
+  · intro lm1
+    dsimp [sumEquivGen_def]
+    rcases lm1 with lm1 | lm1
+    · subst lm1
+      exact .refl s1
+    · rcases lm1 with ⟨l, r, lm1, lm2⟩
+      rcases lm2 with ⟨lm2, lm3⟩ | ⟨lm2, lm3⟩
+      <;> (subst lm2 lm3)
+      · refine .rel _ _ ?_
+        exact .intro _ _ lm1
+      · refine .symm _ _ ?_
+        refine .rel _ _ ?_
+        exact .intro _ _ lm1
+
+theorem sumEquivGen_iff [IsBiUnique rel] : SumEquivGen rel s1 s2 ↔ ((s1 = s2) ∨ (∃l r, rel l r ∧ ((s1 = .inl l ∧ s2 = .inr r) ∨ (s1 = .inr r ∧ s2 = .inl l)))) := sumEquivGen_iff_of_biUnique IsBiUnique.biUnique
+
+
 /-
 theorem sumEquivGen_iff_or {rel: αl → αr → Prop} {s1 s2: (αl ⊕ αr)}
   : (SumEquivGen rel) s1 s2 ↔ (s1 = s2 ∨ (∃(l: αl) (r: αr), rel l r ∧ ((s1 = .inl l ∧ s2 = .inr r) ∨ (s1 = .inr r ∧ s2 = .inl l)))) := by
@@ -186,6 +208,8 @@ def ofSum (s: αl ⊕ αr) : SumUnion rel := Quotient.mk _ s
 def liftOfSum {β: Sort*} (f: (αl ⊕ αr) → β) (req: ∀(s1 s2: (αl ⊕ αr)), SumEquivGen rel s1 s2 → f s1 = f s2) (su: SumUnion rel) : β :=
   Quotient.lift f req su
 
+@[defeq]
+theorem liftOfSum_ofSum {β} {f: (αl ⊕ αr) → β} {req: ∀(s1 s2: (αl ⊕ αr)), SumEquivGen rel s1 s2 → f s1 = f s2} {s: (αl ⊕ αr)} : liftOfSum f req (.ofSum s) = f s := rfl
 
 
 def liftOfSumOn₂ {βl βr: Type*} {rel2: βl → βr → Prop} {φ: Sort*} (su1: SumUnion rel) (su2: SumUnion rel2) (f: (αl ⊕ αr) → (βl ⊕ βr) → φ)
@@ -193,6 +217,11 @@ def liftOfSumOn₂ {βl βr: Type*} {rel2: βl → βr → Prop} {φ: Sort*} (su
   : φ :=
   Quotient.liftOn₂ su1 su2 f req
 
+@[defeq]
+theorem liftOfSumOn₂_ofSum {βl βr rel2 φ} {s1: (αl ⊕ αr)} {s2: (βl ⊕ βr)}
+  {f: (αl ⊕ αr) → (βl ⊕ βr) → φ} {req: ∀as1 bs1 as2 bs2, SumEquivGen rel as1 as2 → SumEquivGen rel2 bs1 bs2 → f as1 bs1 = f as2 bs2}
+  : liftOfSumOn₂ (.ofSum s1) (.ofSum s2) f req = f s1 s2 :=
+  rfl
 
 @[elab_as_elim]
 theorem indOfSum
@@ -287,15 +316,24 @@ section AreEq
 
 variable [DecidableEq αl] [DecidableEq αr] [DecidableRel rel] [IsBiUnique rel] {su1 su2: SumUnion rel}
 
-/-
+
 theorem areEq_eq_true_iff_eq : (su1.areEq su2 = .true) ↔ (su1 = su2) := by
   cases su1 using indOfSum
   cases su2 using indOfSum
   rename_i s1 s2
-  dsimp [areEq]
-  conv => lhs; change (areEqSumOrRel rel s1 s2)
-  refine Iff.trans ?_ ofSum_eq_iff_sumEquivGen.symm
--/
+  dsimp [areEq, liftOfSumOn₂_ofSum]
+  symm
+  refine Iff.trans ofSum_eq_iff_sumEquivGen ?_
+  refine Iff.trans sumEquivGen_iff ?_
+  rcases s1 with ⟨l1⟩ | ⟨r1⟩
+  <;> rcases s2 with ⟨l2⟩ | ⟨r2⟩
+  · simp [areEqSumOrRel]
+  · simp [areEqSumOrRel]
+  · simp [areEqSumOrRel]
+    grind
+  · simp [areEqSumOrRel]
+
+instance : DecidableEq (SumUnion rel) := fun _ _ => decidable_of_decidable_of_iff areEq_eq_true_iff_eq
 
 
 end AreEq
