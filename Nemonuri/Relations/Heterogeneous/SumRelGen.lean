@@ -1,6 +1,7 @@
 module
 
 public import Mathlib.Logic.Relation
+public import Nemonuri.Relations.Heterogeneous.IsBiUnique
 
 @[expose] public section
 
@@ -38,6 +39,8 @@ theorem sumEquivGen_def {rel: αl → αr → Prop} : SumEquivGen rel = Relation
 
 
 namespace SumEquivGen
+
+def equivalence : Equivalence (SumEquivGen rel) := Relation.EqvGen.is_equivalence _
 
 theorem eq_or_rel_exists (h: SumEquivGen rel s1 s2) (req: Relator.BiUnique rel) : (s1 = s2) ∨ (∃l r, rel l r ∧ ((s1 = .inl l ∧ s2 = .inr r) ∨ (s1 = .inr r ∧ s2 = .inl l))) := by
   dsimp [sumEquivGen_def] at h
@@ -160,10 +163,155 @@ theorem sumEquivGen_iff_or {rel: αl → αr → Prop} {s1 s2: (αl ⊕ αr)}
 namespace SumEquivGen
 
 @[reducible]
-def setoidOf (rel: αl → αr → Prop) : Setoid (αl ⊕ αr) := Relation.EqvGen.setoid (SumEquivGen rel)
-
+def setoidOf (rel: αl → αr → Prop) : Setoid (αl ⊕ αr) := Setoid.mk (SumEquivGen rel) (SumEquivGen.equivalence)
 
 end SumEquivGen
+
+
+def SumUnion (rel: αl → αr → Prop) : Type _ := Quotient (SumEquivGen.setoidOf rel)
+
+
+def areEqSumOrRel [DecidableEq αl] [DecidableEq αr] (rel: αl → αr → Prop) [DecidableRel rel] : (αl ⊕ αr) → (αl ⊕ αr) → Bool
+  | .inl l1, .inl l2 => decide (l1 = l2)
+  | .inr r1, .inr r2 => decide (r1 = r2)
+  | .inl l, .inr r | .inr r, .inl l => decide (rel l r)
+
+
+namespace SumUnion
+
+variable {rel: αl → αr → Prop}
+
+def ofSum (s: αl ⊕ αr) : SumUnion rel := Quotient.mk _ s
+
+def liftOfSum {β: Sort*} (f: (αl ⊕ αr) → β) (req: ∀(s1 s2: (αl ⊕ αr)), SumEquivGen rel s1 s2 → f s1 = f s2) (su: SumUnion rel) : β :=
+  Quotient.lift f req su
+
+
+
+def liftOfSumOn₂ {βl βr: Type*} {rel2: βl → βr → Prop} {φ: Sort*} (su1: SumUnion rel) (su2: SumUnion rel2) (f: (αl ⊕ αr) → (βl ⊕ βr) → φ)
+  (req: ∀as1 bs1 as2 bs2, SumEquivGen rel as1 as2 → SumEquivGen rel2 bs1 bs2 → f as1 bs1 = f as2 bs2)
+  : φ :=
+  Quotient.liftOn₂ su1 su2 f req
+
+
+@[elab_as_elim]
+theorem indOfSum
+  {motive: SumUnion rel → Prop}
+  (ofSum: (s: αl ⊕ αr) → motive (.ofSum s))
+  (t: SumUnion rel)
+  : motive t := by
+  cases t using Quotient.ind
+  rename_i s
+  exact ofSum s
+
+
+theorem ofSum_eq_iff_sumEquivGen {s1 s2: (αl ⊕ αr)} : ((ofSum s1: SumUnion rel) = ofSum s2) ↔ SumEquivGen rel s1 s2 := by
+  dsimp [ofSum]
+  constructor
+  · intro lm1
+    exact Quotient.exact lm1
+  · intro lm1
+    exact Quotient.sound lm1
+
+
+def areEq [DecidableEq αl] [DecidableEq αr] [DecidableRel rel] [IsBiUnique rel] (su1 su2: SumUnion rel) : Bool :=
+  su1.liftOfSumOn₂ su2 (areEqSumOrRel rel) (by
+    intro as1 bs1 as2 bs2 lm1 lm2
+    replace lm1 := lm1.eq_or_rel_exists IsBiUnique.biUnique
+    replace lm2 := lm2.eq_or_rel_exists IsBiUnique.biUnique
+    rcases as1 with ⟨al1⟩ | ⟨ar1⟩
+    <;> rcases bs1 with ⟨bl1⟩ | ⟨br1⟩
+    <;> rcases as2 with ⟨al2⟩ | ⟨ar2⟩
+    <;> rcases bs2 with ⟨bl2⟩ | ⟨br2⟩
+    <;> (
+      simp at lm1 lm2 ⊢
+      dsimp [areEqSumOrRel] )
+    · subst lm1 lm2; rfl
+    · subst lm1
+      simp
+      conv => lhs; rw [Eq.comm]
+      exact IsBiUnique.left_eq_iff_rel lm2 al1
+    · subst lm2
+      simp
+      exact IsBiUnique.left_eq_iff_rel lm1 bl1
+    · simp
+      exact IsBiUnique.left_eq_iff_right_eq_of_rel₂ lm1 lm2
+    · rcases lm2 with ⟨l, r, lm2, lm3, lm4⟩
+      subst lm1 lm3 lm4
+      simp
+      symm
+      conv => lhs; rw [Eq.comm]
+      exact IsBiUnique.left_eq_iff_rel lm2 al1
+    · subst lm1 lm2; rfl
+    · rcases lm2 with ⟨l, r, lm2, lm3, lm4⟩
+      subst lm3 lm4
+      simp
+      exact IsBiUnique.rel_iff_rel_of_rel₂ lm1 lm2
+    · subst lm2
+      simp
+      symm
+      exact IsBiUnique.right_eq_iff_rel lm1 _
+    · rcases lm1 with ⟨l, r, lm1, lm3, lm4⟩
+      subst lm2 lm3 lm4
+      simp
+      symm
+      exact IsBiUnique.left_eq_iff_rel lm1 _
+    · rcases lm1 with ⟨l, r, lm1, lm3, lm4⟩
+      subst lm3 lm4
+      simp
+      exact IsBiUnique.rel_iff_rel_of_rel₂ lm2 lm1
+    · subst lm1 lm2; rfl
+    · subst lm1
+      simp
+      symm
+      conv => lhs; rw [Eq.comm]
+      exact IsBiUnique.right_eq_iff_rel lm2 _
+    · rcases lm1 with ⟨l1, r1, lm1, lm3, lm4⟩
+      rcases lm2 with ⟨l2, r2, lm2, lm5, lm6⟩
+      subst lm3 lm4 lm5 lm6
+      simp
+      symm
+      exact IsBiUnique.left_eq_iff_right_eq_of_rel₂ lm1 lm2
+    · rcases lm1 with ⟨l1, r1, lm1, lm3, lm4⟩
+      subst lm2 lm3 lm4
+      simp
+      exact IsBiUnique.right_eq_iff_rel lm1 _
+    · rcases lm2 with ⟨l, r, lm2, lm3, lm4⟩
+      subst lm1 lm3 lm4
+      simp
+      conv => lhs; rw [Eq.comm]
+      exact IsBiUnique.right_eq_iff_rel lm2 _
+    · subst lm1 lm2; rfl )
+
+section AreEq
+
+variable [DecidableEq αl] [DecidableEq αr] [DecidableRel rel] [IsBiUnique rel] {su1 su2: SumUnion rel}
+
+/-
+theorem areEq_eq_true_iff_eq : (su1.areEq su2 = .true) ↔ (su1 = su2) := by
+  cases su1 using indOfSum
+  cases su2 using indOfSum
+  rename_i s1 s2
+  dsimp [areEq]
+  conv => lhs; change (areEqSumOrRel rel s1 s2)
+  refine Iff.trans ?_ ofSum_eq_iff_sumEquivGen.symm
+-/
+
+
+end AreEq
+
+/-
+    <;> (
+      simp at lm1 lm2 ⊢
+      conv => lhs; dsimp [areEqSumOrRel] )
+    ·
+-/
+
+
+
+
+end SumUnion
+
 
 end Nemonuri.Relations.Heterogeneous
 
