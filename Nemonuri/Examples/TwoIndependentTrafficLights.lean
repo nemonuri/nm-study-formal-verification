@@ -30,7 +30,7 @@ inductive Act2 where
   | d
   deriving DecidableEq, Fintype
 
-variable {AP: Type _} (lb1 lb2: State → AP → Bool)
+variable {AP: Type _} [DecidableEq AP] (lb1 lb2: State → AP → Bool)
 
 open Nemonuri
 
@@ -60,7 +60,40 @@ def trLight2 : TransitionSystem where
   AP := AP
   L := lb2
 
+def areRelOfAct : Act1 → Act2 → Bool
+  | .a, .c | .b, .d => .true
+  | _, _ => .false
 
+theorem areRelOfAct_biUnique : Relator.BiUnique (areRelOfAct · · = .true) := by
+  dsimp [Relator.BiUnique]
+  refine ⟨?_, ?_⟩
+  · intro a1_1 a1_2 a2
+    rcases a1_1 <;> rcases a1_2 <;> rcases a2 <;> simp [areRelOfAct]
+  · intro a1 a2_1 a2_2
+    rcases a1 <;> rcases a2_1 <;> rcases a2_2 <;> simp [areRelOfAct]
+
+def interleaving : TransitionSystem.Interleaving (trLight1 lb1) (trLight2 lb2) where
+  act := .mk areRelOfAct areRelOfAct_biUnique
+  ap := .refl AP
+
+open Relations.Heterogeneous
+
+instance : HasPartialCongruence (interleaving lb1 lb2).ap.Rel := ⟨PartialCongruence.ofBiUniqueIndicatorRefl AP⟩
+
+
+theorem example1 : (interleaving lb1 lb2).toTransitionSystem.tr (.red, .red) (.ofSum (.inl .a)) (.green, .red) := by
+  dsimp
+  refine .fst _ _ _ ?_ _
+  dsimp
+  exact .a
+
+theorem example2 : (interleaving lb1 lb2).toTransitionSystem.tr (.red, .green) (.ofSum (.inr .d)) (.red, .red) := by
+  dsimp
+  refine .snd _ _ _ ?_ _
+  dsimp
+  exact .d
+
+/-
 def interleaving : TransitionSystem.Interleaving (Act1 ⊕ Act2) AP (trLight1 lb1) (trLight2 lb2) where
   actHasHUnionBundle := HasHUnion.Bundle.ofSum Act1 Act2
   apHasHUnionBundle := HasHUnion.Bundle.ofRefl AP
@@ -78,6 +111,7 @@ theorem example2 : (interleaving lb1 lb2).toTransitionSystem.tr (.red, .green) �
   refine .snd _ _ _ ?_ _
   dsimp
   exact .d
+-/
 
 end Examples.TrafficLights.TwoIndependent
 

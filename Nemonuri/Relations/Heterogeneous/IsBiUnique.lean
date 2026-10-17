@@ -190,6 +190,10 @@ instance {bui: BiUniqueIndicator αl αr} : DecidableRel (bui.Rel) := fun _ _ =>
 instance {bui: BiUniqueIndicator αl αr} : IsBiUnique bui.Rel where
   biUnique := bui.valid
 
+protected def refl (α: Type*) [DecidableEq α] : BiUniqueIndicator α α where
+  indicate l r := decide (l = r)
+  valid := by simp [Relator.BiUnique, Relator.LeftUnique, Relator.RightUnique]
+
 end BiUniqueIndicator
 
 structure PartialCongruenceStruct (αl αr: Type*) where
@@ -366,6 +370,17 @@ def ofFintype (rel: αl → αr → Prop) [DecidableRel rel] [Fintype αl] [Fint
     · simp [IsBiUnique.findRight?_eq_some_iff]
     · simp [IsBiUnique.findLeft?_eq_some_iff]
 
+def ofBiUniqueIndicatorRefl (α: Type*) [DecidableEq α] : PartialCongruence (BiUniqueIndicator.refl α).Rel where
+  right? x := .some x
+  left? x := .some x
+  valid := by
+    refine .mk ?_ ?_ <;> (
+      dsimp [BiUniqueIndicator.rel_def, BiUniqueIndicator.refl]
+      intro l r
+      simp )
+    · exact Eq.comm
+
+
 
 end PartialCongruence
 
@@ -377,6 +392,7 @@ variable {αl αr: Type*}
 @[reducible]
 noncomputable def ofClassical (rel: αl → αr → Prop) [IsBiUnique rel] : HasPartialCongruence rel := ⟨PartialCongruence.ofClassical rel⟩
 
+--instance (α: Type*) [DecidableEq α] : HasPartialCongruence (BiUniqueIndicator.refl α).Rel
 
 end HasPartialCongruence
 
