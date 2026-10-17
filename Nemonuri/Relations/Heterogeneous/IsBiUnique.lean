@@ -1,6 +1,7 @@
 module
 
 public import Mathlib.Logic.Relator
+public import Mathlib.Data.Fintype.Basic
 
 
 @[expose] public section
@@ -54,6 +55,118 @@ theorem rel_iff_rel_of_rel₂ {l1 l2: αl} {r1 r2: αr} (req1: rel l1 r1) (req2:
     have lm3 := leftUnique req1 lm2
     subst lm3
     exact req2
+
+section Find
+
+variable {αl αr: Type*}
+
+def findRightOfList? (rel: αl → αr → Prop) [IsBiUnique rel] [DecidableRel rel] (rs: List αr) (l: αl) : Option αr :=
+  rs.find? (fun r => decide (rel l r))
+
+def findLeftOfList? (rel: αl → αr → Prop) [IsBiUnique rel] [DecidableRel rel] (ls: List αl) (r: αr) : Option αl :=
+  ls.find? (fun l => decide (rel l r))
+
+def findRight? (rel: αl → αr → Prop) [IsBiUnique rel] [DecidableRel rel] (rs: Multiset αr) (l: αl) : Option αr :=
+  rs.liftOn (findRightOfList? rel · l) (by
+    intro rs1 rs2 lm1
+    change List.Perm rs1 rs2 at lm1
+    induction lm1 with
+    | nil => rfl
+    | cons r _ lm1 =>
+      by_cases lm3: rel l r
+      · simp [findRightOfList?, lm3]
+      · simp [findRightOfList?, lm3]
+        dsimp [findRightOfList?] at lm1
+        exact lm1
+    | swap r1 r2 _ =>
+      by_cases lm1: rel l r1
+      <;> by_cases lm2: rel l r2
+      <;> (simp [lm1, lm2, findRightOfList?])
+      · exact IsBiUnique.rightUnique lm2 lm1
+    | trans _ _ lm1 lm2 =>
+      exact lm1.trans lm2 )
+
+def findLeft? (rel: αl → αr → Prop) [IsBiUnique rel] [DecidableRel rel] (ls: Multiset αl) (r: αr) : Option αl :=
+  ls.liftOn (findLeftOfList? rel · r) (by
+    intro ls1 ls2 lm1
+    change List.Perm ls1 ls2 at lm1
+    induction lm1 with
+    | nil => rfl
+    | cons l _ lm1 =>
+      by_cases lm3: rel l r
+      · simp [findLeftOfList?, lm3]
+      · simp [findLeftOfList?, lm3]
+        dsimp [findLeftOfList?] at lm1
+        exact lm1
+    | swap l1 l2 _ =>
+      by_cases lm1: rel l1 r
+      <;> by_cases lm2: rel l2 r
+      <;> (simp [lm1, lm2, findLeftOfList?])
+      · exact IsBiUnique.leftUnique lm2 lm1
+    | trans _ _ lm1 lm2 =>
+      exact lm1.trans lm2 )
+
+variable {rel: αl → αr → Prop} [IsBiUnique rel] [DecidableRel rel]
+
+theorem findRightOfList?_nil {l: αl} : findRightOfList? rel [] l = .none := by simp [findRightOfList?]
+
+theorem findLeftOfList?_nil {r: αr} : findLeftOfList? rel [] r = .none := by simp [findLeftOfList?]
+
+theorem findRightOfList?_cons {l: αl} {r: αr} {rs: List αr} : findRightOfList? rel (r :: rs) l = if rel l r then .some r else findRightOfList? rel rs l := by
+  by_cases lm1: rel l r <;> simp [lm1, findRightOfList?]
+
+theorem findLeftOfList?_cons {l: αl} {ls: List αl} {r: αr} : findLeftOfList? rel (l :: ls) r = if rel l r then .some l else findLeftOfList? rel ls r := by
+  by_cases lm1: rel l r <;> simp [lm1, findLeftOfList?]
+
+
+theorem findRight?_eq_some_iff {rs: Multiset αr} {l: αl} {r: αr} : (findRight? rel rs l = .some r) ↔ (r ∈ rs ∧ rel l r) := by
+  cases rs using Quotient.ind
+  rename_i rs
+  dsimp only [findRight?, Quotient.liftOn_mk]
+  simp
+  induction rs with
+  | nil => simp [findRightOfList?]
+  | cons r2 rs lm1 =>
+    simp only [findRightOfList?_cons]
+    by_cases lm2: rel l r2
+    · simp [lm2]
+      constructor
+      · intro lm3
+        subst lm3
+        simpa using lm2
+      · rintro ⟨_, lm3⟩
+        exact IsBiUnique.rightUnique lm2 lm3
+    · simp [lm2, lm1]
+      intro lm3 lm4
+      subst lm4
+      contradiction
+
+theorem findLeft?_eq_some_iff {ls: Multiset αl} {l: αl} {r: αr} : (findLeft? rel ls r = .some l) ↔ (l ∈ ls ∧ rel l r) := by
+  cases ls using Quotient.ind
+  rename_i ls
+  dsimp only [findLeft?, Quotient.liftOn_mk]
+  simp
+  induction ls with
+  | nil => simp [findLeftOfList?]
+  | cons l2 ls lm1 =>
+    simp only [findLeftOfList?_cons]
+    by_cases lm2: rel l2 r
+    · simp [lm2]
+      constructor
+      · intro lm3
+        subst lm3
+        simpa using lm2
+      · rintro ⟨_, lm3⟩
+        exact IsBiUnique.leftUnique lm2 lm3
+    · simp [lm2, lm1]
+      intro lm3 lm4
+      subst lm4
+      contradiction
+
+
+
+end Find
+
 
 end IsBiUnique
 
@@ -217,7 +330,55 @@ variable {αl αr: Type*}
 
 def ofRel (rel: αl → αr → Prop) [i: HasPartialCongruence rel] : PartialCongruence rel := i.partialCongruence
 
+open Classical in
+noncomputable def ofClassical (rel: αl → αr → Prop) [IsBiUnique rel] : PartialCongruence rel where
+  right? l := if lm1: ∃(r: αr), rel l r then .some lm1.choose else .none
+  left? r := if lm1: ∃(l: αl), rel l r then .some lm1.choose else .none
+  valid := by
+    refine .mk ?_ ?_ <;> (dsimp; intro l r; simp)
+    · constructor
+      · rintro ⟨lm1, lm2⟩
+        rw [← lm2]
+        exact lm1.choose_spec
+      · intro lm1
+        have lm2 : Exists (rel l) := Exists.intro r lm1
+        exists lm2
+        have lm3 := lm2.choose_spec
+        have lm4 := IsBiUnique.rightUnique lm1 lm3
+        exact lm4.symm
+    · constructor
+      · rintro ⟨lm1, lm2⟩
+        rw [← lm2]
+        exact lm1.choose_spec
+      · intro lm1
+        have lm2 : Exists (rel · r) := Exists.intro l lm1
+        exists lm2
+        have lm3 := lm2.choose_spec
+        have lm4 := IsBiUnique.leftUnique lm1 lm3
+        exact lm4.symm
+
+
+def ofFintype (rel: αl → αr → Prop) [DecidableRel rel] [Fintype αl] [Fintype αr] [IsBiUnique rel] : PartialCongruence rel where
+  right? := IsBiUnique.findRight? rel Finset.univ.val
+  left? := IsBiUnique.findLeft? rel Finset.univ.val
+  valid := by
+    refine .mk ?_ ?_ <;> (dsimp; intro l r)
+    · simp [IsBiUnique.findRight?_eq_some_iff]
+    · simp [IsBiUnique.findLeft?_eq_some_iff]
+
+
 end PartialCongruence
+
+
+namespace HasPartialCongruence
+
+variable {αl αr: Type*}
+
+@[reducible]
+noncomputable def ofClassical (rel: αl → αr → Prop) [IsBiUnique rel] : HasPartialCongruence rel := ⟨PartialCongruence.ofClassical rel⟩
+
+
+end HasPartialCongruence
 
 end Nemonuri.Relations.Heterogeneous
 

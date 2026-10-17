@@ -1,6 +1,6 @@
 module
 
-public import Mathlib.Logic.Relation
+--public import Mathlib.Logic.Relation
 public import Nemonuri.Relations.Heterogeneous.IsBiUnique
 
 @[expose] public section
@@ -71,24 +71,20 @@ theorem eq_or_rel_exists (h: SumEquivGen rel s1 s2) (req: Relator.BiUnique rel) 
     · subst lm1
       rcases lm2 with ⟨l, r, lm2, lm3⟩
       rcases lm3 with ⟨lm3, lm4⟩ | ⟨lm3, lm4⟩
-      <;> (subst lm3 lm4; simp)
-      · exact lm2
-      · exists l; exists r
+      <;> (subst lm3 lm4; simp; exact lm2)
     · subst lm2
       rcases lm1 with ⟨l, r, lm1, lm2⟩
       rcases lm2 with ⟨lm2, lm3⟩ | ⟨lm2, lm3⟩
-      <;> (subst lm2 lm3; simp)
-      · exact lm1
-      · exists l; exists r
+      <;> (subst lm2 lm3; simp; exact lm1)
     · rcases lm1 with ⟨l, r, lm1, lm3⟩
       rcases lm3 with ⟨lm3, lm4⟩ | ⟨lm3, lm4⟩
       <;> (subst lm3 lm4; simp at lm2 ⊢)
-      · rcases lm2 with ⟨l2, r2, lm2, lm3, lm4⟩
-        subst lm3 lm4
+      · rcases lm2 with ⟨l2, lm2, lm3⟩
+        subst lm3
         simp
         exact req.left lm1 lm2
-      · rcases lm2 with ⟨l2, r2, lm2, lm3, lm4⟩
-        subst lm3 lm4
+      · rcases lm2 with ⟨l2, lm2, lm3⟩
+        subst lm3
         simp
         exact req.right lm1 lm2
 
@@ -265,29 +261,23 @@ def areEq [DecidableEq αl] [DecidableEq αr] [DecidableRel rel] [IsBiUnique rel
       exact IsBiUnique.left_eq_iff_rel lm1 bl1
     · simp
       exact IsBiUnique.left_eq_iff_right_eq_of_rel₂ lm1 lm2
-    · rcases lm2 with ⟨l, r, lm2, lm3, lm4⟩
-      subst lm1 lm3 lm4
+    · subst lm1
       simp
       symm
       conv => lhs; rw [Eq.comm]
       exact IsBiUnique.left_eq_iff_rel lm2 al1
     · subst lm1 lm2; rfl
-    · rcases lm2 with ⟨l, r, lm2, lm3, lm4⟩
-      subst lm3 lm4
-      simp
+    · simp
       exact IsBiUnique.rel_iff_rel_of_rel₂ lm1 lm2
     · subst lm2
       simp
       symm
       exact IsBiUnique.right_eq_iff_rel lm1 _
-    · rcases lm1 with ⟨l, r, lm1, lm3, lm4⟩
-      subst lm2 lm3 lm4
+    · subst lm2
       simp
       symm
       exact IsBiUnique.left_eq_iff_rel lm1 _
-    · rcases lm1 with ⟨l, r, lm1, lm3, lm4⟩
-      subst lm3 lm4
-      simp
+    · simp
       exact IsBiUnique.rel_iff_rel_of_rel₂ lm2 lm1
     · subst lm1 lm2; rfl
     · subst lm1
@@ -295,18 +285,13 @@ def areEq [DecidableEq αl] [DecidableEq αr] [DecidableRel rel] [IsBiUnique rel
       symm
       conv => lhs; rw [Eq.comm]
       exact IsBiUnique.right_eq_iff_rel lm2 _
-    · rcases lm1 with ⟨l1, r1, lm1, lm3, lm4⟩
-      rcases lm2 with ⟨l2, r2, lm2, lm5, lm6⟩
-      subst lm3 lm4 lm5 lm6
-      simp
+    · simp
       symm
       exact IsBiUnique.left_eq_iff_right_eq_of_rel₂ lm1 lm2
-    · rcases lm1 with ⟨l1, r1, lm1, lm3, lm4⟩
-      subst lm2 lm3 lm4
+    · subst lm2
       simp
       exact IsBiUnique.right_eq_iff_rel lm1 _
-    · rcases lm2 with ⟨l, r, lm2, lm3, lm4⟩
-      subst lm1 lm3 lm4
+    · subst lm1
       simp
       conv => lhs; rw [Eq.comm]
       exact IsBiUnique.right_eq_iff_rel lm2 _
@@ -327,11 +312,8 @@ theorem areEq_eq_true_iff_eq : (su1.areEq su2 = .true) ↔ (su1 = su2) := by
   refine Iff.trans sumEquivGen_iff ?_
   rcases s1 with ⟨l1⟩ | ⟨r1⟩
   <;> rcases s2 with ⟨l2⟩ | ⟨r2⟩
-  · simp [areEqSumOrRel]
-  · simp [areEqSumOrRel]
-  · simp [areEqSumOrRel]
-    grind
-  · simp [areEqSumOrRel]
+  <;> simp [areEqSumOrRel]
+
 
 instance : DecidableEq (SumUnion rel) := fun _ _ => decidable_of_decidable_of_iff areEq_eq_true_iff_eq
 

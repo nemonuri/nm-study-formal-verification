@@ -75,10 +75,59 @@ def labelingCongruenceOfRight (il: Interleaving ts1 ts2) (s1: ts1.S) [HasPartial
   | .some l => ts1.labeling s1 l
   | .none => .false
 
-
 def labelingSum (il: Interleaving ts1 ts2) (s1: ts1.S) (s2: ts2.S) [HasPartialCongruence il.ap.Rel] : (ts1.AP ⊕ ts2.AP) → Bool
   | .inl ap => (ts1.labeling s1 ap) || il.labelingCongruenceOfLeft s2 ap
   | .inr ap => (ts2.labeling s2 ap) || il.labelingCongruenceOfRight s1 ap
+
+
+section Labeling
+
+variable {il: Interleaving ts1 ts2} {s1: ts1.S} {s2: ts2.S} [HasPartialCongruence il.ap.Rel]
+
+theorem labelingCongruenceOfLeft_eq_true_iff {l: ts1.AP} : (il.labelingCongruenceOfLeft s2 l = .true) ↔ (∃r, il.ap.Rel l r ∧ ts2.labeling s2 r = .true) := by
+  let hpc : HasPartialCongruence il.ap.Rel := inferInstance
+  dsimp [labelingCongruenceOfLeft, PartialCongruence.ofRel]
+  split
+  · rename_i r lm1
+    replace lm1 := hpc.partialCongruence.valid.rel_of_right?_eq_some lm1
+    constructor
+    · intro lm2
+      exists r
+    · rintro ⟨r2, lm2, lm3⟩
+      have lm4 := IsBiUnique.rightUnique lm1 lm2
+      rw [lm4]
+      exact lm3
+  · rename_i lm1
+    replace lm1 := hpc.partialCongruence.valid.right?_eq_none_iff_forall_not_rel.mp lm1
+    simp
+    intro r lm2
+    specialize lm1 r
+    contradiction
+
+theorem labelingCongruenceOfRight_eq_true_iff {r: ts2.AP} : (il.labelingCongruenceOfRight s1 r = .true) ↔ (∃l, il.ap.Rel l r ∧ ts1.labeling s1 l = .true) := by
+  let hpc : HasPartialCongruence il.ap.Rel := inferInstance
+  dsimp [labelingCongruenceOfRight, PartialCongruence.ofRel]
+  split
+  · rename_i l lm1
+    replace lm1 := hpc.partialCongruence.valid.rel_of_left?_eq_some lm1
+    constructor
+    · intro lm2
+      exists l
+    · rintro ⟨l2, lm2, lm3⟩
+      have lm4 := IsBiUnique.leftUnique lm1 lm2
+      rw [lm4]
+      exact lm3
+  · rename_i lm1
+    replace lm1 := hpc.partialCongruence.valid.left?_eq_none_iff_forall_not_rel.mp lm1
+    simp
+    intro l lm2
+    specialize lm1 l
+    contradiction
+
+
+end Labeling
+
+
 
 def labeling (il: Interleaving ts1 ts2) (s1: ts1.S) (s2: ts2.S) [HasPartialCongruence il.ap.Rel] (ap: SumUnion il.ap.Rel) : Bool :=
   ap.liftOfSum (labelingSum il s1 s2 ·) (by
@@ -138,9 +187,11 @@ def labeling (il: Interleaving ts1 ts2) (s1: ts1.S) (s2: ts2.S) [HasPartialCongr
         contradiction
     · subst lm1; rfl )
 
-/-
+
 theorem labelingRange_mem_iff_labeling_eq_true {il: Interleaving ts1 ts2} {s1: ts1.S} {s2: ts2.S} [HasPartialCongruence il.ap.Rel] {ap: SumUnion il.ap.Rel}
   : ap ∈ il.labelingRange s1 s2 ↔ il.labeling s1 s2 ap := by
+  let hpc : HasPartialCongruence il.ap.Rel := inferInstance
+  have lm_hpc := hpc.partialCongruence.valid
   cases ap using SumUnion.indOfSum
   rename_i aps
   rcases aps with ⟨apL⟩ | ⟨apR⟩
@@ -150,165 +201,91 @@ theorem labelingRange_mem_iff_labeling_eq_true {il: Interleaving ts1 ts2} {s1: t
   · by_cases lm1: ts1.labeling s1 apL = .true
     · simp [lm1]
     · simp [lm1]
--/
+      dsimp [labelingCongruenceOfLeft, PartialCongruence.ofRel]
+      split
+      · rename_i apR lm2
+        replace lm2 := lm_hpc.rel_of_right?_eq_some lm2
+        constructor
+        · rintro ⟨apR2, lm3, lm4⟩
+          have lm5 := IsBiUnique.rightUnique lm2 lm3
+          rw [lm5]
+          exact lm4
+        · rintro lm3
+          exists apR
+      · rename_i lm2
+        simp
+        intro apR lm3
+        replace lm2 := lm_hpc.right?_eq_none_iff_forall_not_rel.mp lm2 apR
+        contradiction
+  · by_cases lm1: ts2.labeling s2 apR = .true
+    · simp [lm1]
+    · simp [lm1]
+      dsimp [labelingCongruenceOfRight, PartialCongruence.ofRel]
+      split
+      · rename_i apL lm2
+        replace lm2 := lm_hpc.rel_of_left?_eq_some lm2
+        constructor
+        · rintro ⟨apL2, lm3, lm4⟩
+          have lm5 := IsBiUnique.leftUnique lm2 lm3
+          rw [lm5]
+          exact lm4
+        · rintro lm3
+          exists apL
+      · rename_i lm2
+        simp
+        intro apL lm3
+        replace lm2 := lm_hpc.left?_eq_none_iff_forall_not_rel.mp lm2 apL
+        contradiction
 
-/-
-theorem labelingRange_mem_iff {il: Interleaving ts1 ts2} {s1: ts1.S} {s2: ts2.S} {ap: SumUnion il.ap.Rel} [HasPartialCongruence il.ap.Rel]
-  : (ap ∈ il.labelingRange s1 s2) ↔ (∃aps, ap = .ofSum aps ∧ il.labelingSum s1 s2 aps) := by
-  constructor
-  · cases ap using SumUnion.indOfSum
-    rename_i aps
-    rcases aps with ⟨apL⟩ | ⟨apR⟩
-    <;> (simp [labelingRange, SumUnion.ofSum_eq_iff_sumEquivGen, sumEquivGen_iff, labelingSum])
-    · intro lm1
-      rcases lm1 with lm1 | lm1
-      · simp [lm1]
-      · rcases lm1 with ⟨apR, lm1, lm2⟩
-        right
-        exists apR
-        refine ⟨lm1, ?_⟩
-        left
-        exact lm2
-    · intro lm1
-      rcases lm1 with lm1 | lm1
-      · rcases lm1 with ⟨apL, lm1, lm2⟩
-        right
-        exists apL
-        refine ⟨lm1, ?_⟩
-        left
-        exact lm2
-      · left
-        left
-        exact lm1
-  ·
--/
-    --simp [labelingRange]
-/-
-    intro lm1
-    simp [labelingRange] at lm1
-    cases ap using SumUnion.indOfSum
-    rename_i aps
-    rcases aps with ⟨apL⟩ | ⟨apR⟩
-    <;> (simp at lm1 ⊢)
--/
-
-/-
-  cases ap using SumUnion.indOfSum
-  rename_i s
-  dsimp [labelingImage]
-  simp [SumUnion.ofSum_eq_iff_sumEquivGen, sumEquivGen_iff]
-  rcases s with ⟨l⟩ | ⟨r⟩ <;> simp
-  ·
--/
-
---def labelingUnion (s1: ts1.S) (s2: ts2.S) : ts1.AP → ts2.AP → Bool
-  --| .inl ap => ts1.labeling s1 ap
-  --| .inr ap => ts2.labeling s2 ap
-
-/-
-def labeling (il: Interleaving ts1 ts2) (s1: ts1.S) (s2: ts2.S) (ap: SumUnion il.ap.Rel) : Bool :=
-  ap.liftOfSum (labelingSum s1 s2 ·) (by
-    intro ap1 ap2 lm1
-    rewrite [sumEquivGen_iff] at lm1
-    rcases lm1 with lm1 | lm1
-    · subst lm1; rfl
-    · rcases lm1 with ⟨apL, apR, lm1, lm2⟩
-      rcases lm2 with ⟨lm2, lm3⟩ | ⟨lm2, lm3⟩
-      <;> (subst lm2 lm3; dsimp [labelingSum])
-      ·
-  )
--/
-
-/-
-@[mk_iff]
-inductive Transition (il: Interleaving ts1 ts2) : ts1.S → ts2.S → il.act.hasHUnion.R → ts1.S → ts2.S → Prop where
-  | fst (s₁1: ts1.S) (a₁: ts1.Act) (s₁2: ts1.S) (req: s₁1 ─⌞a₁⌟→{ts1} s₁2) (s₂: ts2.S) : Transition il s₁1 s₂ (il.embedActAt .fst a₁) s₁2 s₂
-  | snd (s₂1: ts2.S) (a₂: ts2.Act) (s₂2: ts2.S) (req: s₂1 ─⌞a₂⌟→{ts2} s₂2) (s₁: ts1.S) : Transition il s₁ s₂1 (il.embedActAt .snd a₂) s₁ s₂2
--/
-
-/-
 @[reducible]
-def toTransitionSystem (il: Interleaving ts1 ts2) : TransitionSystem where
+def toTransitionSystem (il: Interleaving ts1 ts2) [HasPartialCongruence il.ap.Rel] : TransitionSystem where
   S := ts1.S × ts2.S
-  Act := letI := il.act.hasHUnion; HUnionElemAt ts1.Act ts2.Act
+  Act := SumUnion il.act.Rel
   I := Set.prod ts1.I ts2.I
-  AP := letI := il.ap.hasHUnion; HUnionElemAt ts1.AP ts2.AP
-  L s ap := letI := il.ap.memDecidable; il.ap.hasHUnion.hunionIndicator (ts1.labeling s.fst) (ts2.labeling s.snd) ap.val
-  tr s1 a s2 := Transition il s1.fst s1.snd a s2.fst s2.snd
+  AP := SumUnion il.ap.Rel
+  L s := il.labeling s.fst s.snd
+  tr s1 ap s2 := il.Transition s1.fst s1.snd ap s2.fst s2.snd
 
-def toTransitionSystemActAP (il: Interleaving ts1 ts2) : TransitionSystem.OfActAP il.toTransitionSystem.Act il.toTransitionSystem.AP := il.toTransitionSystem.toActAP
+@[reducible]
+noncomputable def toTransitionSystemOfClassical (il: Interleaving ts1 ts2) : TransitionSystem :=
+  letI := HasPartialCongruence.ofClassical il.ap.Rel
+  il.toTransitionSystem
 
-def inferAt
-  (ts1: TransitionSystem.{us1, uact_l, uap_l}) (ts2: TransitionSystem.{us2, uact_l, uap_l})
-  [HasHUnion.Bundle ts1.Act ts2.Act] [HasHUnion.Bundle ts1.AP ts2.AP]
-  : Interleaving ts1 ts2 :=
-  .mk inferInstance inferInstance
+/-
+theorem toTransitionSystemOfClassical_injective : Function.Injective (@toTransitionSystemOfClassical ts1 ts2) := by
+  intro il1 il2 lm1
+  let hpc1 := HasPartialCongruence.ofClassical il1.ap.Rel
+  let hpc2 := HasPartialCongruence.ofClassical il2.ap.Rel
+  dsimp [toTransitionSystemOfClassical] at lm1
+  simp [toTransitionSystem] at lm1
+  rcases lm1 with ⟨lm1, lm2, lm3, lm4⟩
+  rcases il1 with ⟨act1, ap1⟩
+  rcases il2 with ⟨act2, ap2⟩
+  dsimp at lm1 lm3
+  rcases act1 with ⟨act1, lm_act1⟩
+  rcases act2 with ⟨act2, lm_act2⟩
+  rcases ap1 with ⟨ap1, lm_ap1⟩
+  rcases ap2 with ⟨ap2, lm_ap2⟩
+  simp [funext_iff]
+  rw [heq_iff_exists_cast_eq] at lm4
+  rcases lm4 with ⟨lm4_1, lm4⟩
+  dsimp at lm4_1
+  simp [funext_iff] at lm4
+  conv at lm4 =>
+    ext
+    ext
+    ext
+    rw [Bool.eq_iff_iff]
+    simp [← labelingRange_mem_iff_labeling_eq_true, labelingRange]
+-/
+
+  --rewrite [Bool.eq_iff_iff] at lm4
+
+
+
 
 end Interleaving
 
-def interleaveAt
-  (ts1: TransitionSystem.{us1, uact_l, uap_l}) (ts2: TransitionSystem.{us2, uact_l, uap_l})
-  [HasHUnion.Bundle ts1.Act ts2.Act] [HasHUnion.Bundle ts1.AP ts2.AP]
-  : TransitionSystem :=
-  (Interleaving.inferAt ts1 ts2).toTransitionSystem
--/
-
-section InterleaveAt
-
-open HasHUnion
-
---variable {ts1: TransitionSystem.{us1, uact_l, uap_l}} {ts2: TransitionSystem.{us2, uact_l, uap_l}} {Act: Type uact_l} {AP: Type uap_l}
---         [hbAct0: HasHUnion.Bundle ts1.Act ts2.Act Act] [hbAP0: HasHUnion.Bundle ts1.AP ts2.AP AP]
---         [hbAct: HasHUnion.Bundle ts1.Act Act Act] [hbAP: HasHUnion.Bundle ts1.AP AP AP]
-
-/-
-instance [HasHUnion.Bundle ts1.Act ts2.Act Act] [HasHUnion.Bundle ts1.AP ts2.AP AP] [HasHUnion.Bundle ts1.Act Act Act]
-  : HasHUnion ts1.Act (interleaveAt Act AP ts1 ts2).Act Act where
-  fst := hbAct.hasHUnion.fst
--/
-/-
-
-  snd :=
-    let embed : (interleaveAt Act AP ts1 ts2).Act ↪ Act := .mk (Subtype.val) Subtype.val_injective
-    {
-      toEmbedding := embed
-      lift rv req := Subtype.mk rv (by
-          simp [hunionSetUnivAt_mem_iff] at req ⊢
-          dsimp [embedAt, toLiftableEmbeddingAt]
-
-        )
-      lift_valid := _
-    }
--/
-
-/-
-instance [HasHUnion.Bundle ts1.Act ts2.Act Act] [HasHUnion.Bundle ts1.AP ts2.AP AP] : HasHUnion.Bundle ts1.Act ((interleaveAt Act AP ts1 ts2).Act) Act where
-  hasHUnion :=
--/
-
-end InterleaveAt
-
-/-
-open Interleaving in
-def interleave
-  {ActL1 ActL2: Type uact_l} {APL1 APL2: Type uap_l} {ActR: Type uact_r} {APR: Type uap_r}
-  (ts1: TransitionSystem.OfActAP ActL1 APL1) (ts2: TransitionSystem.OfActAP ActL2 APL2)
--/
-/-
-  (ts1: TransitionSystem.{us1, uact_l, uap_l}) (ts2: TransitionSystem.{us2, uact_l, uap_l})
-  [HasHUnion.Bundle ts1.Act ts2.Act Act] [HasHUnion.Bundle ts1.AP ts2.AP AP]
-  : TransitionSystem.OfActAP (inferAt ts1 ts2 Act AP).toTransitionSystem.Act (inferAt ts1 ts2 Act AP).toTransitionSystem.AP :=
-  (inferAt ts1 ts2 Act AP).toTransitionSystem.toActAP
--/
-
-/-
-@[reducible]
-def interleaving (ts1 ts2: TransitionSystem) : TransitionSystem where
-  S := ts1.S × ts2.S
-  Act := ts1.Act ⊕ ts2.Act
-  I := Set.prod ts1.I ts2.I
-  AP := ts1.AP ⊕ ts2.AP
--/
 
 
 end Nemonuri.TransitionSystem
