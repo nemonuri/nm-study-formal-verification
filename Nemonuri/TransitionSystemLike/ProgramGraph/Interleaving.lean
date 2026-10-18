@@ -1,7 +1,7 @@
 module
 
 public import Nemonuri.TransitionSystemLike.ProgramGraph.Basic
-public import Nemonuri.HasHUnion.SetLike
+public import Nemonuri.TransitionSystemLike.Interleaving
 
 /-!
 
@@ -18,8 +18,6 @@ set_option autoImplicit false
 namespace Nemonuri.ProgramGraph
 
 universe uvar_l uval_l uec_l uvar_r uval_r uec_r
-
-open HasHUnion
 
 namespace EvalLike
 
