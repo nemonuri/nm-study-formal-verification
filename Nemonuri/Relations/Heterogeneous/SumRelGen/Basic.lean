@@ -119,6 +119,17 @@ theorem sumEquivGen_iff_of_biUnique (req: Relator.BiUnique rel) : SumEquivGen re
 
 theorem sumEquivGen_iff [IsBiUnique rel] : SumEquivGen rel s1 s2 ↔ ((s1 = s2) ∨ (∃l r, rel l r ∧ ((s1 = .inl l ∧ s2 = .inr r) ∨ (s1 = .inr r ∧ s2 = .inl l)))) := sumEquivGen_iff_of_biUnique IsBiUnique.biUnique
 
+theorem sumEquivGen_inl_inl_iff [IsBiUnique rel] {l1 l2: αl} : SumEquivGen rel (.inl l1) (.inl l2) ↔ (l1 = l2) := by
+  simp [sumEquivGen_iff]
+
+theorem sumEquivGen_inr_inr_iff [IsBiUnique rel] {r1 r2: αr} : SumEquivGen rel (.inr r1) (.inr r2) ↔ (r1 = r2) := by
+  simp [sumEquivGen_iff]
+
+theorem sumEquivGen_inl_inr_iff [IsBiUnique rel] {l: αl} {r: αr} : SumEquivGen rel (.inl l) (.inr r) ↔ rel l r := by
+  simp [sumEquivGen_iff]
+
+theorem sumEquivGen_inr_inl_iff [IsBiUnique rel] {l: αl} {r: αr} : SumEquivGen rel (.inr r) (.inl l) ↔ rel l r := by
+  simp [sumEquivGen_iff]
 
 /-
 theorem sumEquivGen_iff_or {rel: αl → αr → Prop} {s1 s2: (αl ⊕ αr)}
@@ -199,7 +210,6 @@ def areEqSumOrRel [DecidableEq αl] [DecidableEq αr] (rel: αl → αr → Prop
 
 namespace SumUnion
 
-variable {rel: αl → αr → Prop}
 
 def ofSum (s: αl ⊕ αr) : SumUnion rel := Quotient.mk _ s
 
@@ -325,7 +335,7 @@ end AreEq
 
 
 
-def liftOfSumElim [IsBiUnique rel] {β: Sort*} (fl: αl → β) (fr: αr → β) (req: ∀l r, rel l r → fl l = fr r) (su: SumUnion rel) : β :=
+def funElim [IsBiUnique rel] {β: Sort*} (fl: αl → β) (fr: αr → β) (req: ∀l r, rel l r → fl l = fr r) (su: SumUnion rel) : β :=
   su.liftOfSum (Sum.elim fl fr) (by
     intro s1 s2 lm1
     replace lm1 := lm1.eq_or_rel_exists IsBiUnique.biUnique
@@ -341,19 +351,19 @@ def liftOfSumElim [IsBiUnique rel] {β: Sort*} (fl: αl → β) (fr: αr → β)
         exact req l r lm1 )
 
 @[defeq]
-theorem liftOfSumElim_eq_ofSum [IsBiUnique rel] {β: Sort*} {fl: αl → β} {fr: αr → β} {req: ∀l r, rel l r → fl l = fr r} {s: αl ⊕ αr}
-  : liftOfSumElim fl fr req (.ofSum s) = Sum.elim fl fr s :=
+theorem funElim_eq_ofSum [IsBiUnique rel] {β: Sort*} {fl: αl → β} {fr: αr → β} {req: ∀l r, rel l r → fl l = fr r} {s: αl ⊕ αr}
+  : funElim fl fr req (.ofSum s) = Sum.elim fl fr s :=
   rfl
 
 def PredElim [IsBiUnique rel] (fl: αl → Prop) (fr: αr → Prop) (req: ∀l r, rel l r → (fl l ↔ fr r)) (su: SumUnion rel) : Prop :=
-  su.liftOfSumElim fl fr (fun l r lm1 => propext (req l r lm1))
+  su.funElim fl fr (fun l r lm1 => propext (req l r lm1))
 
 def setElim rel [IsBiUnique rel] (sl: Set αl) (sr: Set αr) (req: ∀l r, rel l r → (l ∈ sl ↔ r ∈ sr)) : Set (SumUnion rel) :=
   { su: SumUnion rel | su.PredElim (· ∈ sl) (· ∈ sr) req }
 
 theorem setElim_mem_iff [IsBiUnique rel] {sl sr} {req} {s: αl ⊕ αr}
   : (.ofSum s ∈ setElim rel sl sr req) ↔ s.elim (· ∈ sl) (· ∈ sr) := by
-  dsimp [setElim, PredElim, liftOfSumElim_eq_ofSum]
+  dsimp [setElim, PredElim, funElim_eq_ofSum]
   rfl
 
 def setOfLeftSet (rel : αl → αr → Prop) (sl: Set αl) : Set (SumUnion rel) := { su: SumUnion rel | ∃l, l ∈ sl ∧ su = .ofSum (.inl l) }
@@ -383,7 +393,222 @@ theorem setOfLeftSet_mem_inr_iff_mem [IsBiUnique rel] {sl: Set αl} {r: αr} : (
 theorem setOfRightSet_mem_inl_iff_mem [IsBiUnique rel] {sr: Set αr} {l: αl} : (.ofSum (.inl l) ∈ setOfRightSet rel sr) ↔ (∃r, r ∈ sr ∧ rel l r) := by
   simp [setOfRightSet, lnl_eq_lnr_iff_rel]
 
+
+section LeftRight
+
+variable [IsBiUnique rel] [HasPartialCongruence rel]
+
+def left? (su: SumUnion rel) : Option αl :=
+  su.funElim Option.some (HasPartialCongruence.leftOfRel? rel ·) (by
+    intro l r lm1
+    symm
+    dsimp [HasPartialCongruence.leftOfRel?, PartialCongruence.ofRel]
+    exact HasPartialCongruence.partialCongruence.valid.left?_eq_some_of_rel lm1 )
+
+theorem left?_eq_some_iff_eq {su: SumUnion rel} {l: αl} : (su.left? = .some l) ↔ su = (.ofSum (.inl l)) := by
+  cases su using indOfSum
+  rename_i s
+  dsimp [left?, funElim_eq_ofSum]
+  rcases s with ⟨l2⟩ | ⟨r2⟩ <;> simp [ofSum_eq_iff_sumEquivGen]
+  · simp [sumEquivGen_inl_inl_iff]
+  · simp [sumEquivGen_inr_inl_iff]
+    exact HasPartialCongruence.partialCongruence.valid.left?_eq_some_iff_rel _ _
+
+
+def right? (su: SumUnion rel) : Option αr :=
+  su.funElim (HasPartialCongruence.rightOfRel? rel ·) Option.some (by
+    intro l r lm1
+    dsimp [HasPartialCongruence.rightOfRel?, PartialCongruence.ofRel]
+    exact HasPartialCongruence.partialCongruence.valid.right?_eq_some_of_rel lm1 )
+
+theorem right?_eq_some_iff_eq {su: SumUnion rel} {r: αr} : (su.right? = .some r) ↔ su = (.ofSum (.inr r)) := by
+  cases su using indOfSum
+  rename_i s
+  dsimp [right?, funElim_eq_ofSum]
+  rcases s with ⟨l2⟩ | ⟨r2⟩ <;> simp [ofSum_eq_iff_sumEquivGen]
+  · simp [sumEquivGen_inl_inr_iff]
+    exact HasPartialCongruence.partialCongruence.valid.right?_eq_some_iff_rel _ _
+  · simp [sumEquivGen_inr_inr_iff]
+
+
+def isIntersection (su: SumUnion rel) : Bool := su.left?.isSome && su.right?.isSome
+
+
+def leftD (su: SumUnion rel) (dflt: αl) : αl := su.left?.getD dflt
+
+def rightD (su: SumUnion rel) (dflt: αr) : αr := su.right?.getD dflt
+
+@[defeq]
+theorem inl_ofSum_leftD_eq {l dl: αl} : (.ofSum (.inl l): SumUnion rel).leftD dl = l := by
+  dsimp [leftD, left?, funElim_eq_ofSum]
+
+@[defeq]
+theorem inr_ofSum_leftD_eq_getD {dl: αl} {r: αr}
+  : (.ofSum (.inr r): SumUnion rel).leftD dl = (HasPartialCongruence.leftOfRel? rel r).getD dl := by
+  dsimp [leftD, left?, funElim_eq_ofSum]
+
+@[defeq]
+theorem inr_ofSum_rightD_eq {r dr: αr} : (.ofSum (.inr r): SumUnion rel).rightD dr = r := by
+  dsimp [rightD, right?, funElim_eq_ofSum]
+
+@[defeq]
+theorem inl_ofSum_rightD_eq_getD {dr: αr} {l: αl}
+  : (.ofSum (.inl l): SumUnion rel).rightD dr = (HasPartialCongruence.rightOfRel? rel l).getD dr := by
+  dsimp [rightD, right?, funElim_eq_ofSum]
+
+
+/-
+      by_cases lm2: rel l1 ((HasPartialCongruence.rightOfRel? rel l1).getD dfltR)
+      · exact req lm2 lm1
+      · clear req
+-/
+
+end LeftRight
+
+
+def sigmaElimD [IsBiUnique rel] [HasPartialCongruence rel]
+  {φ: Sort*} {βl: αl → Type*} {βr: αr → Type*}
+  (rel2: (l: αl) → (r: αr) → βl l → βr r → Prop) [∀l r, IsBiUnique (rel2 l r)]
+  (fl: (x: αl) → βl x → φ) (fr: (x: αr) → βr x → φ)
+  (req: ∀l r l2 r2, rel2 l r l2 r2 → fl l l2 = fr r r2)
+  (dfltL: αl) (dfltR: αr)
+  (su: SumUnion rel) (su2: SumUnion (rel2 (su.leftD dfltL) (su.rightD dfltR))) : φ :=
+  su2.funElim (fl (su.leftD dfltL)) (fr (su.rightD dfltR)) (by
+    intro l2 r2 lm1
+    specialize req _ _ l2 r2
+    cases su using indOfSum
+    rename_i s1
+    rcases s1 with ⟨l1⟩ | ⟨r1⟩
+    · dsimp [inl_ofSum_leftD_eq, inl_ofSum_rightD_eq_getD] at ⊢ su2 l2 r2 req lm1
+      exact req lm1
+    · dsimp [inr_ofSum_leftD_eq_getD, inr_ofSum_rightD_eq] at ⊢ su2 l2 r2 req lm1
+      exact req lm1 )
+
+
+section SigmaElimD
+
+variable [IsBiUnique rel] [HasPartialCongruence rel] {φ: Sort*} {βl: αl → Type*} {βr: αr → Type*}
+         {rel2: (l: αl) → (r: αr) → βl l → βr r → Prop} [∀l r, IsBiUnique (rel2 l r)]
+         {fl: (x: αl) → βl x → φ} {fr: (x: αr) → βr x → φ}
+         {req2: ∀l r l2 r2, rel2 l r l2 r2 → fl l l2 = fr r r2}
+         {dfltL: αl} {dfltR: αr}
+
+@[defeq]
+theorem sigmaElimD_inl_inl {l1: αl} {l2: βl l1} : sigmaElimD rel2 fl fr req2 dfltL dfltR (.ofSum (.inl l1): SumUnion rel) (.ofSum (.inl l2)) = fl l1 l2 := by
+  dsimp [sigmaElimD, funElim_eq_ofSum, inl_ofSum_leftD_eq]
+
+@[defeq]
+theorem sigmaElimD_inl_inr_of_rel {l1: αl} {r2: βr ((HasPartialCongruence.rightOfRel? rel l1).getD dfltR)}
+  : sigmaElimD rel2 fl fr req2 dfltL dfltR (.ofSum (.inl l1): SumUnion rel) (.ofSum (.inr r2)) = fr ((HasPartialCongruence.rightOfRel? rel l1).getD dfltR) r2 := by
+  dsimp [sigmaElimD, funElim_eq_ofSum, inl_ofSum_rightD_eq_getD]
+
+end SigmaElimD
+
+
+
+def UnivElim.{u} [IsBiUnique rel] (βl: αl → Sort u) (βr: αr → Sort u) (req: ∀l r, rel l r → βl l = βr r) (su: SumUnion rel) : Sort u :=
+  su.funElim βl βr req
+
+
+section UnivElim
+
+universe ue
+variable [IsBiUnique rel] {βl: αl → Sort ue} {βr: αr → Sort ue} {req: ∀l r, rel l r → βl l = βr r}
+
+@[defeq]
+theorem univElim_eq_left {l: αl} : UnivElim βl βr req (.ofSum (.inl l)) = βl l := rfl
+
+@[defeq]
+theorem univElim_eq_right {r: αr} : UnivElim βl βr req (.ofSum (.inr r)) = βr r := rfl
+
+end UnivElim
+
+/-
+#check Quotient.liftOn₂
+
+def liftPiLeft.{u} [IsBiUnique rel] (βl: αl → Sort u) (βr: αr → Sort u) (req: ∀l r, rel l r → βl l = βr r)
+                   (pi: (x: αl) → βl x) (su: SumUnion rel) : UnivElim βl βr req su
+-/
+
+/-
+def piElim.{ue} [IsBiUnique rel] (βl: αl → Sort ue) (βr: αr → Sort ue)
+                (req: ∀l r, rel l r → βl l = βr r)
+                (pil: (x: αl) → βl x) (pir: (x: αr) → βr x)
+                (req2: ∀l r, rel l r → pil l ≍ pir r)
+                (su: SumUnion rel) : UnivElim βl βr req su :=
+                su.funElim pil pir
+-/
+/-
+               (rel2: ∀l r, rel l r → βl l → βr r → Prop)
+               (pi1: (x: αl) → βl x) (pi2: (x: αr) → βr x)
+               (req: ∀l r, (h: rel l r) → rel2 l r h (pi1 l) (pi2 r) → )
+-/
+
+def piElim.{ue} [IsBiUnique rel] {βl: αl → Type ue} {βr: αr → Type ue}
+                (pi1: (x: αl) → βl x) (pi2: (x: αr) → βr x)
+                (rel2: Sigma βl → Sigma βr → Prop) (req: ∀l r, rel l r → rel2 ⟨l, pi1 l⟩ ⟨r, pi2 r⟩)
+                (su: SumUnion rel) : SumUnion rel2 :=
+  let sumFun : αl ⊕ αr → Sigma βl ⊕ Sigma βr
+    | .inl l => .inl ⟨l, pi1 l⟩
+    | .inr r => .inr ⟨r, pi2 r⟩
+  su.liftOfSum (ofSum ∘ sumFun) (by
+    intro s1 s2 lm1
+    replace lm1 := lm1.eq_or_rel_exists IsBiUnique.biUnique
+    rcases lm1 with lm1 | ⟨l, r, lm1, lm2⟩
+    · subst lm1
+      rfl
+    · rcases lm2 with ⟨lm2, lm3⟩ | ⟨lm2, lm3⟩
+      <;> (subst lm2 lm3 sumFun; simp)
+      · simp [ofSum_eq_iff_sumEquivGen]
+        refine .rel _ _ ?_
+        refine .intro _ _ ?_
+        exact req _ _ lm1
+      · symm
+        simp [ofSum_eq_iff_sumEquivGen]
+        refine .rel _ _ ?_
+        refine .intro _ _ ?_
+        exact req _ _ lm1 )
+
+
+section PiElim
+
+universe ue
+variable [IsBiUnique rel] {βl: αl → Type ue} {βr: αr → Type ue}
+         {pi1: (x: αl) → βl x} {pi2: (x: αr) → βr x}
+         {rel2: Sigma βl → Sigma βr → Prop} {req: ∀l r, rel l r → rel2 ⟨l, pi1 l⟩ ⟨r, pi2 r⟩}
+
+@[defeq]
+theorem piElim_inl_eq_inl {l: αl} : piElim pi1 pi2 rel2 req (.ofSum (.inl l)) = (.ofSum (.inl ⟨l, pi1 l⟩)) := by
+  dsimp [piElim, liftOfSum_ofSum]
+
+@[defeq]
+theorem piElim_inr_eq_inr {r: αr} : piElim pi1 pi2 rel2 req (.ofSum (.inr r)) = (.ofSum (.inr ⟨r, pi2 r⟩)) := by
+  dsimp [piElim, liftOfSum_ofSum]
+
+theorem piElim_inl_eq_inr_iff {l: αl} {sr: Sigma βr}
+  : (piElim pi1 pi2 rel2 req (.ofSum (.inl l)) = (.ofSum (.inr sr))) ↔ SumEquivGen rel2 (.inl ⟨l, pi1 l⟩) (.inr sr) := by
+  dsimp [piElim_inl_eq_inl]
+  exact ofSum_eq_iff_sumEquivGen
+
+theorem piElim_inr_eq_inl_iff {r: αr} {sl: Sigma βl}
+  : (piElim pi1 pi2 rel2 req (.ofSum (.inr r)) = (.ofSum (.inl sl))) ↔ SumEquivGen rel2 (.inl sl) (.inr ⟨r, pi2 r⟩) := by
+  dsimp [piElim_inr_eq_inr]
+  refine Iff.trans Eq.comm ?_
+  exact ofSum_eq_iff_sumEquivGen
+
+
+
+end PiElim
+
+
 end SumUnion
+
+
+inductive OptionSigmaRelGen {αl αr: Type*} {βl: αl → Sort*} {βr: αr → Sort*}
+  (rel: (l: αl) → (r: αr) → (βl l) → (βr r) → Prop)
+  : (l?: Option αl) → (r?: Option αr) → l?.elim PUnit βl → r?.elim PUnit βr → Prop where
+  | intro (al: αl) (ar: αr) (bl: βl al) (br: βr ar) (req: rel al ar bl br) : OptionSigmaRelGen rel (.some al) (.some ar) bl br
+
 
 
 end Nemonuri.Relations.Heterogeneous
