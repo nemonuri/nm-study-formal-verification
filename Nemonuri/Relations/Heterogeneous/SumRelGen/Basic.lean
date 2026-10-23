@@ -208,6 +208,114 @@ def areEqSumOrRel [DecidableEq αl] [DecidableEq αr] (rel: αl → αr → Prop
   | .inl l, .inr r | .inr r, .inl l => decide (rel l r)
 
 
+def AreEquivSetOnRel (rel : αl → αr → Prop) (sl: Set αl) (sr: Set αr) : Prop := ∀⦃l r⦄, SumEquivGen rel (.inl l) (.inr r) → (l ∈ sl ↔ r ∈ sr)
+
+section AreEquivSetOnRelSection
+
+variable {sl: Set αl} {sr: Set αr}
+
+@[defeq]
+theorem areEquivSetOnRel_def : AreEquivSetOnRel rel sl sr = ∀l r, SumEquivGen rel (.inl l) (.inr r) → (l ∈ sl ↔ r ∈ sr) := rfl
+
+
+theorem areEquivSetOnRel_iff_of_biUnique [IsBiUnique rel] : AreEquivSetOnRel rel sl sr ↔ ∀l r, rel l r → (l ∈ sl ↔ r ∈ sr) := by
+  dsimp [areEquivSetOnRel_def]
+  conv => lhs; ext; ext; arg 1; rw [sumEquivGen_inl_inr_iff]
+
+
+namespace AreEquivSetOnRel
+
+variable [IsBiUnique rel]
+
+theorem forall_rel_iff (h: AreEquivSetOnRel rel sl sr) : ∀l r, rel l r → (l ∈ sl ↔ r ∈ sr) := areEquivSetOnRel_iff_of_biUnique.mp h
+
+theorem of_forall_rel_iff (rel : αl → αr → Prop) [IsBiUnique rel] (req: ∀l r, rel l r → (l ∈ sl ↔ r ∈ sr)) : AreEquivSetOnRel rel sl sr := areEquivSetOnRel_iff_of_biUnique.mpr req
+
+end AreEquivSetOnRel
+
+end AreEquivSetOnRelSection
+
+/-
+def AreSumEquivSet' (rel : αl → αr → Prop) [IsBiUnique rel] (sl: Set αl) (sr: Set αr) : Prop := ∀⦃l r⦄, rel l r → (l ∈ sl ↔ r ∈ sr)
+
+@[defeq]
+theorem areSumEquivSet'_def {rel : αl → αr → Prop} [IsBiUnique rel] sl sr : AreSumEquivSet' rel sl sr = (∀l r, rel l r → (l ∈ sl ↔ r ∈ sr)) := rfl
+
+def rightSetOfLeft' (rel : αl → αr → Prop) (sl: Set αl) : Set αr := { r: αr | ∀l, rel l r → (l ∈ sl) }
+
+theorem rightSetOfLeft'_areSumEquivSet [IsBiUnique rel] {sl: Set αl} : AreSumEquivSet' rel sl (rightSetOfLeft' rel sl) := by
+  dsimp [areSumEquivSet'_def]
+  intro l r lm1
+  dsimp [rightSetOfLeft']
+  constructor
+  · intro lm2 l2 lm3
+    have lm4 := IsBiUnique.leftUnique lm1 lm3
+    rw [← lm4]
+    exact lm2
+  · intro lm2
+    exact lm2 l lm1
+
+
+def leftSetOfRight' (rel : αl → αr → Prop) (sr: Set αr) : Set αl := { l: αl | ∀r, rel l r → (r ∈ sr) }
+
+theorem leftSetOfRight'_areSumEquivSet [IsBiUnique rel] {sr: Set αr} : AreSumEquivSet' rel (leftSetOfRight' rel sr) sr := by
+  dsimp [areSumEquivSet'_def]
+  intro l r lm1
+  dsimp [leftSetOfRight']
+  constructor
+  · intro lm2
+    exact lm2 r lm1
+  · intro lm2 r2 lm3
+    have lm4 := IsBiUnique.rightUnique lm1 lm3
+    rw [← lm4]
+    exact lm2
+
+
+def rightSetOfLeft (rel : αl → αr → Prop) (sl: Set αl) : Set αr := (rightSetOfLeft' rel sl) ∩ { r | ∀l ∈ sl, rel l r }
+-/
+
+
+def AreBiUniqueSumEquivSet (rel : αl → αr → Prop) [IsBiUnique rel] (sl: Set αl) (sr: Set αr) : Prop := ∀⦃l r⦄, (rel l r) ↔ (l ∈ sl ↔ r ∈ sr)
+
+theorem AreBiUniqueSumEquivSet.rightUnique {rel : αl → αr → Prop} [IsBiUnique rel] [Nonempty αl] : Relator.RightUnique (AreBiUniqueSumEquivSet rel) := by
+  intro sl1 sr1 sr2
+  dsimp [AreBiUniqueSumEquivSet]
+  intro lm1 lm2
+  refine Set.ext ?_
+  intro r
+  by_cases lm3: ∃l, rel l r
+  · rcases lm3 with ⟨l, lm3⟩
+    specialize @lm1 l r
+    specialize @lm2 l r
+    simp [lm3] at lm1 lm2
+    exact lm1.symm.trans lm2
+  · simp at lm3
+    replace lm1 l := @lm1 l r
+    replace lm2 l := @lm2 l r
+    simp [lm3] at lm1 lm2
+    constructor
+    · intro lm4
+      simp [lm4] at lm1
+      simp [lm1] at lm2
+      exact lm2
+    · intro lm4
+      simp [lm4] at lm2
+      simp [lm2] at lm1
+      exact lm1
+
+
+
+/-
+theorem AreSumEquivSet.rightUnique {rel : αl → αr → Prop} [IsBiUnique rel] (req: ) : Relator.RightUnique (AreSumEquivSet rel) := by
+  intro sl1 sr1 sr2
+  dsimp [areSumEquivSet_def]
+  intro lm1 lm2
+  refine Set.ext ?_
+  intro r
+  replace lm1 l := lm1 l r
+  replace lm2 l := lm2 l r
+-/
+
 namespace SumUnion
 
 
@@ -379,6 +487,9 @@ theorem inr_eq_inl_iff_rel [IsBiUnique rel] {l: αl} {r: αr} : ((.ofSum (.inr r
     _ ↔ _ := Eq.comm
     _ ↔ _ := lnl_eq_lnr_iff_rel
 
+theorem inl_ofSum_injective [IsBiUnique rel] : Function.Injective ((SumUnion.ofSum ∘ Sum.inl): αl → SumUnion rel) := by
+  intro l1 l2
+  simp [ofSum_eq_iff_sumEquivGen, sumEquivGen_inl_inl_iff]
 
 theorem setOfLeftSet_mem_inl_iff_mem [IsBiUnique rel] {sl: Set αl} {l: αl} : (.ofSum (.inl l) ∈ setOfLeftSet rel sl) ↔ (l ∈ sl) := by
   simp [setOfLeftSet, ofSum_eq_iff_sumEquivGen, sumEquivGen_iff]
@@ -392,6 +503,80 @@ theorem setOfLeftSet_mem_inr_iff_mem [IsBiUnique rel] {sl: Set αl} {r: αr} : (
 
 theorem setOfRightSet_mem_inl_iff_mem [IsBiUnique rel] {sr: Set αr} {l: αl} : (.ofSum (.inl l) ∈ setOfRightSet rel sr) ↔ (∃r, r ∈ sr ∧ rel l r) := by
   simp [setOfRightSet, lnl_eq_lnr_iff_rel]
+
+
+/-
+theorem setOfLeftSet_eq_setElim [IsBiUnique rel] {sl: Set αl} : setOfLeftSet rel sl = setElim rel sl (rightSetOfLeft rel sl) (rightSetOfLeft_areSumEquivSet) := by
+  refine Set.ext ?_
+  intro su
+  cases su using indOfSum
+  rename_i s
+  rcases s with ⟨l⟩ | ⟨r⟩
+  · simp [setOfLeftSet_mem_inl_iff_mem, setElim_mem_iff]
+  · simp [setOfLeftSet_mem_inr_iff_mem, setElim_mem_iff, rightSetOfLeft]
+    constructor
+    · rintro ⟨l, lm1, lm2⟩ l2 lm3
+      have lm4 := IsBiUnique.leftUnique lm3 lm2
+      rw [lm4]
+      exact lm1
+    · intro lm1
+      by_contra lm2
+      simp at lm2
+      conv at lm2 =>
+        ext
+        rw [imp_not_comm]
+      have lm3 l lm3_1 := lm2 l lm3_1 (lm1 l lm3_1)
+-/
+
+/-
+      have lm3 l lm4 := lm2 l (lm1 l lm4)
+      simp at lm3
+      simp [lm3] at lm1 lm2
+      revert lm3
+      simp
+-/
+
+
+
+theorem setOfLeftSet_eq_setOfRightSet_iff [IsBiUnique rel] {sl: Set αl} {sr: Set αr}
+  : (setOfLeftSet rel sl = setOfRightSet rel sr) ↔ ((∀l ∈ sl, ∃r ∈ sr, rel l r) ∧ (∀r ∈ sr, ∃l ∈ sl, rel l r)) := by
+  dsimp [setOfLeftSet, setOfRightSet]
+  simp [Set.ext_iff]
+  constructor
+  · intro lm1
+    refine ⟨?_, ?_⟩
+    · intro l lm2
+      specialize lm1 (.ofSum (.inl l))
+      simp [ofSum_eq_iff_sumEquivGen, sumEquivGen_inl_inl_iff, sumEquivGen_inl_inr_iff, lm2] at lm1
+      exact lm1
+    · intro r lm2
+      specialize lm1 (.ofSum (.inr r))
+      simp [ofSum_eq_iff_sumEquivGen, sumEquivGen_inr_inl_iff, sumEquivGen_inr_inr_iff, lm2] at lm1
+      exact lm1
+  · rintro ⟨lm1, lm2⟩ su
+    cases su using indOfSum
+    rename_i s
+    rcases s with ⟨l⟩ | ⟨r⟩
+    · simp [ofSum_eq_iff_sumEquivGen, sumEquivGen_inl_inl_iff, sumEquivGen_inl_inr_iff]
+      constructor
+      · exact lm1 l
+      · rintro ⟨r2, lm3, lm4⟩
+        specialize lm2 r2 lm3
+        rcases lm2 with ⟨l2, lm5, lm6⟩
+        have lm7 := IsBiUnique.leftUnique lm4 lm6
+        rw [lm7]
+        exact lm5
+    · simp [ofSum_eq_iff_sumEquivGen, sumEquivGen_inr_inl_iff, sumEquivGen_inr_inr_iff]
+      constructor
+      · rintro ⟨l2, lm3, lm4⟩
+        specialize lm1 l2 lm3
+        rcases lm1 with ⟨r2, lm5, lm6⟩
+        have lm7 := IsBiUnique.rightUnique lm4 lm6
+        rw [lm7]
+        exact lm5
+      · exact lm2 r
+
+
 
 
 section LeftRight
@@ -464,6 +649,62 @@ theorem inl_ofSum_rightD_eq_getD {dr: αr} {l: αl}
 -/
 
 end LeftRight
+
+
+def projectSetToLeftSet (s: Set (SumUnion rel)) : Set αl := { l: αl | .ofSum (.inl l) ∈ s }
+
+def projectSetToRightSet (s: Set (SumUnion rel)) : Set αr := { r: αr | .ofSum (.inr r) ∈ s }
+
+def projectLeftSetToRightSet (rel : αl → αr → Prop) : Set αl → Set αr := projectSetToRightSet ∘ (setOfLeftSet rel)
+
+def projectRightSetToLeftSet (rel : αl → αr → Prop) : Set αr → Set αl := projectSetToLeftSet ∘ (setOfRightSet rel)
+
+
+section ProjectSet
+
+
+theorem projectSetToLeftSet_setOfLeftSet_leftInverse [IsBiUnique rel] : Function.LeftInverse (projectSetToLeftSet) (setOfLeftSet rel) := by
+  intro sl
+  simp [projectSetToLeftSet, setOfLeftSet, ofSum_eq_iff_sumEquivGen, sumEquivGen_inl_inl_iff]
+
+theorem projectSetToRightSet_setOfRightSet_leftInverse [IsBiUnique rel] : Function.LeftInverse (projectSetToRightSet) (setOfRightSet rel) := by
+  intro sr
+  simp [projectSetToRightSet, setOfRightSet, ofSum_eq_iff_sumEquivGen, sumEquivGen_inr_inr_iff]
+
+theorem setOfLeftSet_injective [IsBiUnique rel] : Function.Injective (setOfLeftSet rel) := projectSetToLeftSet_setOfLeftSet_leftInverse.injective
+
+theorem setOfRightSet_injective [IsBiUnique rel] : Function.Injective (setOfRightSet rel) := projectSetToRightSet_setOfRightSet_leftInverse.injective
+
+
+variable {ssu: Set (SumUnion rel)} {sl: Set αl} {sr: Set αr}
+
+@[defeq]
+theorem projectSetToLeftSet_mem_eq_mem {l: αl} : (l ∈ projectSetToLeftSet ssu) = (.ofSum (.inl l) ∈ ssu) := by
+  dsimp [projectSetToLeftSet]
+
+@[defeq]
+theorem projectSetToRightSet_mem_eq_mem {r: αr} : (r ∈ projectSetToRightSet ssu) = (.ofSum (.inr r) ∈ ssu) := by
+  dsimp [projectSetToRightSet]
+
+@[defeq]
+theorem projectLeftSetToRightSet_mem_eq_mem {r: αr} : (r ∈ (projectLeftSetToRightSet rel sl)) = (.ofSum (.inr r) ∈ setOfLeftSet rel sl) := by
+  dsimp [projectLeftSetToRightSet, projectSetToRightSet_mem_eq_mem]
+
+@[defeq]
+theorem projectRightSetToLeftSet_mem_eq_mem {l: αl} : (l ∈ (projectRightSetToLeftSet rel sr)) = (.ofSum (.inl l) ∈ setOfRightSet rel sr) := by
+  dsimp [projectRightSetToLeftSet, projectSetToLeftSet_mem_eq_mem]
+
+theorem projectLeftSetToRightSet_mem_iff [IsBiUnique rel] {r: αr} : (r ∈ (projectLeftSetToRightSet rel sl)) ↔ (∃l, l ∈ sl ∧ rel l r) := by
+  dsimp [projectLeftSetToRightSet_mem_eq_mem]
+  simp [setOfLeftSet_mem_inr_iff_mem]
+
+theorem projectRightSetToLeftSet_mem_iff [IsBiUnique rel] {l: αl} : (l ∈ (projectRightSetToLeftSet rel sr)) ↔ (∃r, r ∈ sr ∧ rel l r) := by
+  dsimp [projectRightSetToLeftSet_mem_eq_mem]
+  simp [setOfRightSet_mem_inl_iff_mem]
+
+
+end ProjectSet
+
 
 
 def sigmaElimD [IsBiUnique rel] [HasPartialCongruence rel]
@@ -544,10 +785,10 @@ def piElim.{ue} [IsBiUnique rel] (βl: αl → Sort ue) (βr: αr → Sort ue)
                (req: ∀l r, (h: rel l r) → rel2 l r h (pi1 l) (pi2 r) → )
 -/
 
-def piElim.{ue} [IsBiUnique rel] {βl: αl → Type ue} {βr: αr → Type ue}
-                (pi1: (x: αl) → βl x) (pi2: (x: αr) → βr x)
-                (rel2: Sigma βl → Sigma βr → Prop) (req: ∀l r, rel l r → rel2 ⟨l, pi1 l⟩ ⟨r, pi2 r⟩)
-                (su: SumUnion rel) : SumUnion rel2 :=
+def piElim [IsBiUnique rel] {βl: αl → Type*} {βr: αr → Type*}
+            (pi1: (x: αl) → βl x) (pi2: (x: αr) → βr x)
+            (rel2: Sigma βl → Sigma βr → Prop) (req: ∀l r, rel l r → rel2 ⟨l, pi1 l⟩ ⟨r, pi2 r⟩)
+            (su: SumUnion rel) : SumUnion rel2 :=
   let sumFun : αl ⊕ αr → Sigma βl ⊕ Sigma βr
     | .inl l => .inl ⟨l, pi1 l⟩
     | .inr r => .inr ⟨r, pi2 r⟩
@@ -572,8 +813,7 @@ def piElim.{ue} [IsBiUnique rel] {βl: αl → Type ue} {βr: αr → Type ue}
 
 section PiElim
 
-universe ue
-variable [IsBiUnique rel] {βl: αl → Type ue} {βr: αr → Type ue}
+variable [IsBiUnique rel] {βl: αl → Type*} {βr: αr → Type*}
          {pi1: (x: αl) → βl x} {pi2: (x: αr) → βr x}
          {rel2: Sigma βl → Sigma βr → Prop} {req: ∀l r, rel l r → rel2 ⟨l, pi1 l⟩ ⟨r, pi2 r⟩}
 
@@ -601,15 +841,205 @@ theorem piElim_inr_eq_inl_iff {r: αr} {sl: Sigma βl}
 end PiElim
 
 
+def iSetElim [IsBiUnique rel] {β: Type*} (isl: αl → Set β) (isr: αr → Set β)
+             (req: ∀l r b, rel l r → (b ∈ isl l ↔ b ∈ isr r))
+             (su: SumUnion rel) : Set β :=
+  su.funElim isl isr (by
+    intro l r lm1
+    refine Set.ext ?_
+    intro b
+    exact req l r b lm1)
+
+/-
+def ISetRel {βl βr: Type*} (rel: αl → αr → Prop) (isl: αl → Set βl) (isr: αr → Set βr) (bl: βl) (br: βr) : Prop :=
+  ∀⦃l r⦄, rel l r → (bl ∈ isl l ↔ br ∈ isr r)
+-/
+
+def iSetElim₂ [IsBiUnique rel] {βl βr: Type*} (rel2: βl → βr → Prop) (isl: αl → Set βl) (isr: αr → Set βr)
+              (req: ∀l r, rel l r → setOfLeftSet rel2 (isl l) = setOfRightSet rel2 (isr r))
+              (su: SumUnion rel) : Set (SumUnion rel2) :=
+  su.funElim ((setOfLeftSet rel2) ∘ isl) ((setOfRightSet rel2) ∘ isr) req
+
+/-
+  su.iSetElim ((setOfLeftSet rel2) ∘ isl) ((setOfRightSet rel2) ∘ isr) (by
+    intro l r su2 lm1
+    cases su2 using indOfSum
+    rename_i s2
+    rcases s2 with ⟨l2⟩ | ⟨r2⟩
+    · simp [setOfLeftSet_mem_inl_iff_mem, setOfRightSet_mem_inl_iff_mem]
+-/
+      --· simp at lm2
+
+
+/-
+    · simp [setOfLeftSet_mem_inl_iff_mem, setOfRightSet_mem_inl_iff_mem]
+      specialize req l r l2
+      by_cases lm2: ∃r2, rel2 l2 r2
+      · rcases lm2 with ⟨r2, lm2⟩
+        specialize req r2 lm1 lm2
+        refine Iff.trans req ?_
+        constructor
+        · intro lm3
+          exists r2
+        · rintro ⟨r2_1, lm3, lm4⟩
+          have lm5 := IsBiUnique.rightUnique lm2 lm4
+          rw [lm5]
+          exact lm3
+      · simp at lm2
+        simp [lm2]
+        intro lm3
+        have lm4 br := req br lm1
+        simp [lm3] at lm4
+-/
+
 end SumUnion
 
-
+/-
 inductive OptionSigmaRelGen {αl αr: Type*} {βl: αl → Sort*} {βr: αr → Sort*}
   (rel: (l: αl) → (r: αr) → (βl l) → (βr r) → Prop)
   : (l?: Option αl) → (r?: Option αr) → l?.elim PUnit βl → r?.elim PUnit βr → Prop where
   | intro (al: αl) (ar: αr) (bl: βl al) (br: βr ar) (req: rel al ar bl br) : OptionSigmaRelGen rel (.some al) (.some ar) bl br
+-/
+namespace AreEquivSetOnRel
+
+open SumUnion
+
+theorem of_projectLeftSetToRightSet (rel : αl → αr → Prop) [IsBiUnique rel] (sl: Set αl) : AreEquivSetOnRel rel sl (projectLeftSetToRightSet rel sl) := by
+  refine .of_forall_rel_iff rel ?_
+  intro l r lm1
+  simp [projectLeftSetToRightSet, setOfLeftSet, projectSetToRightSet, ofSum_eq_iff_sumEquivGen, sumEquivGen_inr_inl_iff]
+  constructor
+  · intro lm2
+    exists l
+  · rintro ⟨l2, lm2, lm3⟩
+    have lm4 := IsBiUnique.leftUnique lm1 lm3
+    rw [lm4]
+    exact lm2
+
+theorem of_projectRightSetToLeftSet (rel : αl → αr → Prop) [IsBiUnique rel] (sr: Set αr) : AreEquivSetOnRel rel (projectRightSetToLeftSet rel sr) sr := by
+  refine .of_forall_rel_iff rel ?_
+  intro l r lm1
+  simp [projectRightSetToLeftSet, setOfRightSet, projectSetToLeftSet, ofSum_eq_iff_sumEquivGen, sumEquivGen_inl_inr_iff]
+  constructor
+  · rintro ⟨r2, lm2, lm3⟩
+    have lm4 := IsBiUnique.rightUnique lm1 lm3
+    rw [lm4]
+    exact lm2
+  · intro lm2
+    exists r
+
+theorem projectLeftSetToRightSet_eq_projectRightSetToLeftSet [IsBiUnique rel] {sl: Set αl} {sr: Set αr} (h: AreEquivSetOnRel rel sl sr)
+  : setOfRightSet rel (projectLeftSetToRightSet rel sl) = setOfLeftSet rel (projectRightSetToLeftSet rel sr) := by
+  dsimp [projectLeftSetToRightSet, projectRightSetToLeftSet]
+  have lm1 := h.forall_rel_iff
+  refine Set.ext ?_
+  intro su
+  cases su using indOfSum
+  rename_i s
+  simp [setOfLeftSet, setOfRightSet, projectSetToLeftSet, projectSetToRightSet] --ofSum_eq_iff_sumEquivGen, sumEquivGen_inr_inl_iff, sumEquivGen_inl_inr_iff
+  rcases s with ⟨l⟩ | ⟨r⟩
+  <;> simp [ofSum_eq_iff_sumEquivGen, sumEquivGen_inr_inl_iff, sumEquivGen_inl_inr_iff]
+  · simp [sumEquivGen_inl_inl_iff]
+    constructor
+    · rintro ⟨r, lm2, lm3⟩
+      specialize lm1 l r lm3
+      rcases lm2 with ⟨l2, lm2, lm4⟩
+      have lm5 := IsBiUnique.leftUnique lm3 lm4
+      subst lm5
+      exists r
+      refine ⟨?_, lm4⟩
+      exact lm1.mp lm2
+    · rintro ⟨r, lm2, lm3⟩
+      specialize lm1 l r lm3
+      simp [lm2] at lm1
+      exists r
+      refine ⟨?_, ?_⟩
+      · exists l
+      · exact lm3
+  · simp [sumEquivGen_inr_inr_iff]
+    constructor
+    · rintro ⟨l, lm2, lm3⟩
+      specialize lm1 l r lm3
+      simp [lm2] at lm1
+      exists l
+      refine ⟨?_, ?_⟩
+      · exists r
+      · exact lm3
+    · rintro ⟨l, lm2, lm3⟩
+      specialize lm1 l r lm3
+      rcases lm2 with ⟨r2, lm2, lm4⟩
+      have lm5 := IsBiUnique.rightUnique lm3 lm4
+      subst lm5
+      exists l
+      refine ⟨?_, lm4⟩
+      exact lm1.mpr lm2
 
 
+
+
+
+end AreEquivSetOnRel
+
+namespace SumUnion
+
+theorem setOfLeftSet_eq_setElim [IsBiUnique rel] {sl: Set αl} : setOfLeftSet rel sl = setElim rel sl (projectLeftSetToRightSet rel sl) ((AreEquivSetOnRel.of_projectLeftSetToRightSet rel sl).forall_rel_iff) := by
+  refine Set.ext ?_
+  intro su
+  cases su using indOfSum
+  rename_i s
+  rcases s with ⟨l⟩ | ⟨r⟩
+  · simp [setOfLeftSet_mem_inl_iff_mem, setElim_mem_iff]
+  · simp [setElim_mem_iff, projectLeftSetToRightSet, setOfLeftSet, projectSetToRightSet]
+
+theorem setOfRightSet_eq_setElim [IsBiUnique rel] {sr: Set αr} : setOfRightSet rel sr = setElim rel (projectRightSetToLeftSet rel sr) sr ((AreEquivSetOnRel.of_projectRightSetToLeftSet rel sr).forall_rel_iff) := by
+  refine Set.ext ?_
+  intro su
+  cases su using indOfSum
+  rename_i s
+  rcases s with ⟨l⟩ | ⟨r⟩
+  · simp [setElim_mem_iff, projectRightSetToLeftSet, setOfRightSet, projectSetToLeftSet]
+  · simp [setOfRightSet_mem_inr_iff_mem, setElim_mem_iff]
+
+
+end SumUnion
+
+open SumUnion in
+def SetRelGen (rel: αl → αr → Prop) (sl: Set αl) (sr: Set αr) : Prop := setOfLeftSet rel sl = setOfRightSet rel sr
+
+section SetRelGenSection
+
+open SumUnion
+
+@[defeq]
+theorem setRelGen_def {sl: Set αl} {sr: Set αr} : SetRelGen rel sl sr = (setOfLeftSet rel sl = setOfRightSet rel sr) := rfl
+
+/-
+theorem setRelGen_iff [IsBiUnique rel] {sl: Set αl} {sr: Set αr} : SetRelGen rel sl sr ↔ (∀l r, (rel l r) → (l ∈ sl ↔ r ∈ sr)) := by
+  dsimp [setRelGen_def]
+  simp [Set.ext_iff, setOfLeftSet_eq_setElim, setOfRightSet_eq_setElim, projectLeftSetToRightSet, projectRightSetToLeftSet]
+  constructor
+  · intro lm1 l r
+    have lm2 := lm1 (.ofSum (.inl l))
+    have lm3 := lm1 (.ofSum (.inr r))
+    simp [setElim_mem_iff] at lm2 lm3
+    simp [projectSetToLeftSet, setOfRightSet, ofSum_eq_iff_sumEquivGen, sumEquivGen_inl_inr_iff] at lm2
+    simp [projectSetToRightSet, setOfLeftSet, ofSum_eq_iff_sumEquivGen, sumEquivGen_inr_inl_iff] at lm3
+    intro lm4
+    constructor
+    · intro lm5
+      refine lm3.mp ?_
+      exists l
+    · intro lm5
+      refine lm2.mpr ?_
+      exists r
+  · intro lm1 su
+    cases su using indOfSum
+    rename_i s
+    rcases s with ⟨l⟩ | ⟨r⟩
+    · simp [setElim_mem_iff]
+-/
+
+end SetRelGenSection
 
 end Nemonuri.Relations.Heterogeneous
 
