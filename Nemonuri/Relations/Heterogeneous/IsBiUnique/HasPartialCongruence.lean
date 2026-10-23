@@ -58,6 +58,26 @@ def rightOfRel? (rel: αl → αr → Prop) [HasPartialCongruence rel] (l: αl) 
 
 def leftOfRel? (rel: αl → αr → Prop) [HasPartialCongruence rel] (r: αr) : Option αl := (PartialCongruence.ofRel rel).left? r
 
+theorem isPartialCongruence_of_rel (rel: αl → αr → Prop) [i: HasPartialCongruence rel] : IsPartialCongruence (i.partialCongruence.toStruct) rel := i.partialCongruence.valid
+
+
+theorem rightOfRel?_eq_some_iff_rel {rel: αl → αr → Prop} [HasPartialCongruence rel] {l: αl} {r: αr}
+  : (HasPartialCongruence.rightOfRel? rel l = .some r) ↔ rel l r := by
+  have lm1 := isPartialCongruence_of_rel rel
+  dsimp [rightOfRel?, PartialCongruence.ofRel]
+  exact lm1.right?_eq_some_iff_rel _ _
+
+theorem leftOfRel?_eq_some_iff_rel {rel: αl → αr → Prop} [HasPartialCongruence rel] {l: αl} {r: αr}
+  : (HasPartialCongruence.leftOfRel? rel r = .some l) ↔ rel l r := by
+  have lm1 := isPartialCongruence_of_rel rel
+  dsimp [leftOfRel?, PartialCongruence.ofRel]
+  exact lm1.left?_eq_some_iff_rel _ _
+
+
+def rightOfRel (rel: αl → αr → Prop) [HasPartialCongruence rel] (l: αl) (req: ∃r, rel l r) : αr := (isPartialCongruence_of_rel rel).right l req
+
+def leftOfRel (rel: αl → αr → Prop) [HasPartialCongruence rel] (r: αr) (req: ∃l, rel l r) : αl := (isPartialCongruence_of_rel rel).left r req
+
 end HasPartialCongruence
 
 

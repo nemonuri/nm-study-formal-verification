@@ -267,13 +267,91 @@ theorem isSubIntersection_iff_forall_mem_exists_rel [IsBiUnique rel] {sus: Set (
     specialize lm1 lm2
     simpa using lm1
 
-/-
-theorem isSubIntersection_left_iff [IsBiUnique rel] {sl: Set αl} : IsSubIntersection (setOfLeftSet rel sl) := by
-  simp [isSubIntersection_iff_forall_mem_exists_rel]
--/
-  --intro su lm1
-  --dsimp [setOfLeftSet] at lm1
+theorem isSubIntersection_setOfLeftSet_iff_forall_mem_rel_exists [IsBiUnique rel] {sl: Set αl}
+  : IsSubIntersection (setOfLeftSet rel sl) ↔ (∀l ∈ sl, ∃r, rel l r) := by
+  constructor
+  · intro lm1 l lm2
+    have lm3 := lm1.forall_mem_rel_exists_of_setOfLeftSet l lm2
+    rcases lm3 with ⟨r, lm3, lm4⟩
+    exists r
+  · intro lm1
+    simp [isSubIntersection_iff_forall_mem_exists_rel]
+    intro su lm2
+    dsimp [setOfLeftSet] at lm2
+    rcases lm2 with ⟨l, lm2, lm3⟩
+    subst lm3
+    refine ⟨?_, ?_⟩
+    · exists l
+    · specialize lm1 l lm2
+      rcases lm1 with ⟨r, lm1⟩
+      exists r
+      simp [ofSum_eq_iff_sumEquivGen, sumEquivGen_inl_inr_iff]
+      exact lm1
 
+theorem isSubIntersection_setOfRightSet_iff_forall_mem_rel_exists [IsBiUnique rel] {sr: Set αr}
+  : IsSubIntersection (setOfRightSet rel sr) ↔ (∀r ∈ sr, ∃l, rel l r) := by
+  constructor
+  · intro lm1 r lm2
+    have lm3 := lm1.forall_mem_rel_exists_of_setOfRightSet r lm2
+    rcases lm3 with ⟨l, lm3, lm4⟩
+    exists l
+  · intro lm1
+    simp [isSubIntersection_iff_forall_mem_exists_rel]
+    intro su lm2
+    dsimp [setOfRightSet] at lm2
+    rcases lm2 with ⟨r, lm2, lm3⟩
+    subst lm3
+    refine ⟨?_, ?_⟩
+    · specialize lm1 r lm2
+      rcases lm1 with ⟨l, lm1⟩
+      exists l
+      simp [ofSum_eq_iff_sumEquivGen, sumEquivGen_inr_inl_iff]
+      exact lm1
+    · exists r
+
+namespace IsSubIntersection
+
+variable {sl: Set αl} {sr: Set αr}
+
+theorem of_projectLeftSetToRightSet_eq [IsBiUnique rel] (req: projectLeftSetToRightSet rel sl = sr) : IsSubIntersection (setOfRightSet rel sr) := by
+  rewrite [Set.ext_iff] at req
+  simp [projectLeftSetToRightSet_mem_iff] at req
+  refine isSubIntersection_setOfRightSet_iff_forall_mem_rel_exists.mpr ?_
+  intro r lm1
+  rcases (req r).mpr lm1 with ⟨l, lm2, lm3⟩
+  exists l
+
+theorem of_projectRightSetToLeftSet_eq [IsBiUnique rel] (req: projectRightSetToLeftSet rel sr = sl) : IsSubIntersection (setOfLeftSet rel sl) := by
+  rewrite [Set.ext_iff] at req
+  simp [projectRightSetToLeftSet_mem_iff] at req
+  refine isSubIntersection_setOfLeftSet_iff_forall_mem_rel_exists.mpr ?_
+  intro l lm1
+  rcases (req l).mpr lm1 with ⟨r, lm2, lm3⟩
+  exists r
+
+end IsSubIntersection
+
+
+/-
+theorem forall_mem_rel_exists_of_setOfLeftSet [IsBiUnique rel] {sl: Set αl} (h: IsSubIntersection (setOfLeftSet rel sl)) : ∀l ∈ sl, ∃r ∈ (projectLeftSetToRightSet rel sl), rel l r := by
+  intro l lm1
+  have lm2 := h.right_mem_and_rel_of_left_mem l
+  simp [setOfLeftSet_mem_inl_iff_mem] at lm2
+  specialize lm2 lm1
+  rcases lm2 with ⟨r, lm2, lm3⟩
+  dsimp [projectLeftSetToRightSet_mem_eq_mem]
+  exists r
+
+
+theorem forall_mem_rel_exists_of_setOfRightSet [IsBiUnique rel] {sr: Set αr} (h: IsSubIntersection (setOfRightSet rel sr)) : ∀r ∈ sr, ∃l ∈ (projectRightSetToLeftSet rel sr), rel l r := by
+  intro r lm1
+  have lm2 := h.left_mem_and_rel_of_right_mem r
+  simp [setOfRightSet_mem_inr_iff_mem] at lm2
+  specialize lm2 lm1
+  rcases lm2 with ⟨l, lm2, lm3⟩
+  dsimp [projectRightSetToLeftSet_mem_eq_mem]
+  exists l
+-/
 
 
 def SetHEq (rel: αl → αr → Prop) (sl: Set αl) (sr: Set αr) : Prop := setOfLeftSet rel sl = setOfRightSet rel sr
@@ -379,86 +457,23 @@ theorem rightUnique_of_rel (rel: αl → αr → Prop) [IsBiUnique rel] : Relato
   have lm4 := IsSubIntersection.projectRightSetToLeftSet_injOn_of_rel rel lm1.isSubIntersection_right lm2.isSubIntersection_right
   exact lm4 lm3
 
-protected instance isBiUnique (rel: αl → αr → Prop) [IsBiUnique rel] : IsBiUnique (SetHEq rel) where
-  biUnique := ⟨leftUnique_of_rel rel, rightUnique_of_rel rel⟩
-
 end SetHEq
 
---theorem setHEq_iff_projectLeftSetToRightSet_eq [IsBiUnique rel] : (SetHEq rel sl sr) ↔ (projectLeftSetToRightSet rel sl = sr)
-
-
-/-
-theorem setHEq_iff_isSubIntersection_left [IsBiUnique rel] : (SetHEq rel sl sr) ↔ IsSubIntersection (setOfLeftSet rel sl) := by
+theorem setHEq_iff_eq_and_eq [IsBiUnique rel] : (SetHEq rel sl sr) ↔ (projectLeftSetToRightSet rel sl = sr ∧ projectRightSetToLeftSet rel sr = sl) := by
   constructor
   · intro lm1
-    exact lm1.isSubIntersection_left
-  · intro lm1
-    have lm2 := lm1.forall_exists_rel_of_mem
-    dsimp [setHEq_def]
-    refine Set.ext ?_
-    intro su
-    cases su using indOfSum
-    rename_i s
-    rcases s with ⟨l⟩ | ⟨r⟩
-    · constructor
-      · intro lm3
-        simp [setOfRightSet_mem_inl_iff_mem]
-        have lm4 := lm1.right_mem_and_rel_of_left_mem l lm3
-        simp [setOfLeftSet_mem_inr_iff_mem] at lm4
-        rcases lm4 with ⟨r, lm4, lm5⟩
-        exists r
--/
-/-
-        have lm5 := lm2 (.ofSum (.inl l)) lm4
-        simp [ofSum_eq_iff_sumEquivGen, sumEquivGen_inl_inl_iff, sumEquivGen_inl_inr_iff] at lm5
-        rcases lm5 with ⟨r, lm5⟩
-        replace lm3 := lm3.mp ⟨_, lm4⟩
-        rcases lm3 with ⟨r2, lm3⟩
--/
-/-
-        replace lm3 := lm3.mp ⟨_, lm4⟩
-        rcases lm3 with ⟨r, lm3⟩
-        specialize lm2 (.ofSum (.inr r)) lm3
--/
-        --simp [ofSum_eq_iff_sumEquivGen, sumEquivGen_inr_inl_iff, sumEquivGen_inr_inr_iff] at lm2
-        --simp [setOfLeftSet_mem_inr_iff_mem] at lm3
-/-
-    specialize lm2 su
+    refine ⟨?_, ?_⟩
+    · exact lm1.projectLeftSetToRightSet_eq
+    · exact lm1.projectRightSetToLeftSet_eq
+  · rintro ⟨lm1, lm2⟩
+    have lm3 := IsSubIntersection.of_projectLeftSetToRightSet_eq lm1
+    have lm4 := SetHEq.of_isSubIntersection_right lm3
+    rewrite [lm2] at lm4
+    exact lm4
 
-    constructor
-    · intro lm4
-      specialize lm2 lm4
-      rcases s with ⟨l⟩ | ⟨r⟩
-      · replace lm3 := lm3.mp ⟨_, lm4⟩
-        rcases lm3 with ⟨r, lm3⟩
-        simp [ofSum_eq_iff_sumEquivGen, sumEquivGen_inl_inl_iff, sumEquivGen_inl_inr_iff] at lm2
-        simp [setOfLeftSet_mem_inl_iff_mem] at lm4
-        simp [setOfLeftSet_mem_inr_iff_mem] at lm3
-        simp [setOfRightSet_mem_inl_iff_mem]
--/
-/-
-    rcases s with ⟨l⟩ | ⟨r⟩ --simp [setOfLeftSet_mem_inl_iff_mem, setOfRightSet_mem_inl_iff_mem]
-    · constructor
-      · intro lm2
-        specialize lm1 (.ofSum (.inl l)) lm2
-        simp [ofSum_eq_iff_sumEquivGen, sumEquivGen_inl_inl_iff, sumEquivGen_inl_inr_iff] at lm1
-        simp [setOfRightSet_mem_inl_iff_mem]
-        simp [setoflefs]
--/
-    --rewrite [isSubIntersection_iff_forall_mem_exists_rel] at lm1
-/-
-    dsimp [setHEq_def]
-    refine Set.ext ?_
-    intro su
-    specialize lm1 su
-    constructor
-    · intro lm2
-      specialize lm1 lm2
-      dsimp [setOfLeftSet] at lm2
-      dsimp [setOfRightSet]
--/
 
 end SetHEqSection
+
 
 end SumUnion
 

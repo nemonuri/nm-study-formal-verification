@@ -225,17 +225,6 @@ theorem rel_of_right?_eq_some (h: IsPartialCongruence pcs rel) {l: αl} {r: αr}
 theorem rel_of_left?_eq_some (h: IsPartialCongruence pcs rel) {l: αl} {r: αr} (req: pcs.left? r = .some l) : rel l r :=
   (h.left?_eq_some_iff_rel _ _).mp req
 
-/-
-theorem not_rel_of_right?_eq_none (h: IsPartialCongruence pcs rel) {l: αl} (req: pcs.right? l = .none) (r: αr) : ¬rel l r := by
-  intro lm1
-  have lm2 := h.right?_eq_some_of_rel lm1
-  simp [lm2] at req
-
-theorem not_rel_of_left?_eq_none (h: IsPartialCongruence pcs rel) {r: αr} (req: pcs.left? r = .none) (l: αl) : ¬rel l r := by
-  intro lm1
-  have lm2 := h.left?_eq_some_of_rel lm1
-  simp [lm2] at req
--/
 
 
 theorem right?_eq_some_iff_left?_eq_some (h: IsPartialCongruence pcs rel) {l: αl} {r: αr} : (pcs.right? l = .some r) ↔ (pcs.left? r = .some l) :=
@@ -282,6 +271,23 @@ theorem biUnique_rel (h: IsPartialCongruence pcs rel) : Relator.BiUnique rel := 
     exact @h.right_unique_rel
 
 
+theorem right?_isSome_true_iff (h: IsPartialCongruence pcs rel) {l: αl} : ((pcs.right? l).isSome = .true) ↔ ∃r, rel l r := by
+  rw [Option.isSome_iff_exists]
+  simp [h.right?_eq_some_iff_rel]
+
+theorem left?_isSome_true_iff (h: IsPartialCongruence pcs rel) {r: αr} : ((pcs.left? r).isSome = .true) ↔ ∃l, rel l r := by
+  rw [Option.isSome_iff_exists]
+  simp [h.left?_eq_some_iff_rel]
+
+def right (h: IsPartialCongruence pcs rel) (l: αl) (req: ∃r, rel l r) : αr := (pcs.right? l).get (h.right?_isSome_true_iff.mpr req)
+
+def left (h: IsPartialCongruence pcs rel) (r: αr) (req: ∃l, rel l r) : αl := (pcs.left? r).get (h.left?_isSome_true_iff.mpr req)
+
+theorem right?_eq_right_some (h: IsPartialCongruence pcs rel) {l: αl} (req: ∃r, rel l r) : pcs.right? l = .some (h.right l req) := by
+  simp [right]
+
+theorem left?_eq_left_some (h: IsPartialCongruence pcs rel) {r: αr} (req: ∃l, rel l r) : pcs.left? r = .some (h.left r req) := by
+  simp [left]
 
 end IsPartialCongruence
 

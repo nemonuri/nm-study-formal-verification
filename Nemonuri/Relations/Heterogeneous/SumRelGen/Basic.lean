@@ -359,6 +359,19 @@ theorem ofSum_eq_iff_sumEquivGen {s1 s2: (αl ⊕ αr)} : ((ofSum s1: SumUnion r
   · intro lm1
     exact Quotient.sound lm1
 
+@[elab_as_elim]
+theorem indInlInrOfSum
+  {motive: SumUnion rel → Prop}
+  (inl: (l: αl) → motive (.ofSum (.inl l)))
+  (inr: (r: αr) → motive (.ofSum (.inr r)))
+  (t: SumUnion rel)
+  : motive t := by
+  cases t using indOfSum
+  rename_i s
+  rcases s with ⟨l⟩ | ⟨r⟩
+  · exact inl l
+  · exact inr r
+
 
 def areEq [DecidableEq αl] [DecidableEq αr] [DecidableRel rel] [IsBiUnique rel] (su1 su2: SumUnion rel) : Bool :=
   su1.liftOfSumOn₂ su2 (areEqSumOrRel rel) (by
@@ -490,6 +503,10 @@ theorem inr_eq_inl_iff_rel [IsBiUnique rel] {l: αl} {r: αr} : ((.ofSum (.inr r
 theorem inl_ofSum_injective [IsBiUnique rel] : Function.Injective ((SumUnion.ofSum ∘ Sum.inl): αl → SumUnion rel) := by
   intro l1 l2
   simp [ofSum_eq_iff_sumEquivGen, sumEquivGen_inl_inl_iff]
+
+theorem inr_ofSum_injective [IsBiUnique rel] : Function.Injective ((SumUnion.ofSum ∘ Sum.inr): αr → SumUnion rel) := by
+  intro r1 r2
+  simp [ofSum_eq_iff_sumEquivGen, sumEquivGen_inr_inr_iff]
 
 theorem setOfLeftSet_mem_inl_iff_mem [IsBiUnique rel] {sl: Set αl} {l: αl} : (.ofSum (.inl l) ∈ setOfLeftSet rel sl) ↔ (l ∈ sl) := by
   simp [setOfLeftSet, ofSum_eq_iff_sumEquivGen, sumEquivGen_iff]
@@ -855,10 +872,7 @@ def ISetRel {βl βr: Type*} (rel: αl → αr → Prop) (isl: αl → Set βl) 
   ∀⦃l r⦄, rel l r → (bl ∈ isl l ↔ br ∈ isr r)
 -/
 
-def iSetElim₂ [IsBiUnique rel] {βl βr: Type*} (rel2: βl → βr → Prop) (isl: αl → Set βl) (isr: αr → Set βr)
-              (req: ∀l r, rel l r → setOfLeftSet rel2 (isl l) = setOfRightSet rel2 (isr r))
-              (su: SumUnion rel) : Set (SumUnion rel2) :=
-  su.funElim ((setOfLeftSet rel2) ∘ isl) ((setOfRightSet rel2) ∘ isr) req
+
 
 /-
   su.iSetElim ((setOfLeftSet rel2) ∘ isl) ((setOfRightSet rel2) ∘ isr) (by
