@@ -78,6 +78,65 @@ def rightOfRel (rel: αl → αr → Prop) [HasPartialCongruence rel] (l: αl) (
 
 def leftOfRel (rel: αl → αr → Prop) [HasPartialCongruence rel] (r: αr) (req: ∃l, rel l r) : αl := (isPartialCongruence_of_rel rel).left r req
 
+section HEqSection
+
+variable {rel: αl → αr → Prop} [HasPartialCongruence rel]
+
+
+variable (rel) in
+def areHEqOnLeft [DecidableEq αl] (l: αl) (r: αr) : Bool :=
+  match HasPartialCongruence.leftOfRel? rel r with
+  | .some v => decide (l = v)
+  | .none => .false
+
+
+variable (rel) in
+def areHEqOnRight [DecidableEq αr] (l: αl) (r: αr) : Bool :=
+  match HasPartialCongruence.rightOfRel? rel l with
+  | .some v => decide (r = v)
+  | .none => .false
+
+
+theorem areHEqOnLeft_eq_true_iff [IsBiUnique rel] [DecidableEq αl] {l: αl} {r: αr} : (areHEqOnLeft rel l r = .true) ↔ rel l r := by
+  dsimp [areHEqOnLeft]
+  split <;> (rename_i lm1; simp)
+  · rename_i v
+    simp [HasPartialCongruence.leftOfRel?_eq_some_iff_rel] at lm1
+    constructor
+    · intro lm2
+      subst lm2
+      exact lm1
+    · intro lm2
+      exact IsBiUnique.leftUnique lm2 lm1
+  · simp [Option.eq_none_iff_forall_ne_some, HasPartialCongruence.leftOfRel?_eq_some_iff_rel] at lm1
+    exact lm1 l
+
+
+theorem areHEqOnRight_eq_true_iff [IsBiUnique rel] [DecidableEq αr] {l: αl} {r: αr} : (areHEqOnRight rel l r = .true) ↔ rel l r := by
+  dsimp [areHEqOnRight]
+  split <;> (rename_i lm1; simp)
+  · rename_i v
+    simp [HasPartialCongruence.rightOfRel?_eq_some_iff_rel] at lm1
+    constructor
+    · intro lm2
+      subst lm2
+      exact lm1
+    · intro lm2
+      exact IsBiUnique.rightUnique lm2 lm1
+  · simp [Option.eq_none_iff_forall_ne_some, HasPartialCongruence.rightOfRel?_eq_some_iff_rel] at lm1
+    exact lm1 r
+
+variable (rel) in
+@[reducible]
+def decidableRelOnLeft [IsBiUnique rel] [DecidableEq αl] : DecidableRel rel := fun _ _ => decidable_of_decidable_of_iff areHEqOnLeft_eq_true_iff
+
+variable (rel) in
+@[reducible]
+def decidableRelOnRight [IsBiUnique rel] [DecidableEq αr] : DecidableRel rel := fun _ _ => decidable_of_decidable_of_iff areHEqOnRight_eq_true_iff
+
+end HEqSection
+
+
 end HasPartialCongruence
 
 

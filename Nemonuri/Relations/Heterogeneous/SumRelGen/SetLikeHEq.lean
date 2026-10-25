@@ -35,7 +35,32 @@ theorem rightUnique_of (rel: αl → αr → Prop) [IsBiUnique rel] (Sαl Sαr: 
   have lm3 := SetHEq.rightUnique_of_rel rel lm1 lm2
   simpa using lm3
 
+
+variable [IsBiUnique rel] {Sαl Sαr: Type*} [SetLike Sαl αl] [SetLike Sαr αr]
+
+theorem projectLeftSetToRightSet_eq {sal: Sαl} {sar: Sαr} (h: SetLikeHEq rel Sαl Sαr ↑sal ↑sar) : projectLeftSetToRightSet rel ↑sal = ↑sar := by
+  dsimp [setLikeHEq_def] at h
+  exact h.projectLeftSetToRightSet_eq
+
+theorem projectRightSetToLeftSet_eq {sal: Sαl} {sar: Sαr} (h: SetLikeHEq rel Sαl Sαr ↑sal ↑sar) : projectRightSetToLeftSet rel ↑sar = ↑sal := by
+  dsimp [setLikeHEq_def] at h
+  exact h.projectRightSetToLeftSet_eq
+
+
 end SetLikeHEq
+
+theorem setLikeHEq_iff_eq_and_eq [IsBiUnique rel] {Sαl Sαr: Type*} [SetLike Sαl αl] [SetLike Sαr αr] {sal: Sαl} {sar: Sαr}
+  : (SetLikeHEq rel Sαl Sαr ↑sal ↑sar) ↔ (projectLeftSetToRightSet rel ↑sal = ↑sar ∧ projectRightSetToLeftSet rel ↑sar = ↑sal) := by
+  simp only [setLikeHEq_def, setHEq_iff_eq_and_eq]
+
+/-
+theorem setLikeHEq_iff [IsBiUnique rel] {Sαl Sαr: Type*} [SetLike Sαl αl] [SetLike Sαr αr] {sal: Sαl} {sar: Sαr}
+  : (SetLikeHEq rel Sαl Sαr ↑sal ↑sar) := by
+  dsimp [setLikeHEq_def, setHEq_def]
+  simp [Set.ext_iff]
+  intro su
+  simp [setOfLeftSet, setOfRightSet]
+-/
 
 end SumUnion
 

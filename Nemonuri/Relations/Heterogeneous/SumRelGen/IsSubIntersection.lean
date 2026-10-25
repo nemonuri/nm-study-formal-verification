@@ -471,6 +471,35 @@ theorem setHEq_iff_eq_and_eq [IsBiUnique rel] : (SetHEq rel sl sr) ↔ (projectL
     rewrite [lm2] at lm4
     exact lm4
 
+theorem setHEq_iff_forall_iff : (SetHEq rel sl sr) ↔ (∀(su: SumUnion rel), (∃l ∈ sl, su = .ofSum (.inl l)) ↔ (∃r ∈ sr, su = .ofSum (.inr r))) := by
+  dsimp [setHEq_def]
+  rw [Set.ext_iff]
+  dsimp [setOfLeftSet, setOfRightSet]
+  rfl
+
+theorem setHEq_iff_forall_iff_and_forall_iff [IsBiUnique rel] : (SetHEq rel sl sr) ↔ ((∀l, ((l ∈ sl) ↔ (∃r ∈ sr, rel l r))) ∧ (∀r, ((r ∈ sr) ↔ (∃l ∈ sl, rel l r)))) := by
+  rw [setHEq_iff_forall_iff]
+  constructor
+  · intro lm1
+    refine ⟨?_, ?_⟩
+    · intro l
+      specialize lm1 (.ofSum (.inl l))
+      simp [ofSum_eq_iff_sumEquivGen, sumEquivGen_inl_inl_iff, sumEquivGen_inl_inr_iff] at lm1
+      exact lm1
+    · intro r
+      specialize lm1 (.ofSum (.inr r))
+      simp [ofSum_eq_iff_sumEquivGen, sumEquivGen_inr_inl_iff, sumEquivGen_inr_inr_iff] at lm1
+      exact lm1.symm
+  · rintro ⟨lm1, lm2⟩
+    intro su
+    cases su using indInlInrOfSum
+    · rename_i l
+      simp [ofSum_eq_iff_sumEquivGen, sumEquivGen_inl_inl_iff, sumEquivGen_inl_inr_iff]
+      exact lm1 l
+    · rename_i r
+      simp [ofSum_eq_iff_sumEquivGen, sumEquivGen_inr_inl_iff, sumEquivGen_inr_inr_iff]
+      exact (lm2 r).symm
+
 
 end SetHEqSection
 

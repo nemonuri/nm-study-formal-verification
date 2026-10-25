@@ -45,8 +45,6 @@ theorem setHEq_leftOfRel?_eq_some_projectRightSetToLeftSet {sr: Set αr} (h: IsS
 
 end SetSection
 
-variable {Sαl Sαr: Type*} [SetLike Sαl αl] [SetLike Sαr αr] [HasPartialCongruence (SetLikeHEq rel Sαl Sαr)]
-
 /-
 theorem setLikeHEq_rightOfRel?_eq_some_projectLeftSetToRightSet {sal: Sαl} (h: IsSubIntersection (setOfLeftSet rel ↑sal))
   : (HasPartialCongruence.rightOfRel? (SetLikeHEq rel Sαl Sαr) sal).map (SetLike.coe) = .some (projectLeftSetToRightSet rel ↑sal) := by
@@ -56,11 +54,16 @@ theorem setLikeHEq_rightOfRel?_eq_some_projectLeftSetToRightSet {sal: Sαl} (h: 
 end IsSubIntersection
 
 
+namespace SetLikeHEq
+
+variable {Sαl Sαr: Type*} [SetLike Sαl αl] [SetLike Sαr αr] [HasPartialCongruence (SetLikeHEq rel Sαl Sαr)]
 
 
+instance [IsBiUnique rel] [DecidableEq Sαl] : DecidableRel (SetLikeHEq rel Sαl Sαr) := HasPartialCongruence.decidableRelOnLeft (SetLikeHEq rel Sαl Sαr)
 
+instance [IsBiUnique rel] [DecidableEq Sαr] : DecidableRel (SetLikeHEq rel Sαl Sαr) := HasPartialCongruence.decidableRelOnRight (SetLikeHEq rel Sαl Sαr)
 
---def isSetHEq {Sαl Sαr: Type*} [SetLike Sαl αl] [SetLike Sαr αr]
+end SetLikeHEq
 
 
 end SumUnion
