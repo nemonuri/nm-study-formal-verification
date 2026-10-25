@@ -491,14 +491,20 @@ def setOfLeftSet (rel : αl → αr → Prop) (sl: Set αl) : Set (SumUnion rel)
 
 def setOfRightSet (rel : αl → αr → Prop) (sr: Set αr) : Set (SumUnion rel) := { su: SumUnion rel | ∃r, r ∈ sr ∧ su = .ofSum (.inr r) }
 
-theorem lnl_eq_lnr_iff_rel [IsBiUnique rel] {l: αl} {r: αr} : ((.ofSum (.inl l) : SumUnion rel) = .ofSum (.inr r)) ↔ rel l r := by
+theorem inl_eq_inr_iff_rel [IsBiUnique rel] {l: αl} {r: αr} : ((.ofSum (.inl l) : SumUnion rel) = .ofSum (.inr r)) ↔ rel l r := by
   rw [ofSum_eq_iff_sumEquivGen, sumEquivGen_iff]
   simp
 
 theorem inr_eq_inl_iff_rel [IsBiUnique rel] {l: αl} {r: αr} : ((.ofSum (.inr r) : SumUnion rel) = .ofSum (.inl l)) ↔ rel l r :=
   calc
     _ ↔ _ := Eq.comm
-    _ ↔ _ := lnl_eq_lnr_iff_rel
+    _ ↔ _ := inl_eq_inr_iff_rel
+
+theorem inl_eq_inl_iff_eq [IsBiUnique rel] {l1 l2: αl} : ((.ofSum (.inl l1) : SumUnion rel) = .ofSum (.inl l2)) ↔ l1 = l2 := by
+  rw [ofSum_eq_iff_sumEquivGen, sumEquivGen_inl_inl_iff]
+
+theorem inr_eq_inr_iff_eq [IsBiUnique rel] {r1 r2: αr} : ((.ofSum (.inr r1) : SumUnion rel) = .ofSum (.inr r2)) ↔ r1 = r2 := by
+  rw [ofSum_eq_iff_sumEquivGen, sumEquivGen_inr_inr_iff]
 
 theorem inl_ofSum_injective [IsBiUnique rel] : Function.Injective ((SumUnion.ofSum ∘ Sum.inl): αl → SumUnion rel) := by
   intro l1 l2
@@ -519,7 +525,7 @@ theorem setOfLeftSet_mem_inr_iff_mem [IsBiUnique rel] {sl: Set αl} {r: αr} : (
   simp [setOfLeftSet, inr_eq_inl_iff_rel]
 
 theorem setOfRightSet_mem_inl_iff_mem [IsBiUnique rel] {sr: Set αr} {l: αl} : (.ofSum (.inl l) ∈ setOfRightSet rel sr) ↔ (∃r, r ∈ sr ∧ rel l r) := by
-  simp [setOfRightSet, lnl_eq_lnr_iff_rel]
+  simp [setOfRightSet, inl_eq_inr_iff_rel]
 
 
 /-
