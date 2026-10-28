@@ -139,6 +139,8 @@ instance : SetLike (SetLikeUnion rel Sαl Sαr) (SumUnion rel) where
   coe := toSet
   coe_injective := toSet_injective
 
+@[defeq]
+theorem mem_def {slu: SetLikeUnion rel Sαl Sαr} {su: SumUnion rel} : (su ∈ slu) = (su ∈ slu.toSet) := rfl
 
 end SetLikeUnion
 

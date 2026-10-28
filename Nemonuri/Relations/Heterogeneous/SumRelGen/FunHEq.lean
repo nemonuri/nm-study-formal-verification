@@ -83,6 +83,41 @@ def seqFunD [IsBiUnique relA] [HasPartialCongruence relA] [IsBiUnique relB] (dft
 
 end SumUnion
 
+structure FunInter (relA: αl → αr → Prop) (relB: βl → βr → Prop) where
+  left : αl → βl
+  right : αr → βr
+  heq : FunHEq relA relB left right
+
+namespace FunInter
+
+def toFun [IsBiUnique relA] (fi: FunInter relA relB) : SumUnion relA → SumUnion relB := SumUnion.funElim₂ relB fi.left fi.right fi.heq
+
+open SumUnion in
+theorem toFun_injective [IsBiUnique relA] [IsBiUnique relB] : Function.Injective (toFun: FunInter relA relB → _) := by
+  intro fi1 fi2 lm3
+  rcases fi1 with ⟨fl1, fr1, lm1⟩
+  rcases fi2 with ⟨fl2, fr2, lm2⟩
+  simp [funext_iff] at ⊢ lm3
+  simp [funHEq_def] at lm1 lm2
+  dsimp [toFun] at lm3
+  refine ⟨?_, ?_⟩
+  · intro l
+    specialize lm3 (.ofSum (.inl l))
+    dsimp [funElim₂, funElim_eq_ofSum] at lm3
+    simp [inl_eq_inl_iff_eq] at lm3
+    exact lm3
+  · intro r
+    specialize lm3 (.ofSum (.inr r))
+    dsimp [funElim₂, funElim_eq_ofSum] at lm3
+    simp [inr_eq_inr_iff_eq] at lm3
+    exact lm3
+
+instance [IsBiUnique relA] [IsBiUnique relB] : FunLike (FunInter relA relB) (SumUnion relA) (SumUnion relB) where
+  coe := toFun
+  coe_injective := toFun_injective
+
+end FunInter
+
 
 namespace FunHEq
 
