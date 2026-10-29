@@ -500,6 +500,116 @@ theorem setHEq_iff_forall_iff_and_forall_iff [IsBiUnique rel] : (SetHEq rel sl s
       simp [ofSum_eq_iff_sumEquivGen, sumEquivGen_inr_inl_iff, sumEquivGen_inr_inr_iff]
       exact (lm2 r).symm
 
+--∀l r, (rel l r) ↔ (l ∈ sl ↔ r ∈ sr)
+
+namespace SetHEq
+
+
+theorem mem_iff_mem_of_rel [IsBiUnique rel] (h: SetHEq rel sl sr) l r (req: rel l r) : l ∈ sl ↔ r ∈ sr := by
+  simp [setHEq_iff_forall_iff_and_forall_iff] at h
+  rcases h with ⟨lm1, lm2⟩
+  specialize lm1 l
+  specialize lm2 r
+  constructor
+  · intro lm4
+    simp [lm4] at lm1
+    rcases lm1 with ⟨r2, lm5, lm6⟩
+    have lm7 := IsBiUnique.rightUnique req lm6
+    subst lm7
+    exact lm5
+  · intro lm4
+    simp [lm4] at lm2
+    rcases lm2 with ⟨l2, lm5, lm6⟩
+    have lm7 := IsBiUnique.leftUnique req lm6
+    subst lm7
+    exact lm5
+
+theorem of_mem_iff_mem_of_rel₂ [IsBiUnique rel]
+  (req1: ∀l, ∃r, (rel l r) ∧ (l ∈ sl ↔ r ∈ sr))
+  (req2: ∀r, ∃l, (rel l r) ∧ (l ∈ sl ↔ r ∈ sr)) : SetHEq rel sl sr := by
+  simp [setHEq_iff_forall_iff]
+  intro su
+  cases su using indInlInrOfSum with
+  | inl l =>
+    simp [sum_simp]
+    rcases (req1 l) with ⟨r, lm1, lm2⟩
+    constructor
+    · intro lm3
+      replace lm2 := lm2.mp lm3
+      exists r
+    · rintro ⟨r2, lm3, lm4⟩
+      have lm5 := IsBiUnique.rightUnique lm1 lm4
+      subst lm5
+      exact lm2.mpr lm3
+  | inr r =>
+    simp [sum_simp]
+    constructor
+    · rintro ⟨l, lm1, lm2⟩
+      rcases (req1 l) with ⟨r2, lm3, lm4⟩
+      have lm5 := IsBiUnique.rightUnique lm2 lm3
+      subst lm5
+      exact lm4.mp lm1
+    · intro lm1
+      rcases (req2 r) with ⟨l, lm2, lm3⟩
+      replace lm3 := lm3.mpr lm1
+      exists l
+
+
+end SetHEq
+
+
+/-
+theorem setHEq_iff_rel_iff_iff [IsBiUnique rel] : (SetHEq rel sl sr) ↔ (∀l r, (rel l r) ↔ (l ∈ sl ↔ r ∈ sr)) := by
+  constructor
+  · intro lm1 l r
+    constructor
+    · simp [setHEq_iff_forall_iff_and_forall_iff] at lm1
+      rcases lm1 with ⟨lm1, lm2⟩
+      specialize lm1 l
+      specialize lm2 r
+      intro lm3
+      constructor
+      · intro lm4
+        simp [lm4] at lm1
+        rcases lm1 with ⟨r2, lm5, lm6⟩
+        have lm7 := IsBiUnique.rightUnique lm3 lm6
+        subst lm7
+        exact lm5
+      · intro lm4
+        simp [lm4] at lm2
+        rcases lm2 with ⟨l2, lm5, lm6⟩
+        have lm7 := IsBiUnique.leftUnique lm3 lm6
+        subst lm7
+        exact lm5
+    · simp [setHEq_iff_forall_iff_and_forall_iff] at lm1
+      rcases lm1 with ⟨lm1, lm2⟩
+      intro lm3
+      simp [iff_iff_and_or_not_and_not] at lm3
+-/
+/-
+      specialize lm1 l
+      specialize lm2 r
+      rcases lm1 with ⟨lm1, lm4⟩
+      rcases lm2 with ⟨lm2, lm5⟩
+      --simp [lm3] at lm1 lm4
+      by_contra lm6
+      by_cases lm7: r ∈ sr
+      ·
+-/
+/-
+      simp [setHEq_iff_forall_iff] at lm1
+      have lm3 := lm1 (.ofSum (.inl l))
+      simp [sum_simp, lm2] at lm3
+      rcases lm3 with ⟨lm4, lm5⟩
+      simp at lm4 lm5
+-/
+/-
+  · intro lm1
+    refine ⟨?_, ?_⟩
+    · intro l
+      specialize lm1 l
+      simp []
+-/
 
 end SetHEqSection
 

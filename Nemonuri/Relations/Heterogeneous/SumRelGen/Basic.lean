@@ -1,6 +1,6 @@
 module
 
---public import Mathlib.Logic.Relation
+public meta import Nemonuri.Relations.Heterogeneous.SumRelGen.Attributes
 public import Nemonuri.Relations.Heterogeneous.IsBiUnique
 
 @[expose] public section
@@ -119,76 +119,21 @@ theorem sumEquivGen_iff_of_biUnique (req: Relator.BiUnique rel) : SumEquivGen re
 
 theorem sumEquivGen_iff [IsBiUnique rel] : SumEquivGen rel s1 s2 ↔ ((s1 = s2) ∨ (∃l r, rel l r ∧ ((s1 = .inl l ∧ s2 = .inr r) ∨ (s1 = .inr r ∧ s2 = .inl l)))) := sumEquivGen_iff_of_biUnique IsBiUnique.biUnique
 
+@[sum_simp low]
 theorem sumEquivGen_inl_inl_iff [IsBiUnique rel] {l1 l2: αl} : SumEquivGen rel (.inl l1) (.inl l2) ↔ (l1 = l2) := by
   simp [sumEquivGen_iff]
 
+@[sum_simp low]
 theorem sumEquivGen_inr_inr_iff [IsBiUnique rel] {r1 r2: αr} : SumEquivGen rel (.inr r1) (.inr r2) ↔ (r1 = r2) := by
   simp [sumEquivGen_iff]
 
+@[sum_simp low]
 theorem sumEquivGen_inl_inr_iff [IsBiUnique rel] {l: αl} {r: αr} : SumEquivGen rel (.inl l) (.inr r) ↔ rel l r := by
   simp [sumEquivGen_iff]
 
+@[sum_simp low]
 theorem sumEquivGen_inr_inl_iff [IsBiUnique rel] {l: αl} {r: αr} : SumEquivGen rel (.inr r) (.inl l) ↔ rel l r := by
   simp [sumEquivGen_iff]
-
-/-
-theorem sumEquivGen_iff_or {rel: αl → αr → Prop} {s1 s2: (αl ⊕ αr)}
-  : (SumEquivGen rel) s1 s2 ↔ (s1 = s2 ∨ (∃(l: αl) (r: αr), rel l r ∧ ((s1 = .inl l ∧ s2 = .inr r) ∨ (s1 = .inr r ∧ s2 = .inl l)))) := by
-  constructor
-  · intro lm1
-    dsimp [sumEquivGen_def] at lm1
-    induction lm1 with
-    | rel _ _ lm1 =>
-      rcases lm1 with ⟨l, r, lm1⟩
-      refine Or.inr ?_
-      exists l
-      exists r
-      simp [lm1]
-    | refl =>
-      refine Or.inl ?_
-      rfl
-    | symm s1 s2 lm1 lm2 =>
-      rcases lm2 with lm2 | lm2
-      · exact Or.inl lm2.symm
-      · rcases lm2 with ⟨l, r, lm2, lm3⟩
-        refine Or.inr ?_
-        exists l; exists r
-        simp [lm2]
-        rcases lm3 with ⟨lm3, lm4⟩ | ⟨lm3, lm4⟩
-        <;> (subst lm3 lm4; simp)
-    | trans s1 s2 s3 lm1 lm2 lm3 lm4 =>
-      rcases lm3 with lm3 | lm3
-      · subst lm3
-        rcases lm4 with lm4 | lm4
-        · exact Or.inl lm4
-        · rcases lm4 with ⟨l, r, lm4, lm5⟩
-          refine Or.inr ?_
-          exists l; exists r
-      · rcases lm3 with ⟨l1, r1, lm3_1, lm3_2⟩
-        rcases lm4 with lm4 | lm4
-        · subst lm4
-          refine Or.inr ?_
-          exists l1; exists r1
-        · rcases lm4 with ⟨l2, r2, lm4_1, lm4_2⟩
-          rcases lm3_2 with ⟨lm3_2, lm3_3⟩ | ⟨lm3_2, lm3_3⟩
-          <;> (subst lm3_2 lm3_3; simp at lm4_2 ⊢)
-          · rcases lm4_2 with ⟨lm4_2, lm4_3⟩
-            subst lm4_2 lm4_3
-            simp
--/
-/-
-          rcases lm4 with ⟨l2, r2, lm4_1, lm4_2⟩
-          rcases lm3_2 with ⟨lm3_2, lm3_3⟩ | ⟨lm3_2, lm3_3⟩
-          <;> subst lm3_2 lm3_3
-          · simp at lm4_2
-            rcases lm4_2 with ⟨lm4_2, lm4_3⟩
-            subst lm4_2 lm4_3
-            refine Or.inr ?_
-            exists l2; exists r1
-            simp [lm4_1]
--/
-
---#check Sum.elim
 
 
 namespace SumEquivGen
@@ -234,45 +179,6 @@ theorem of_forall_rel_iff (rel : αl → αr → Prop) [IsBiUnique rel] (req: �
 end AreEquivSetOnRel
 
 end AreEquivSetOnRelSection
-
-/-
-def AreSumEquivSet' (rel : αl → αr → Prop) [IsBiUnique rel] (sl: Set αl) (sr: Set αr) : Prop := ∀⦃l r⦄, rel l r → (l ∈ sl ↔ r ∈ sr)
-
-@[defeq]
-theorem areSumEquivSet'_def {rel : αl → αr → Prop} [IsBiUnique rel] sl sr : AreSumEquivSet' rel sl sr = (∀l r, rel l r → (l ∈ sl ↔ r ∈ sr)) := rfl
-
-def rightSetOfLeft' (rel : αl → αr → Prop) (sl: Set αl) : Set αr := { r: αr | ∀l, rel l r → (l ∈ sl) }
-
-theorem rightSetOfLeft'_areSumEquivSet [IsBiUnique rel] {sl: Set αl} : AreSumEquivSet' rel sl (rightSetOfLeft' rel sl) := by
-  dsimp [areSumEquivSet'_def]
-  intro l r lm1
-  dsimp [rightSetOfLeft']
-  constructor
-  · intro lm2 l2 lm3
-    have lm4 := IsBiUnique.leftUnique lm1 lm3
-    rw [← lm4]
-    exact lm2
-  · intro lm2
-    exact lm2 l lm1
-
-
-def leftSetOfRight' (rel : αl → αr → Prop) (sr: Set αr) : Set αl := { l: αl | ∀r, rel l r → (r ∈ sr) }
-
-theorem leftSetOfRight'_areSumEquivSet [IsBiUnique rel] {sr: Set αr} : AreSumEquivSet' rel (leftSetOfRight' rel sr) sr := by
-  dsimp [areSumEquivSet'_def]
-  intro l r lm1
-  dsimp [leftSetOfRight']
-  constructor
-  · intro lm2
-    exact lm2 r lm1
-  · intro lm2 r2 lm3
-    have lm4 := IsBiUnique.rightUnique lm1 lm3
-    rw [← lm4]
-    exact lm2
-
-
-def rightSetOfLeft (rel : αl → αr → Prop) (sl: Set αl) : Set αr := (rightSetOfLeft' rel sl) ∩ { r | ∀l ∈ sl, rel l r }
--/
 
 
 def AreBiUniqueSumEquivSet (rel : αl → αr → Prop) [IsBiUnique rel] (sl: Set αl) (sr: Set αr) : Prop := ∀⦃l r⦄, (rel l r) ↔ (l ∈ sl ↔ r ∈ sr)
@@ -491,18 +397,22 @@ def setOfLeftSet (rel : αl → αr → Prop) (sl: Set αl) : Set (SumUnion rel)
 
 def setOfRightSet (rel : αl → αr → Prop) (sr: Set αr) : Set (SumUnion rel) := { su: SumUnion rel | ∃r, r ∈ sr ∧ su = .ofSum (.inr r) }
 
+@[sum_simp]
 theorem inl_eq_inr_iff_rel [IsBiUnique rel] {l: αl} {r: αr} : ((.ofSum (.inl l) : SumUnion rel) = .ofSum (.inr r)) ↔ rel l r := by
   rw [ofSum_eq_iff_sumEquivGen, sumEquivGen_iff]
   simp
 
+@[sum_simp]
 theorem inr_eq_inl_iff_rel [IsBiUnique rel] {l: αl} {r: αr} : ((.ofSum (.inr r) : SumUnion rel) = .ofSum (.inl l)) ↔ rel l r :=
   calc
     _ ↔ _ := Eq.comm
     _ ↔ _ := inl_eq_inr_iff_rel
 
+@[sum_simp]
 theorem inl_eq_inl_iff_eq [IsBiUnique rel] {l1 l2: αl} : ((.ofSum (.inl l1) : SumUnion rel) = .ofSum (.inl l2)) ↔ l1 = l2 := by
   rw [ofSum_eq_iff_sumEquivGen, sumEquivGen_inl_inl_iff]
 
+@[sum_simp]
 theorem inr_eq_inr_iff_eq [IsBiUnique rel] {r1 r2: αr} : ((.ofSum (.inr r1) : SumUnion rel) = .ofSum (.inr r2)) ↔ r1 = r2 := by
   rw [ofSum_eq_iff_sumEquivGen, sumEquivGen_inr_inr_iff]
 
@@ -514,16 +424,19 @@ theorem inr_ofSum_injective [IsBiUnique rel] : Function.Injective ((SumUnion.ofS
   intro r1 r2
   simp [ofSum_eq_iff_sumEquivGen, sumEquivGen_inr_inr_iff]
 
+@[sum_simp]
 theorem setOfLeftSet_mem_inl_iff_mem [IsBiUnique rel] {sl: Set αl} {l: αl} : (.ofSum (.inl l) ∈ setOfLeftSet rel sl) ↔ (l ∈ sl) := by
   simp [setOfLeftSet, ofSum_eq_iff_sumEquivGen, sumEquivGen_iff]
 
+@[sum_simp]
 theorem setOfRightSet_mem_inr_iff_mem [IsBiUnique rel] {sr: Set αr} {r: αr} : (.ofSum (.inr r) ∈ setOfRightSet rel sr) ↔ (r ∈ sr) := by
   simp [setOfRightSet, ofSum_eq_iff_sumEquivGen, sumEquivGen_iff]
 
-
+@[sum_simp]
 theorem setOfLeftSet_mem_inr_iff_mem [IsBiUnique rel] {sl: Set αl} {r: αr} : (.ofSum (.inr r) ∈ setOfLeftSet rel sl) ↔ (∃l, l ∈ sl ∧ rel l r) := by
   simp [setOfLeftSet, inr_eq_inl_iff_rel]
 
+@[sum_simp]
 theorem setOfRightSet_mem_inl_iff_mem [IsBiUnique rel] {sr: Set αr} {l: αl} : (.ofSum (.inl l) ∈ setOfRightSet rel sr) ↔ (∃r, r ∈ sr ∧ rel l r) := by
   simp [setOfRightSet, inl_eq_inr_iff_rel]
 
@@ -613,6 +526,7 @@ def left? (su: SumUnion rel) : Option αl :=
     dsimp [HasPartialCongruence.leftOfRel?, PartialCongruence.ofRel]
     exact HasPartialCongruence.partialCongruence.valid.left?_eq_some_of_rel lm1 )
 
+@[sum_simp]
 theorem left?_eq_some_iff_eq {su: SumUnion rel} {l: αl} : (su.left? = .some l) ↔ su = (.ofSum (.inl l)) := by
   cases su using indOfSum
   rename_i s
@@ -622,6 +536,14 @@ theorem left?_eq_some_iff_eq {su: SumUnion rel} {l: αl} : (su.left? = .some l) 
   · simp [sumEquivGen_inr_inl_iff]
     exact HasPartialCongruence.partialCongruence.valid.left?_eq_some_iff_rel _ _
 
+@[sum_simp]
+theorem left?_inl {l: αl} : (.ofSum (.inl l): SumUnion rel).left? = .some l := by
+  simp [left?_eq_some_iff_eq]
+
+@[sum_simp]
+theorem left?_inr_eq_none_iff {r: αr} : ((.ofSum (.inr r): SumUnion rel).left? = .none) ↔ (∀ (l : αl), ¬rel l r) := by
+  dsimp [left?, funElim_eq_ofSum]
+  simp [HasPartialCongruence.leftOfRel?_eq_none_iff_not_rel]
 
 def right? (su: SumUnion rel) : Option αr :=
   su.funElim (HasPartialCongruence.rightOfRel? rel ·) Option.some (by
@@ -629,6 +551,7 @@ def right? (su: SumUnion rel) : Option αr :=
     dsimp [HasPartialCongruence.rightOfRel?, PartialCongruence.ofRel]
     exact HasPartialCongruence.partialCongruence.valid.right?_eq_some_of_rel lm1 )
 
+@[sum_simp]
 theorem right?_eq_some_iff_eq {su: SumUnion rel} {r: αr} : (su.right? = .some r) ↔ su = (.ofSum (.inr r)) := by
   cases su using indOfSum
   rename_i s
@@ -637,6 +560,15 @@ theorem right?_eq_some_iff_eq {su: SumUnion rel} {r: αr} : (su.right? = .some r
   · simp [sumEquivGen_inl_inr_iff]
     exact HasPartialCongruence.partialCongruence.valid.right?_eq_some_iff_rel _ _
   · simp [sumEquivGen_inr_inr_iff]
+
+@[sum_simp]
+theorem right?_inr {r: αr} : (.ofSum (.inr r): SumUnion rel).right? = .some r := by
+  simp [right?_eq_some_iff_eq]
+
+@[sum_simp]
+theorem right?_inl_eq_none_iff {l: αl} : ((.ofSum (.inl l): SumUnion rel).right? = .none) ↔ (∀ (r : αr), ¬rel l r) := by
+  dsimp [right?, funElim_eq_ofSum]
+  simp [HasPartialCongruence.rightOfRel?_eq_none_iff_not_rel]
 
 
 def isIntersection (su: SumUnion rel) : Bool := su.left?.isSome && su.right?.isSome

@@ -41,6 +41,18 @@ theorem toSet_injective [IsBiUnique rel] : Function.Injective (toSet: SumUnion (
     subst lm1
     rfl
 
+
+
+@[defeq, sum_simp]
+theorem toSet_mem_inl_eq [IsBiUnique rel] {su: SumUnion rel} : (su ∈ toSet (.ofSum (.inl sl))) = (su ∈ setOfLeftSet rel sl) := by
+  dsimp [toSet, funElim_eq_ofSum]
+
+@[defeq, sum_simp]
+theorem toSet_mem_inr_eq [IsBiUnique rel] {su: SumUnion rel} : (su ∈ toSet (.ofSum (.inr sr))) = (su ∈ setOfRightSet rel sr) := by
+  dsimp [toSet, funElim_eq_ofSum]
+
+
+
 instance [IsBiUnique rel] : SetLike (SumUnion (SetHEq rel)) (SumUnion rel) where
   coe := toSet
   coe_injective := toSet_injective
@@ -87,6 +99,18 @@ variable {rel: αl → αr → Prop} {Sαl Sαr: Type*} [SetLike Sαl αl] [SetL
 
 variable (rel Sαl Sαr) in
 def ofSumUnion (su: SumUnion (SetLikeHEq rel Sαl Sαr)) : SetLikeUnion rel Sαl Sαr := su
+
+
+theorem indOfSumUnion
+  {motive: SetLikeUnion rel Sαl Sαr → Prop}
+  (inl: (l: Sαl) → motive (.ofSumUnion rel Sαl Sαr (.ofSum (.inl l))))
+  (inr: (r: Sαr) → motive (.ofSumUnion rel Sαl Sαr (.ofSum (.inr r))))
+  (t: SetLikeUnion rel Sαl Sαr)
+  : motive t :=
+  SumUnion.indInlInrOfSum inl inr t
+
+
+def toSumUnion (slu: SetLikeUnion rel Sαl Sαr) : SumUnion (SumUnion.SetLikeHEq rel Sαl Sαr) := slu
 
 variable [IsBiUnique rel]
 
@@ -141,6 +165,132 @@ instance : SetLike (SetLikeUnion rel Sαl Sαr) (SumUnion rel) where
 
 @[defeq]
 theorem mem_def {slu: SetLikeUnion rel Sαl Sαr} {su: SumUnion rel} : (su ∈ slu) = (su ∈ slu.toSet) := rfl
+
+@[defeq, sum_simp]
+theorem mem_inl_eq {su: SumUnion rel} {sal: Sαl} : (su ∈ (ofSumUnion rel Sαl Sαr (.ofSum (.inl sal)))) = (su ∈ setOfLeftSet rel sal) := by
+  dsimp [ofSumUnion, mem_def, toSet, toSetUnion, liftOfSum_ofSum, sum_simp]
+
+@[defeq, sum_simp]
+theorem mem_inr_eq {su: SumUnion rel} {sar: Sαr} : (su ∈ (ofSumUnion rel Sαl Sαr (.ofSum (.inr sar)))) = (su ∈ setOfRightSet rel sar) := by
+  dsimp [ofSumUnion, mem_def, toSet, toSetUnion, liftOfSum_ofSum, sum_simp]
+
+
+def isMem [HasPartialCongruence rel] [∀(sal: Sαl), DecidablePred (· ∈ sal)] [∀(sar: Sαr), DecidablePred (· ∈ sar)]
+  (su: SumUnion rel) (slu: SetLikeUnion rel Sαl Sαr) : Bool :=
+  let sumFun (su: SumUnion rel) : (Sαl ⊕ Sαr) → Bool
+    | .inl sal => match su.left? with | .some l => decide (l ∈ sal) | .none => .false
+    | .inr sar => match su.right? with | .some r => decide (r ∈ sar) | .none => .false
+  slu.toSumUnion.liftOfSum (fun x => sumFun su x) (by
+    simp [sum_simp]
+    refine ⟨?_, ?_⟩
+    · intro sal sar lm1
+      cases su using indInlInrOfSum with
+      | inl l =>
+        subst sumFun
+        simp [sum_simp]
+        split
+        · rename_i r lm2
+          simp [right?_eq_some_iff_eq, sum_simp] at lm2
+          have lm3 := lm1.mem_iff_mem_of_rel l r lm2
+          simpa only [decide_eq_decide, SetLike.mem_coe] using lm3
+        · rename_i lm2
+          simp [sum_simp] at lm2
+          dsimp [setLikeHEq_def] at lm1
+          rewrite [setHEq_iff_forall_iff_and_forall_iff] at lm1
+          rcases lm1 with ⟨lm1_1, lm1_2⟩
+          specialize lm1_1 l
+          simp [lm2] at lm1_1
+          simpa only [decide_eq_false_iff_not] using lm1_1
+      | inr r =>
+        subst sumFun
+        simp [sum_simp]
+        split
+        · rename_i l lm2
+          simp [left?_eq_some_iff_eq, sum_simp] at lm2
+          have lm3 := lm1.mem_iff_mem_of_rel l r lm2
+          simpa only [decide_eq_decide, SetLike.mem_coe] using lm3
+        · rename_i lm2
+          simp [sum_simp] at lm2
+          dsimp [setLikeHEq_def] at lm1
+          rewrite [setHEq_iff_forall_iff_and_forall_iff] at lm1
+          rcases lm1 with ⟨lm1_1, lm1_2⟩
+          specialize lm1_2 r
+          simp [lm2] at lm1_2
+          simpa only [false_eq_decide_iff] using lm1_2
+    · intro sar sal lm1
+      symm
+      cases su using indInlInrOfSum with
+      | inl l =>
+        subst sumFun
+        simp [sum_simp]
+        split
+        · rename_i r lm2
+          simp [right?_eq_some_iff_eq, sum_simp] at lm2
+          have lm3 := lm1.mem_iff_mem_of_rel l r lm2
+          simpa only [decide_eq_decide, SetLike.mem_coe] using lm3
+        · rename_i lm2
+          simp [sum_simp] at lm2
+          dsimp [setLikeHEq_def] at lm1
+          rewrite [setHEq_iff_forall_iff_and_forall_iff] at lm1
+          rcases lm1 with ⟨lm1_1, lm1_2⟩
+          specialize lm1_1 l
+          simp [lm2] at lm1_1
+          simpa only [decide_eq_false_iff_not] using lm1_1
+      | inr r =>
+        subst sumFun
+        simp [sum_simp]
+        split
+        · rename_i l lm2
+          simp [left?_eq_some_iff_eq, sum_simp] at lm2
+          have lm3 := lm1.mem_iff_mem_of_rel l r lm2
+          simpa only [decide_eq_decide, SetLike.mem_coe] using lm3
+        · rename_i lm2
+          simp [sum_simp] at lm2
+          dsimp [setLikeHEq_def] at lm1
+          rewrite [setHEq_iff_forall_iff_and_forall_iff] at lm1
+          rcases lm1 with ⟨lm1_1, lm1_2⟩
+          specialize lm1_2 r
+          simp [lm2] at lm1_2
+          simpa only [false_eq_decide_iff] using lm1_2 )
+
+
+theorem isMem_eq_true_iff [HasPartialCongruence rel] [∀(sal: Sαl), DecidablePred (· ∈ sal)] [∀(sar: Sαr), DecidablePred (· ∈ sar)]
+  {su: SumUnion rel} {slu: SetLikeUnion rel Sαl Sαr} : (slu.isMem su = .true) ↔ (su ∈ slu) := by
+  cases slu using indOfSumUnion with
+  | inl sal =>
+    simp [sum_simp]
+    dsimp [isMem, toSumUnion, ofSumUnion, liftOfSum_ofSum]
+    generalize lm1: su.left? = l?
+    rcases l? with _ | ⟨l⟩
+    · cases su using indInlInrOfSum
+      <;> simp [sum_simp] at ⊢ lm1
+      · simp [lm1]
+    · cases su using indInlInrOfSum
+      <;> simp [sum_simp] at ⊢ lm1
+      · subst lm1; rfl
+      · symm
+        exact IsBiUnique.left_pred_iff_exists_left_pred_and_rel_of_rel (· ∈ sal) lm1
+  | inr sar =>
+    simp [sum_simp]
+    dsimp [isMem, toSumUnion, ofSumUnion, liftOfSum_ofSum]
+    generalize lm1: su.right? = r?
+    rcases r? with _ | ⟨r⟩
+    · cases su using indInlInrOfSum
+      <;> simp [sum_simp] at ⊢ lm1
+      · simp [lm1]
+    · cases su using indInlInrOfSum
+      <;> simp [sum_simp] at ⊢ lm1
+      · symm
+        exact IsBiUnique.right_pred_iff_exists_left_pred_and_rel_of_rel (· ∈ sar) lm1
+      · subst lm1
+        rfl
+
+
+instance [HasPartialCongruence rel] [∀(sal: Sαl), DecidablePred (· ∈ sal)] [∀(sar: Sαr), DecidablePred (· ∈ sar)]
+         (su: SumUnion rel) (slu: SetLikeUnion rel Sαl Sαr) : Decidable (su ∈ slu) :=
+         decidable_of_decidable_of_iff isMem_eq_true_iff
+
+
 
 end SetLikeUnion
 

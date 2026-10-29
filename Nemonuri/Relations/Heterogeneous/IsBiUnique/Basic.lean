@@ -56,6 +56,25 @@ theorem rel_iff_rel_of_rel₂ {l1 l2: αl} {r1 r2: αr} (req1: rel l1 r1) (req2:
     subst lm3
     exact req2
 
+theorem left_pred_iff_exists_left_pred_and_rel_of_rel (pred: αl → Prop) {l: αl} {r: αr} (req: rel l r) : (∃l, pred l ∧ rel l r) ↔ (pred l) := by
+  constructor
+  · rintro ⟨l2, lm1, lm2⟩
+    have lm3 := IsBiUnique.leftUnique req lm2
+    subst lm3
+    exact lm1
+  · intro lm1
+    exists l
+
+theorem right_pred_iff_exists_left_pred_and_rel_of_rel (pred: αr → Prop) {l: αl} {r: αr} (req: rel l r) : (∃r, pred r ∧ rel l r) ↔ (pred r) := by
+  constructor
+  · rintro ⟨r2, lm1, lm2⟩
+    have lm3 := IsBiUnique.rightUnique req lm2
+    subst lm3
+    exact lm1
+  · intro lm1
+    exists r
+
+
 section Find
 
 variable {αl αr: Type*}

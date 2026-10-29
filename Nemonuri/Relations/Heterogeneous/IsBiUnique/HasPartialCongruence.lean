@@ -67,11 +67,23 @@ theorem rightOfRel?_eq_some_iff_rel {rel: αl → αr → Prop} [HasPartialCongr
   dsimp [rightOfRel?, PartialCongruence.ofRel]
   exact lm1.right?_eq_some_iff_rel _ _
 
+theorem rightOfRel?_eq_none_iff_not_rel {rel: αl → αr → Prop} [HasPartialCongruence rel] {l: αl}
+  : (HasPartialCongruence.rightOfRel? rel l = .none) ↔ (∀r, ¬rel l r) := by
+  have lm1 := isPartialCongruence_of_rel rel
+  dsimp [rightOfRel?, PartialCongruence.ofRel]
+  exact lm1.right?_eq_none_iff_forall_not_rel
+
 theorem leftOfRel?_eq_some_iff_rel {rel: αl → αr → Prop} [HasPartialCongruence rel] {l: αl} {r: αr}
   : (HasPartialCongruence.leftOfRel? rel r = .some l) ↔ rel l r := by
   have lm1 := isPartialCongruence_of_rel rel
   dsimp [leftOfRel?, PartialCongruence.ofRel]
   exact lm1.left?_eq_some_iff_rel _ _
+
+theorem leftOfRel?_eq_none_iff_not_rel {rel: αl → αr → Prop} [HasPartialCongruence rel] {r: αr}
+  : (HasPartialCongruence.leftOfRel? rel r = .none) ↔ (∀l, ¬rel l r) := by
+  have lm1 := isPartialCongruence_of_rel rel
+  dsimp [leftOfRel?, PartialCongruence.ofRel]
+  exact lm1.left?_eq_none_iff_forall_not_rel
 
 
 def rightOfRel (rel: αl → αr → Prop) [HasPartialCongruence rel] (l: αl) (req: ∃r, rel l r) : αr := (isPartialCongruence_of_rel rel).right l req
