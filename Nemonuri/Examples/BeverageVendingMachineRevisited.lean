@@ -58,13 +58,12 @@ instance : ProgramGraph.EvalLike State Var Val where
     simp at lm2 lm3
     simp [lm2, lm3]
 
-open ProgramGraph.StandardType
+open ProgramGraph
 
-protected def standardType : ValueSetSafeDecidable State Var Val (Finset Val) where
+protected def standardType : StandardType State Var Val (Finset Val) where
   dom _ := Finset.univ
-  isValueSetSafe _ _ := .true
   valid := by
-    refine ⟨⟨?_, ?_, ⟩, ?_⟩
+    refine ⟨?_, ?_⟩
     · simp
     · simp
       intro var val
@@ -73,23 +72,31 @@ protected def standardType : ValueSetSafeDecidable State Var Val (Finset Val) wh
         exists w
       · let w: State := .mk 0 val.val
         exists w
-    · simp
-      dsimp [ProgramGraph.StandardTypeStruct.isValueSetSafe_def]
-      simp
+
+--def isSpecSafe (_: Var) (_: Finset Val) : Bool := .true
+
+protected instance decidableSpecSafe : Revisited.standardType.DecidableSpecSafe := fun _ _ => .isTrue (by
+    dsimp [Revisited.standardType, StandardTypeStruct.IsValueSetSafe]
+    simp only [Finset.coe_univ, Set.subset_univ] )
 
 
-instance : HasSafeDecidable State Var Val (Finset Val) where
+instance : StandardType.Concrete State Var Val (Finset Val) where
   standardType := Revisited.standardType
-  decidableMem _ := inferInstance
+  decidableSpecSafe := Revisited.decidableSpecSafe
+  decidableMem := inferInstance
 
-open HasSafeDecidable in
+open StandardType
+
+open Concrete in
 theorem standardType_is_always_safe {var: Var} {val: Val} : (standardTypeAt State (Finset Val)).IsValueSafe var val := by
-  dsimp [standardTypeAt_def, HasSafeDecidable.standardType, ProgramGraph.StandardTypeStruct.isValueSafe_def, Revisited.standardType]
+  dsimp [standardTypeAt_def, Concrete.standardType, ProgramGraph.StandardTypeStruct.isValueSafe_def, Revisited.standardType]
   simp
+
 
 theorem is_atomic_prop {s: AtomicPropStruct Var (Finset Val)} : IsAtomicProp s State Val := by
   rw [isAtomicProp_iff_forall_spec_elem_value_safe]
   simp [standardType_is_always_safe]
+
 
 protected def singletonOP : AtomicProp.SingletonOP State Var Val (Finset Val) where
   op var val _ := ⟨⟨var, {val}⟩, is_atomic_prop⟩
@@ -99,17 +106,17 @@ protected def singletonOP : AtomicProp.SingletonOP State Var Val (Finset Val) wh
     · simp
 
 
-instance : AtomicProp.HasSingletonOP State Var Val (Finset Val) where
+protected instance hasSingletonOP : AtomicProp.HasSingletonOP State Var Val (Finset Val) where
   singletonOP := Revisited.singletonOP
 
 
-instance : HasProposition State Var Val where
-  ValS := Finset Val
-  setLike := inferInstance
-  hasSafeDecidable := inferInstance
+instance : StandardType.ConcreteFinite State Var Val (Finset Val) where
+  toConcrete := inferInstance
   hasSingletonOP := inferInstance
   fintypeVar := inferInstance
-  fintypeSpec := Finset.fintype
+  fintypeSpec := inferInstance
+
+
 
 
 inductive Guard where
@@ -127,15 +134,15 @@ open ProgramGraph
 instance : Inhabited Var := ⟨.nsoda⟩
 
 --attribute [local simp] standardType StandardType.isSafe_iff in
-open HasProposition in
-def toFormula (g: Guard) : ProgramGraph.Cond State Var Val :=
+open ConcreteFinite in
+def toFormula (g: Guard) : ProgramGraph.Cond State Var Val (Finset Val) :=
   match g with
   | .true => .ofAtoms []
   | .nsoda_gt_zero => .ofAtoms [⟨⟨.nsoda, Finset.univ.filter (fun val => val.val.val > 0)⟩, is_atomic_prop⟩]
   | .nbeer_gt_zero => .ofAtoms [⟨⟨.nbeer, Finset.univ.filter (fun val => val.val.val > 0)⟩, is_atomic_prop⟩]
   | .nsoda_eq_zero_and_nbeer_eq_zero =>
-    let ap1 : AtomicPropType State Var Val := ⟨⟨.nsoda, Finset.univ.filter (fun val => val.val.val = 0)⟩, is_atomic_prop⟩
-    let ap2 : AtomicPropType State Var Val := ⟨⟨.nbeer, Finset.univ.filter (fun val => val.val.val = 0)⟩, is_atomic_prop⟩
+    let ap1 : AtomicProp State Var Val (Finset Val) := ⟨⟨.nsoda, Finset.univ.filter (fun val => val.val.val = 0)⟩, is_atomic_prop⟩
+    let ap2 : AtomicProp State Var Val (Finset Val) := ⟨⟨.nbeer, Finset.univ.filter (fun val => val.val.val = 0)⟩, is_atomic_prop⟩
     .ofAtoms [ap1, ap2]
 
 
@@ -145,12 +152,13 @@ theorem toFormula_injective : Function.Injective toFormula := by
 
 
 
-instance : ProgramGraph.CondLike Guard State Var Val where
+instance : ProgramGraph.FiniteCondLike Guard State Var Val (Finset Val) where
   toCond := toFormula
   toCond_Injective := toFormula_injective
+  fintype := inferInstance
 
 
-def initial : ProgramGraph.Cond State Var Val := .ofAtoms [⟨⟨.nsoda, Finset.univ.filter (fun val => val.val.val = 2)⟩, is_atomic_prop⟩]
+def initial : ProgramGraph.Cond State Var Val (Finset Val) := .ofAtoms [⟨⟨.nsoda, Finset.univ.filter (fun val => val.val.val = 2)⟩, is_atomic_prop⟩]
 
 end Guard
 
@@ -171,7 +179,7 @@ inductive Ctr : Loc → Guard → Act → Loc → Prop where
 
 
 @[reducible]
-def programGraph : ProgramGraph Guard State Var Val where
+def programGraph : ProgramGraph Guard State Var Val (Finset Val) where
   Loc := Loc
   Act := Act
   effect := effect
@@ -188,8 +196,9 @@ theorem example1 : transitionSystem.tr (Loc.start, State.mk 2 2) Act.refill (Loc
   refine .intro _ _ Guard.true _ _ ?_ ?_
   · dsimp
     exact .refill
-  · dsimp [ProgramGraph.CondLike.toFormula, ProgramGraph.CondLike.toCond, Guard.toFormula, ProgramGraph.Cond.ofAtoms]
+  · dsimp [ProgramGraph.FiniteCondLike.toFormula, ProgramGraph.FiniteCondLike.toCond, Guard.toFormula, ProgramGraph.Cond.ofAtoms]
     simp [pl_simp]
+
 
 
 open PropositionalLogics in
@@ -200,9 +209,9 @@ theorem example2 : transitionSystem.tr (Loc.select, State.mk 1 2) Act.sget (Loc.
   exists Guard.nsoda_gt_zero
   refine ⟨?_, ?_⟩
   · exact .sget
-  · dsimp [ProgramGraph.CondLike.toFormula, ProgramGraph.CondLike.toCond, Guard.toFormula, ProgramGraph.Cond.ofAtoms]
+  · dsimp [ProgramGraph.FiniteCondLike.toFormula, ProgramGraph.FiniteCondLike.toCond, Guard.toFormula, ProgramGraph.Cond.ofAtoms]
     simp [pl_simp]
-    dsimp [EvalLike.coe, DFunLike.coe, AtomicPropStruct.decideEvalSpecSafe]
+    dsimp [PropositionalLogics.EvalLike.coe, DFunLike.coe, AtomicPropStruct.decideEvalSpecSafe]
     simp
     dsimp [AtomicPropStruct.isEvalSpecSafe_def, DFunLike.coe, State.eval]
     rw [Finset.mem_def]
