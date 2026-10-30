@@ -69,6 +69,23 @@ theorem areTypeEquiv_def {il: Interleaving VarL ValL VarR ValR} {stsL: StandardT
   : il.AreTypeEquiv stsL stsR = ∀(varL varR), (il.var.Rel varL varR) → SumUnion.SetLikeHEq il.val.Rel ValSL ValSR (stsL.dom varL) (stsR.dom varR) :=
   rfl
 
+namespace AreTypeEquiv
+
+open SumUnion
+
+variable {il: Interleaving VarL ValL VarR ValR} {stsL: StandardTypeStruct VarL ValL ValSL} {stsR: StandardTypeStruct VarR ValR ValSR}
+
+theorem setHEqOf (h: il.AreTypeEquiv stsL stsR) varL varR : (il.var.Rel varL varR) → SetHEq il.val.Rel ↑(stsL.dom varL) ↑(stsR.dom varR) := by
+  dsimp [areTypeEquiv_def] at h
+  exact h varL varR
+
+#check Classical.skolem
+
+
+
+end AreTypeEquiv
+
+
 variable (ECL ECR) in
 structure AreEvalEquiv (il: Interleaving VarL ValL VarR ValR) : Prop where
   right_exists (ecl: ECL) : ∃(ecr: ECR), FunHEq il.var.Rel il.val.Rel ↑ecl ↑ecr
@@ -86,6 +103,48 @@ def toStandardTypeStruct (il: Interleaving VarL ValL VarR ValR) (req: il.AreType
     simp [sumEquivGen_inl_inr_iff]
     exact req lm1 )
 
+
+section ToStandardTypeStruct
+
+open SumUnion SetLikeUnion
+
+variable {il: Interleaving VarL ValL VarR ValR} {req: il.AreTypeEquiv stsL stsR}
+
+@[defeq, sum_simp]
+theorem toStandardTypeStruct_dom_inl_eq {varL: VarL} : (il.toStandardTypeStruct req).dom (.ofSum (.inl varL)) = .ofSumUnion il.val.Rel ValSL ValSR (.ofSum (.inl (stsL.dom varL))) := by
+  dsimp [toStandardTypeStruct, funElim_eq_ofSum]
+
+@[defeq, sum_simp]
+theorem toStandardTypeStruct_dom_inr_eq {varR: VarR} : (il.toStandardTypeStruct req).dom (.ofSum (.inr varR)) = .ofSumUnion il.val.Rel ValSL ValSR (.ofSum (.inr (stsR.dom varR))) := by
+  dsimp [toStandardTypeStruct, funElim_eq_ofSum]
+
+@[sum_simp]
+theorem toStandardTypeStruct_isValueSafe_inl_inl_iff {varL: VarL} {valL: ValL}
+  : (il.toStandardTypeStruct req).IsValueSafe (.ofSum (.inl varL)) (.ofSum (.inl valL)) ↔ stsL.IsValueSafe varL valL := by
+  dsimp [StandardTypeStruct.isValueSafe_def]
+  simp [sum_simp]
+
+--(∃varL, stsL.IsValueSafe varL valL ∧ il.var.Rel varL varR)
+theorem toStandardTypeStruct_isValueSafe_inr_inl_iff {varR: VarR} {valL: ValL}
+  : (il.toStandardTypeStruct req).IsValueSafe (.ofSum (.inr varR)) (.ofSum (.inl valL)) ↔ (∃valR, stsR.IsValueSafe varR valR ∧ il.val.Rel valL valR) := by
+  dsimp [StandardTypeStruct.isValueSafe_def]
+  simp [sum_simp]
+
+@[sum_simp]
+theorem toStandardTypeStruct_isValueSafe_inr_inr_iff {varR: VarR} {valR: ValR}
+  : (il.toStandardTypeStruct req).IsValueSafe (.ofSum (.inr varR)) (.ofSum (.inr valR)) ↔ stsR.IsValueSafe varR valR := by
+  dsimp [StandardTypeStruct.isValueSafe_def]
+  simp [sum_simp]
+
+
+theorem toStandardTypeStruct_isValueSafe_inl_inr_iff {varL: VarL} {valR: ValR}
+  : (il.toStandardTypeStruct req).IsValueSafe (.ofSum (.inl varL)) (.ofSum (.inr valR)) ↔ (∃valL, stsL.IsValueSafe varL valL ∧ il.val.Rel valL valR) := by
+  dsimp [StandardTypeStruct.isValueSafe_def]
+  simp [sum_simp]
+
+end ToStandardTypeStruct
+
+
 open SumUnion in
 theorem toStandardTypeStruct_type_safe (il: Interleaving VarL ValL VarR ValR)
   (req1: il.AreTypeEquiv stsL stsR) (req2: ∀(ec: ECL) var, (ec var) ∈ (stsL.dom var)) (req3: ∀(ec: ECR) var, (ec var) ∈ (stsR.dom var))
@@ -94,16 +153,24 @@ theorem toStandardTypeStruct_type_safe (il: Interleaving VarL ValL VarR ValR)
   have lm2 := funHEq_iff.mp lm1
   cases var using SumUnion.indInlInrOfSum with
   | inl l =>
+    dsimp [sum_simp, EvalInter.apply_def, EvalInter.toEval, FunInter.toFun, SumUnion.funElim₂, funElim_eq_ofSum]
+    simp [sum_simp]
+/-
     dsimp [toStandardTypeStruct, funElim_eq_ofSum, SetLikeUnion.mem_def, EvalInter.apply_def,
           SetLikeUnion.ofSumUnion, liftOfSum_ofSum, SetLikeUnion.toSet, SetLikeUnion.toSetUnion, SumUnion.toSet,
           EvalInter.toEval, FunInter.toFun, SumUnion.funElim₂]
     simp [SumUnion.setOfLeftSet_mem_inl_iff_mem]
+-/
     exact req2 ecl l
   | inr r =>
+    dsimp [sum_simp, EvalInter.apply_def, EvalInter.toEval, FunInter.toFun, SumUnion.funElim₂, funElim_eq_ofSum]
+    simp [sum_simp]
+/-
     dsimp [toStandardTypeStruct, funElim_eq_ofSum, SetLikeUnion.mem_def, EvalInter.apply_def,
           SetLikeUnion.ofSumUnion, liftOfSum_ofSum, SetLikeUnion.toSet, SetLikeUnion.toSetUnion, SumUnion.toSet,
           EvalInter.toEval, FunInter.toFun, SumUnion.funElim₂]
     simp [SumUnion.setOfRightSet_mem_inr_iff_mem]
+-/
     exact req3 ecr r
 
 open SumUnion in
@@ -148,6 +215,16 @@ theorem toStandardTypeStruct_eval_exists (il: Interleaving VarL ValL VarR ValR)
     exists ⟨ecL, ecR, lm7⟩
 
 
+/-
+theorem toStandardTypeStruct_isValueSafe_iff {il: Interleaving VarL ValL VarR ValR} {req: il.AreTypeEquiv stsL stsR} {var val}
+  : (il.toStandardTypeStruct req).IsValueSafe var val := by
+  dsimp [toStandardTypeStruct, SetLikeUnion.ofSumUnion, SumUnion.funElim_eq_ofSum]
+-/
+
+/-
+theorem isValueSetSafe_iff {il: Interleaving VarL ValL VarR ValR} {req: il.AreTypeEquiv stsL stsR}
+  :
+-/
 
 def toStandardType (il: Interleaving VarL ValL VarR ValR)
   (stL: StandardType ECL VarL ValL ValSL) (stR: StandardType ECR VarR ValR ValSR)
@@ -160,6 +237,28 @@ def toStandardType (il: Interleaving VarL ValL VarR ValR)
   }
 
 /-
+open SumUnion in
+theorem isValueSafe_exists_iff (il: Interleaving VarL ValL VarR ValR)
+  (stL: StandardType ECL VarL ValL ValSL) (stR: StandardType ECR VarR ValR ValSR)
+  (req1: il.AreTypeEquiv stL.toStruct stR.toStruct) (req2: il.AreEvalEquiv ECL ECR) {varR: VarR} {valL: ValL}
+  : (∃valR, stR.IsValueSafe varR valR ∧ il.val.Rel valL valR) ↔ (∃varL, stL.IsValueSafe varL valL ∧ il.var.Rel varL varR) := by
+  dsimp [areTypeEquiv_def, setLikeHEq_def] at req1
+  simp [setHEq_iff_forall_iff_and_forall_iff, ← StandardTypeStruct.isValueSafe_def] at req1
+  constructor
+  · rintro ⟨valR, lm1, lm2⟩
+    rewrite [stR.eval_exists_iff] at lm1
+    rcases lm1 with ⟨ecR, lm1⟩
+    rewrite [Eq.comm] at lm1
+    subst lm1
+    have lm3 := req2.left_exists ecR
+    rcases lm3 with ⟨ecL, lm3⟩
+    simp [funHEq_iff] at lm3
+    simp [stL.eval_exists_iff]
+    --by_cases lm4: ∀varL, ¬il.var.Rel varL varR
+    --·
+-/
+
+/-
 variable (ECL ECR) in
 open StandardType in
 @[reducible]
@@ -167,6 +266,72 @@ def toHasProposition.{usl} (il: Interleaving VarL ValL VarR ValR) [HasPropositio
   : HasProposition (il.EvalInter ECL ECR) (SumUnion il.var.Rel) (SumUnion il.val.Rel) where
   ValS := (SetLikeUnion il.val.Rel ValSL ValSR)
   setLike := inferInstance
+-/
+
+/-
+variable {il: Interleaving VarL ValL VarR ValR} {stL: StandardType ECL VarL ValL ValSL} {stR: StandardType ECR VarR ValR ValSR}
+         {req_type_equiv: il.AreTypeEquiv stL.toStruct stR.toStruct} {req_eval_equiv: il.AreEvalEquiv ECL ECR}
+-/
+
+
+/-
+def isSpecSafe (il: Interleaving VarL ValL VarR ValR) (req_eval_equiv: il.AreEvalEquiv ECL ECR)
+               (stL: StandardType ECL VarL ValL ValSL) (stR: StandardType ECR VarR ValR ValSR)
+               (req_type_equiv: il.AreTypeEquiv stL.toStruct stR.toStruct)
+               [stL.DecidableSpecSafe] [stR.DecidableSpecSafe] [HasPartialCongruence il.var.Rel]
+               (var: SumUnion il.var.Rel) (spec: SetLikeUnion il.val.Rel ValSL ValSR) : Bool :=
+    let sumFun : (ValSL ⊕ ValSR) → Bool
+      | .inl sal => match var.left? with | .some l => decide (stL.IsValueSetSafe l sal) | .none => .false
+      | .inr sar => match var.right? with | .some r => decide (stR.IsValueSetSafe r sar) | .none => .false
+    spec.toSumUnion.liftOfSum sumFun (by
+      simp [sum_simp]
+      --have lm4 := il.toStandardTypeStruct_eval_exists req_type_equiv req_eval_equiv stL.valid.eval_exists stR.valid.eval_exists
+      refine ⟨?_, ?_⟩ <;> (
+        intro sal sar lm1
+        dsimp [SumUnion.setLikeHEq_def] at lm1
+        subst sumFun
+        dsimp
+        generalize lm2: var.left? = l?
+        generalize lm3: var.right? = r?
+        rcases l? with _ | ⟨l⟩
+        <;> rcases r? with _ | ⟨r⟩
+        <;> simp )
+      · intro lm4
+        simp [sum_simp] at lm3
+        subst lm3
+        simp [sum_simp] at lm2
+        simp [StandardTypeStruct.isValueSetSafe_eq_isValueSafe, stR.eval_exists_iff] at lm4
+    )
+-/
+        --dsimp [StandardTypeStruct.isValueSetSafe_eq_isValueSafe, StandardTypeStruct.isValueSafe_def] at lm4
+
+
+
+/-
+        <;> simp [StandardTypeStruct.isValueSetSafe_def, Set.subset_def]
+        <;> (
+          cases var using SumUnion.indInlInrOfSum
+          <;> simp [sum_simp] at lm2 lm3 ))
+      · rewrite [Eq.comm] at lm3
+        subst lm3
+        simp [StandardType.not_mem_iff_forall_eval_ne]
+        by_contra lm5
+        simp at lm5
+-/
+        --have lm3 := req.left_exists
+
+/-
+@[reducible]
+def toDecidableSpecSafe : (il.toStandardType stL stR req_type_equiv req_eval_equiv).DecidableSpecSafe
+-/
+
+/-
+@[reducible]
+def toConcreteStandardType (il: Interleaving VarL ValL VarR ValR)
+  (stL: StandardType ECL VarL ValL ValSL) (stR: StandardType ECR VarR ValR ValSR)
+  (req1: il.AreTypeEquiv stL.toStruct stR.toStruct) (req2: il.AreEvalEquiv ECL ECR)
+  : StandardType.Concrete (il.EvalInter ECL ECR) (SumUnion il.var.Rel) (SumUnion il.val.Rel) (SetLikeUnion il.val.Rel ValSL ValSR) where
+  standardType := il.toStandardType stL stR req1 req2
 -/
 
 end Interleaving
@@ -185,7 +350,7 @@ structure Interleaving (VarL ValL ValSL VarR ValR ValSR: Type*) [SetLike ValSL V
 namespace StandardType
 
 --(EC Var Val ValS: Type*) [EvalLike EC Var Val] [SetLike ValS Val]
-#print HasProposition
+
 
 
 

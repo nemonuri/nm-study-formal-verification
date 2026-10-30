@@ -74,6 +74,63 @@ theorem right_pred_iff_exists_left_pred_and_rel_of_rel (pred: αr → Prop) {l: 
   · intro lm1
     exists r
 
+theorem left_ne_iff_not_rel {l: αl} {r: αr} (req: rel l r) (l2: αl) : (l ≠ l2) ↔ (¬rel l2 r) := by
+  have lm1 := left_eq_iff_rel req l2
+  simpa only [not_iff_not] using lm1
+
+theorem right_ne_iff_not_rel {l: αl} {r: αr} (req: rel l r) (r2: αr) : (r ≠ r2) ↔ (¬rel l r2) := by
+  have lm1 := right_eq_iff_rel req r2
+  simpa only [not_iff_not] using lm1
+
+
+theorem rel_iff_and {l: αl} {r: αr} : (rel l r) ↔ (∃l2 r2, rel l2 r2 ∧ (∀x, rel l2 x → r = x) ∧ (∀x, rel x r2 → l = x)) := by
+  constructor
+  · intro lm1
+    exists l
+    exists r
+    simp [lm1]
+    refine ⟨?_, ?_⟩
+    · intro r2 lm2
+      exact IsBiUnique.rightUnique lm1 lm2
+    · intro l2 lm2
+      exact IsBiUnique.leftUnique lm1 lm2
+  · rintro ⟨l2, r2, lm1, lm2, lm3⟩
+    specialize lm2 r2 lm1
+    specialize lm3 l2 lm1
+    subst lm2 lm3
+    exact lm1
+
+
+theorem not_rel_iff_or {l: αl} {r: αr} : (¬rel l r) ↔ (∀l2 r2, ¬rel l2 r2 ∨ (∃x, rel l2 x ∧ r ≠ x) ∨ (∃x, rel x r2 ∧ l ≠ x)) := by
+  rewrite [not_iff_comm]
+  simp
+  symm
+  exact rel_iff_and
+
+/-
+  constructor
+  · intro lm1
+    by_contra lm2
+    simp at lm2
+    rcases lm2 with ⟨lm2, lm3⟩
+    rcases lm2 with ⟨l2, r2, lm2⟩
+    have lm4 := lm3 r2
+    by_cases lm5: l = l2
+    · subst lm5
+      specialize lm4 lm2
+      have lm5 := (right_ne_iff_not_rel lm2 r).mpr lm1 |> Ne.symm
+      specialize lm4 lm5
+-/
+    --rcases lm2 with ⟨lm2, lm3, lm4⟩
+    --
+
+
+
+
+      --simp [lm5] at lm6
+
+--theorem left_ne_of_rel_not_rel {l: αl} {r: αr} (req1: rel l r) {l2: αl} {r2: αr} (req2: ¬rel l2 r2) : l ≠ l2 := --by
+
 
 section Find
 

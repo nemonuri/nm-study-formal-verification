@@ -524,6 +524,11 @@ theorem mem_iff_mem_of_rel [IsBiUnique rel] (h: SetHEq rel sl sr) l r (req: rel 
     subst lm7
     exact lm5
 
+theorem not_mem_iff_not_mem_of_rel [IsBiUnique rel] (h: SetHEq rel sl sr) l r (req: rel l r) : (l ∉ sl) ↔ (r ∉ sr) := by
+  have lm1 := h.mem_iff_mem_of_rel l r req
+  simpa only [not_iff_not] using lm1
+
+
 theorem of_mem_iff_mem_of_rel₂ [IsBiUnique rel]
   (req1: ∀l, ∃r, (rel l r) ∧ (l ∈ sl ↔ r ∈ sr))
   (req2: ∀r, ∃l, (rel l r) ∧ (l ∈ sl ↔ r ∈ sr)) : SetHEq rel sl sr := by
@@ -554,6 +559,40 @@ theorem of_mem_iff_mem_of_rel₂ [IsBiUnique rel]
       replace lm3 := lm3.mpr lm1
       exists l
 
+--(∀(su: SumUnion rel), (∃l ∈ sl, su = .ofSum (.inl l)) ↔ (∃r ∈ sr, su = .ofSum (.inr r)))
+
+theorem forall_sumUnion_exists_iff_exists (h: SetHEq rel sl sr) (su: SumUnion rel) : (∃l ∈ sl, su = .ofSum (.inl l)) ↔ (∃r ∈ sr, su = .ofSum (.inr r)) :=
+  setHEq_iff_forall_iff.mp h su
+
+
+theorem forall_left_mem_iff_right_mem_and_rel_exists [IsBiUnique rel] (h: SetHEq rel sl sr) (l: αl) : (l ∈ sl) ↔ (∃r ∈ sr, rel l r) := by
+  have lm1 := setHEq_iff_forall_iff_and_forall_iff.mp h
+  exact (lm1.left l)
+
+theorem forall_right_mem_iff_left_mem_and_rel_exists [IsBiUnique rel] (h: SetHEq rel sl sr) (r: αr) : (r ∈ sr) ↔ (∃l ∈ sl, rel l r) := by
+  have lm1 := setHEq_iff_forall_iff_and_forall_iff.mp h
+  exact (lm1.right r)
+
+/-
+theorem forall_left_mem_iff_rel_exists [IsBiUnique rel] (h: SetHEq rel sl sr) (l: αl) : (l ∈ sl) ↔ (∃r, rel l r) := by
+  constructor
+  · intro lm1
+    rcases (h.forall_left_right_mem_and_rel_exists_iff_mem l).mpr lm1 with ⟨r, lm2, lm3⟩
+    exists r
+  · rintro ⟨r, lm1⟩
+    have lm2 := h.mem_iff_mem_of_rel l r lm1
+    rewrite [iff_iff_and_or_not_and_not] at lm2
+-/
+/-
+    refine (h.forall_left_right_mem_and_rel_exists_iff_mem l).mp ?_
+    have lm2 := h.forall_sumUnion_exists_iff_exists (.ofSum (.inl l))
+    simp [sum_simp] at lm2
+-/
+    --have lm2 := h.mem_iff_mem_of_rel l r lm1
+
+  --have lm1 := h.forall_left_mem_iff_right_mem_and_rel_exists l
+  --rcases lm1 with ⟨lm1, lm2⟩
+  --simp at lm1 lm2
 
 end SetHEq
 
