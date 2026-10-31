@@ -61,14 +61,115 @@ theorem apply_def {ei: il.EvalInter ECL ECR} {su: SumUnion il.var.Rel} : ei su =
 
 end EvalInter
 
+def AreTypeEquivAt (il: Interleaving VarL ValL VarR ValR) (stsL: StandardTypeStruct VarL ValL ValSL) (stsR: StandardTypeStruct VarR ValR ValSR) (varL: VarL) (varR: VarR) : Prop :=
+  SumUnion.SetLikeHEq il.val.Rel ValSL ValSR (stsL.dom varL) (stsR.dom varR)
+
+section AreTypeEquivAtSection
+
+variable {il: Interleaving VarL ValL VarR ValR} {stsL: StandardTypeStruct VarL ValL ValSL} {stsR: StandardTypeStruct VarR ValR ValSR} {varL: VarL} {varR: VarR}
+         {stL: StandardType ECL VarL ValL ValSL} {stR: StandardType ECR VarR ValR ValSR}
+
+@[defeq]
+theorem areTypeEquivAt_def : il.AreTypeEquivAt stsL stsR varL varR = SumUnion.SetLikeHEq il.val.Rel ValSL ValSR (stsL.dom varL) (stsR.dom varR) := rfl
+
+open SumUnion in
+theorem areTypeEquivAt_iff : Iff (il.AreTypeEquivAt stsL stsR varL varR)
+   ((∀valL, stsL.IsValueSafe varL valL → ∃valR, stsR.IsValueSafe varR valR ∧ il.val.Rel valL valR) ∧ (∀valR, stsR.IsValueSafe varR valR → ∃valL, stsL.IsValueSafe varL valL ∧ il.val.Rel valL valR)) := by
+   dsimp [areTypeEquivAt_def, setLikeHEq_def, StandardTypeStruct.isValueSafe_def]
+   simp [setHEq_iff_forall_iff_imp_and_imp]
+
+namespace AreTypeEquivAt
+
+open SumUnion
+
+theorem setHEq (h: il.AreTypeEquivAt stsL stsR varL varR) : SetHEq il.val.Rel ↑(stsL.dom varL) ↑(stsR.dom varR) := h
+
+theorem right_isValueSafe_and_rel_of_left_isValueSafe (h: il.AreTypeEquivAt stsL stsR varL varR) : ∀valL, stsL.IsValueSafe varL valL → ∃valR, stsR.IsValueSafe varR valR ∧ il.val.Rel valL valR :=
+  (areTypeEquivAt_iff.mp h).left
+
+theorem left_isValueSafe_and_rel_of_right_isValueSafe (h: il.AreTypeEquivAt stsL stsR varL varR) : ∀valR, stsR.IsValueSafe varR valR → ∃valL, stsL.IsValueSafe varL valL ∧ il.val.Rel valL valR :=
+  (areTypeEquivAt_iff.mp h).right
+
+
+theorem right_rel_of_left (h: il.AreTypeEquivAt stL.toStruct stR.toStruct varL varR) (ecL: ECL) : ∃(ecR: ECR), il.val.Rel (ecL varL) (ecR varR) := by
+  have lm1 := h.right_isValueSafe_and_rel_of_left_isValueSafe
+  simp [stL.eval_exists_iff, stR.eval_exists_iff] at lm1
+  exact lm1 ecL
+
+theorem left_rel_of_right (h: il.AreTypeEquivAt stL.toStruct stR.toStruct varL varR) (ecR: ECR) : ∃(ecL: ECL), il.val.Rel (ecL varL) (ecR varR) := by
+  have lm1 := h.left_isValueSafe_and_rel_of_right_isValueSafe
+  simp [stL.eval_exists_iff, stR.eval_exists_iff] at lm1
+  exact lm1 ecR
+
+end AreTypeEquivAt
+
+theorem areTypeEquivAt_iff_eval : Iff (il.AreTypeEquivAt stL.toStruct stR.toStruct varL varR)
+  ((∀(ecL: ECL), ∃(ecR: ECR), il.val.Rel (ecL varL) (ecR varR)) ∧ (∀(ecR: ECR), ∃(ecL: ECL), il.val.Rel (ecL varL) (ecR varR))) := by
+  simp [areTypeEquivAt_iff, stL.eval_exists_iff, stR.eval_exists_iff]
+
+
+end AreTypeEquivAtSection
+
 def AreTypeEquiv (il: Interleaving VarL ValL VarR ValR) (stsL: StandardTypeStruct VarL ValL ValSL) (stsR: StandardTypeStruct VarR ValR ValSR) : Prop :=
-  ∀⦃varL varR⦄, (il.var.Rel varL varR) → SumUnion.SetLikeHEq il.val.Rel ValSL ValSR (stsL.dom varL) (stsR.dom varR)
+  ∀⦃varL varR⦄, (il.var.Rel varL varR) → il.AreTypeEquivAt stsL stsR varL varR --SumUnion.SetLikeHEq il.val.Rel ValSL ValSR (stsL.dom varL) (stsR.dom varR)
 
 @[defeq]
 theorem areTypeEquiv_def {il: Interleaving VarL ValL VarR ValR} {stsL: StandardTypeStruct VarL ValL ValSL} {stsR: StandardTypeStruct VarR ValR ValSR}
-  : il.AreTypeEquiv stsL stsR = ∀(varL varR), (il.var.Rel varL varR) → SumUnion.SetLikeHEq il.val.Rel ValSL ValSR (stsL.dom varL) (stsR.dom varR) :=
+  : il.AreTypeEquiv stsL stsR = ∀(varL varR), (il.var.Rel varL varR) → il.AreTypeEquivAt stsL stsR varL varR :=
   rfl
 
+
+namespace AreTypeEquiv
+
+open SumUnion
+
+variable {il: Interleaving VarL ValL VarR ValR} {stL: StandardType ECL VarL ValL ValSL} {stR: StandardType ECR VarR ValR ValSR} {varL: VarL} {varR: VarR}
+
+theorem areTypeEquivAt_of_rel (h: il.AreTypeEquiv stL.toStruct stR.toStruct) (req: il.var.Rel varL varR) : il.AreTypeEquivAt stL.toStruct stR.toStruct varL varR := h req
+
+theorem rel_and_rel_of_rel (h: il.AreTypeEquiv stL.toStruct stR.toStruct) (req: il.var.Rel varL varR) : (∀(ecL: ECL), ∃(ecR: ECR), il.val.Rel (ecL varL) (ecR varR)) ∧ (∀(ecR: ECR), ∃(ecL: ECL), il.val.Rel (ecL varL) (ecR varR)) :=
+  areTypeEquivAt_iff_eval.mp (h.areTypeEquivAt_of_rel req)
+
+variable (stL stR) in
+theorem of_rel_and_rel_of_rel (req: ∀varL varR, (il.var.Rel varL varR) → (∀(ecL: ECL), ∃(ecR: ECR), il.val.Rel (ecL varL) (ecR varR)) ∧ (∀(ecR: ECR), ∃(ecL: ECL), il.val.Rel (ecL varL) (ecR varR)))
+  : il.AreTypeEquiv stL.toStruct stR.toStruct := by
+  dsimp [areTypeEquiv_def]
+  simp [areTypeEquivAt_iff_eval]
+  exact req
+
+
+/-
+variable (stL stR) in
+theorem of_funHEq₂ (req1: ∀(ecL: ECL), ∃(ecR: ECR), FunHEq il.var.Rel il.val.Rel ↑ecL ↑ecR)
+                   (req2: ∀(ecR: ECR), ∃(ecL: ECL), FunHEq il.var.Rel il.val.Rel ↑ecL ↑ecR)
+  : il.AreTypeEquiv stL.toStruct stR.toStruct := by
+  dsimp [areTypeEquiv_def]
+  simp [funHEq_iff] at req1 req2
+  intro varL varR lm1
+  simp [areTypeEquivAt_iff_eval]
+  refine ⟨?_, ?_⟩
+  · intro ecL
+    rcases req1 ecL with ⟨ecR, lm2⟩
+    specialize lm2 varL varR lm1
+    exists ecR
+  ·
+-/
+/-
+  dsimp [areTypeEquiv_def]
+  simp [funHEq_iff] at req
+  intro varL varR lm1
+  have lm2 ecL ecR := req ecL ecR varL varR lm1
+-/
+-- (req1: il.var.Rel varL varR)
+/-
+theorem funHEq_of_eval_rel (h: il.AreTypeEquiv stL.toStruct stR.toStruct) {ecL: ECL} {ecR: ECR} (req2: il.val.Rel (ecL varL) (ecR varR))
+  : FunHEq il.var.Rel il.val.Rel ↑ecL ↑ecR := by
+  simp [funHEq_iff]
+-/
+
+end AreTypeEquiv
+
+/-
 namespace AreTypeEquiv
 
 open SumUnion
@@ -81,15 +182,75 @@ theorem setHEqOf (h: il.AreTypeEquiv stsL stsR) varL varR : (il.var.Rel varL var
 
 #check Classical.skolem
 
-
-
 end AreTypeEquiv
-
+-/
 
 variable (ECL ECR) in
 structure AreEvalEquiv (il: Interleaving VarL ValL VarR ValR) : Prop where
   right_exists (ecl: ECL) : ∃(ecr: ECR), FunHEq il.var.Rel il.val.Rel ↑ecl ↑ecr
   left_exists (ecr: ECR) : ∃(ecl: ECL), FunHEq il.var.Rel il.val.Rel ↑ecl ↑ecr
+
+namespace AreEvalEquiv
+
+variable {il: Interleaving VarL ValL VarR ValR} {stL: StandardType ECL VarL ValL ValSL} {stR: StandardType ECR VarR ValR ValSR}
+
+variable (stL stR) in
+theorem areTypeEquiv (h: il.AreEvalEquiv ECL ECR) : il.AreTypeEquiv stL.toStruct stR.toStruct := by
+  dsimp [areTypeEquiv_def]
+  intro varL varR lm1
+  simp [areTypeEquivAt_iff_eval]
+  rcases h with ⟨lm2, lm3⟩
+  simp [funHEq_iff] at lm2 lm3
+  refine ⟨?_, ?_⟩
+  · intro ecL
+    specialize lm2 ecL
+    rcases lm2 with ⟨ecR, lm2⟩
+    specialize lm2 varL varR lm1
+    exists ecR
+  · intro ecR
+    specialize lm3 ecR
+    rcases lm3 with ⟨ecL, lm3⟩
+    specialize lm3 varL varR lm1
+    exists ecL
+
+theorem left_to_right_choice_exists (h: il.AreEvalEquiv ECL ECR) : ∃(f: ECL → ECR), ∀(ecL: ECL), FunHEq il.var.Rel il.val.Rel ecL (f ecL) :=
+  Classical.axiomOfChoice h.right_exists
+
+theorem right_to_left_choice_exists (h: il.AreEvalEquiv ECL ECR) : ∃(f: ECR → ECL), ∀(ecR: ECR), FunHEq il.var.Rel il.val.Rel (f ecR) ecR :=
+  Classical.axiomOfChoice h.left_exists
+
+theorem of_choice₂ (flr: ECL → ECR) (req1: ∀(ecL: ECL), FunHEq il.var.Rel il.val.Rel ecL (flr ecL)) (frl: ECR → ECL) (req2: ∀(ecR: ECR), FunHEq il.var.Rel il.val.Rel (frl ecR) ecR)
+  : il.AreEvalEquiv ECL ECR := by
+  refine .mk ?_ ?_
+  · intro ecL
+    specialize req1 ecL
+    exists (flr ecL)
+  · intro ecR
+    specialize req2 ecR
+    exists (frl ecR)
+
+end AreEvalEquiv
+
+theorem areEvalEquiv_iff_skolem {il: Interleaving VarL ValL VarR ValR}
+  : (il.AreEvalEquiv ECL ECR) ↔ (∃(flr: ECL → ECR) (frl: ECR → ECL), ∀(ecL: ECL) (ecR: ECR), FunHEq il.var.Rel il.val.Rel ecL (flr ecL) ∧ FunHEq il.var.Rel il.val.Rel (frl ecR) ecR) := by
+  constructor
+  · intro lm1
+    rcases lm1.left_to_right_choice_exists with ⟨flr, lm2⟩
+    rcases lm1.right_to_left_choice_exists with ⟨frl, lm3⟩
+    exists flr
+    exists frl
+    intro ecL ecR
+    refine ⟨?_, ?_⟩
+    · exact lm2 ecL
+    · exact lm3 ecR
+  · rintro ⟨flr, frl, lm1⟩
+    refine AreEvalEquiv.of_choice₂ flr ?_ frl ?_
+    · intro ecL
+      specialize lm1 ecL (flr ecL)
+      exact lm1.left
+    · intro ecR
+      specialize lm1 (frl ecR) ecR
+      exact lm1.right
 
 
 variable {stsL: StandardTypeStruct VarL ValL ValSL} {stsR: StandardTypeStruct VarR ValR ValSR}
@@ -142,9 +303,37 @@ theorem toStandardTypeStruct_isValueSafe_inl_inr_iff {varL: VarL} {valR: ValR}
   dsimp [StandardTypeStruct.isValueSafe_def]
   simp [sum_simp]
 
+
+variable {stL: StandardType ECL VarL ValL ValSL} {stR: StandardType ECR VarR ValR ValSR} --{varL: VarL} {varR: VarR}
+         {req2: il.AreTypeEquiv stL.toStruct stR.toStruct}
+
+@[sum_simp]
+theorem toStandardTypeStruct_isValueSafe_inl_inl_iff_of_standardType {varL: VarL} {valL: ValL}
+  : (il.toStandardTypeStruct req2).IsValueSafe (.ofSum (.inl varL)) (.ofSum (.inl valL)) ↔ (∃(ecL: ECL), valL = ecL varL) := by
+  simp [sum_simp]
+  rw [stL.eval_exists_iff]
+  simp [Eq.comm]
+
+@[sum_simp]
+theorem toStandardTypeStruct_isValueSafe_inr_inl_iff_of_standardType {varR: VarR} {valL: ValL}
+  : (il.toStandardTypeStruct req2).IsValueSafe (.ofSum (.inr varR)) (.ofSum (.inl valL)) ↔ (∃(ecR: ECR), il.val.Rel valL (ecR varR)) := by
+  simp [toStandardTypeStruct_isValueSafe_inr_inl_iff, stR.eval_exists_iff]
+
+@[sum_simp]
+theorem toStandardTypeStruct_isValueSafe_inr_inr_iff_of_standardType {varR: VarR} {valR: ValR}
+  : (il.toStandardTypeStruct req2).IsValueSafe (.ofSum (.inr varR)) (.ofSum (.inr valR)) ↔ (∃(ecR: ECR), valR = ecR varR) := by
+  simp [sum_simp]
+  rw [stR.eval_exists_iff]
+  simp [Eq.comm]
+
+@[sum_simp]
+theorem toStandardTypeStruct_isValueSafe_inl_inr_iff_of_standardType {varL: VarL} {valR: ValR}
+  : (il.toStandardTypeStruct req2).IsValueSafe (.ofSum (.inl varL)) (.ofSum (.inr valR)) ↔ (∃(ecL: ECL), il.val.Rel (ecL varL) valR) := by
+  simp [toStandardTypeStruct_isValueSafe_inl_inr_iff, stL.eval_exists_iff]
+
 end ToStandardTypeStruct
 
-
+/-
 open SumUnion in
 theorem toStandardTypeStruct_type_safe (il: Interleaving VarL ValL VarR ValR)
   (req1: il.AreTypeEquiv stsL stsR) (req2: ∀(ec: ECL) var, (ec var) ∈ (stsL.dom var)) (req3: ∀(ec: ECR) var, (ec var) ∈ (stsR.dom var))
@@ -155,30 +344,82 @@ theorem toStandardTypeStruct_type_safe (il: Interleaving VarL ValL VarR ValR)
   | inl l =>
     dsimp [sum_simp, EvalInter.apply_def, EvalInter.toEval, FunInter.toFun, SumUnion.funElim₂, funElim_eq_ofSum]
     simp [sum_simp]
-/-
-    dsimp [toStandardTypeStruct, funElim_eq_ofSum, SetLikeUnion.mem_def, EvalInter.apply_def,
-          SetLikeUnion.ofSumUnion, liftOfSum_ofSum, SetLikeUnion.toSet, SetLikeUnion.toSetUnion, SumUnion.toSet,
-          EvalInter.toEval, FunInter.toFun, SumUnion.funElim₂]
-    simp [SumUnion.setOfLeftSet_mem_inl_iff_mem]
--/
     exact req2 ecl l
   | inr r =>
     dsimp [sum_simp, EvalInter.apply_def, EvalInter.toEval, FunInter.toFun, SumUnion.funElim₂, funElim_eq_ofSum]
     simp [sum_simp]
-/-
-    dsimp [toStandardTypeStruct, funElim_eq_ofSum, SetLikeUnion.mem_def, EvalInter.apply_def,
-          SetLikeUnion.ofSumUnion, liftOfSum_ofSum, SetLikeUnion.toSet, SetLikeUnion.toSetUnion, SumUnion.toSet,
-          EvalInter.toEval, FunInter.toFun, SumUnion.funElim₂]
-    simp [SumUnion.setOfRightSet_mem_inr_iff_mem]
--/
     exact req3 ecr r
+-/
+
+open SumUnion in
+theorem toStandardTypeStruct_type_safe (il: Interleaving VarL ValL VarR ValR)
+  (stL: StandardType ECL VarL ValL ValSL) (stR: StandardType ECR VarR ValR ValSR) (req: il.AreTypeEquiv stL.toStruct stR.toStruct)
+  (ec: il.EvalInter ECL ECR) (var: SumUnion il.var.Rel) : (il.toStandardTypeStruct req).IsValueSafe var (ec var) := by
+  generalize lm1: ec var = val
+  cases var using SumUnion.indInlInrOfSum with
+  | inl varL =>
+    cases val using SumUnion.indInlInrOfSum with
+    | inl valL =>
+      dsimp [EvalInter.apply_def, EvalInter.toEval, FunInter.toFun, SumUnion.funElim₂, funElim_eq_ofSum] at lm1
+      simp [sum_simp] at lm1 ⊢
+      rw [← lm1]
+      exact stL.isValueSafe_of_eval
+    | inr valR =>
+      dsimp [EvalInter.apply_def, EvalInter.toEval, FunInter.toFun, SumUnion.funElim₂, funElim_eq_ofSum] at lm1
+      simp [sum_simp] at lm1 ⊢
+      exists ec.left
+  | inr varR =>
+    cases val using SumUnion.indInlInrOfSum with
+    | inl valL =>
+      dsimp [EvalInter.apply_def, EvalInter.toEval, FunInter.toFun, SumUnion.funElim₂, funElim_eq_ofSum] at lm1
+      simp [sum_simp] at lm1 ⊢
+      exists ec.right
+    | inr valR =>
+      dsimp [EvalInter.apply_def, EvalInter.toEval, FunInter.toFun, SumUnion.funElim₂, funElim_eq_ofSum] at lm1
+      simp [sum_simp] at lm1 ⊢
+      rw [← lm1]
+      exact stR.isValueSafe_of_eval
+
+
 
 open SumUnion in
 theorem toStandardTypeStruct_eval_exists (il: Interleaving VarL ValL VarR ValR)
-  (req1: il.AreTypeEquiv stsL stsR) (req2: il.AreEvalEquiv ECL ECR)
-  (req3: ∀var val, (val ∈ stsL.dom var) → ∃(ec: ECL), ec var = val) --(req3: IsStandardType (SetLike.coe ∘ stsL.dom) ECL)
-  (req4: ∀var val, (val ∈ stsR.dom var) → ∃(ec: ECR), ec var = val) --(req4: IsStandardType (SetLike.coe ∘ stsR.dom) ECR)
-  (var: SumUnion il.var.Rel) (val: SumUnion il.val.Rel) (req5: val ∈ (il.toStandardTypeStruct req1).dom var) : ∃(ec: il.EvalInter ECL ECR), ec var = val := by
+  (stL: StandardType ECL VarL ValL ValSL) (stR: StandardType ECR VarR ValR ValSR) (req1: il.AreEvalEquiv ECL ECR)
+  (var: SumUnion il.var.Rel) (val: SumUnion il.val.Rel) (req2: (il.toStandardTypeStruct (req1.areTypeEquiv stL stR)).IsValueSafe var val) : ∃(ec: il.EvalInter ECL ECR), ec var = val := by
+  cases var using SumUnion.indInlInrOfSum with
+  | inl varL =>
+    cases val using SumUnion.indInlInrOfSum with
+    | inl valL =>
+      dsimp [EvalInter.apply_def, EvalInter.toEval, FunInter.toFun, SumUnion.funElim₂, funElim_eq_ofSum]
+      simp [sum_simp] at ⊢ req2
+      rcases stL.eval_exists req2 with ⟨ecL, lm1⟩
+      rw [← lm1]
+      rcases req1.right_exists ecL with ⟨ecR, lm2⟩
+      exists ⟨ecL, ecR, lm2⟩
+    | inr valR =>
+      dsimp [EvalInter.apply_def, EvalInter.toEval, FunInter.toFun, SumUnion.funElim₂, funElim_eq_ofSum]
+      simp [sum_simp] at ⊢ req2
+      rcases req2 with ⟨ecL, lm1⟩
+      rcases req1.right_exists ecL with ⟨ecR, lm2⟩
+      exists ⟨ecL, ecR, lm2⟩
+  | inr varR =>
+    cases val using SumUnion.indInlInrOfSum with
+    | inl valL =>
+      dsimp [EvalInter.apply_def, EvalInter.toEval, FunInter.toFun, SumUnion.funElim₂, funElim_eq_ofSum]
+      simp [sum_simp] at ⊢ req2
+      rcases req2 with ⟨ecR, lm1⟩
+      rcases req1.left_exists ecR with ⟨ecL, lm2⟩
+      exists ⟨ecL, ecR, lm2⟩
+    | inr valR =>
+      dsimp [EvalInter.apply_def, EvalInter.toEval, FunInter.toFun, SumUnion.funElim₂, funElim_eq_ofSum]
+      simp [sum_simp] at ⊢ req2
+      rcases stR.eval_exists req2 with ⟨ecR, lm1⟩
+      rw [← lm1]
+      rcases req1.left_exists ecR with ⟨ecL, lm2⟩
+      exists ⟨ecL, ecR, lm2⟩
+
+
+/-
   rcases req2 with ⟨lm6, lm7⟩
   cases var using SumUnion.indInlInrOfSum with
   | inl varL =>
@@ -213,7 +454,7 @@ theorem toStandardTypeStruct_eval_exists (il: Interleaving VarL ValL VarR ValR)
     specialize lm7 ecR
     rcases lm7 with ⟨ecL, lm7⟩
     exists ⟨ecL, ecR, lm7⟩
-
+-/
 
 /-
 theorem toStandardTypeStruct_isValueSafe_iff {il: Interleaving VarL ValL VarR ValR} {req: il.AreTypeEquiv stsL stsR} {var val}
@@ -226,14 +467,13 @@ theorem isValueSetSafe_iff {il: Interleaving VarL ValL VarR ValR} {req: il.AreTy
   :
 -/
 
-def toStandardType (il: Interleaving VarL ValL VarR ValR)
+def toStandardType (il: Interleaving VarL ValL VarR ValR) (req: il.AreEvalEquiv ECL ECR)
   (stL: StandardType ECL VarL ValL ValSL) (stR: StandardType ECR VarR ValR ValSR)
-  (req1: il.AreTypeEquiv stL.toStruct stR.toStruct) (req2: il.AreEvalEquiv ECL ECR)
   : StandardType (il.EvalInter ECL ECR) (SumUnion il.var.Rel) (SumUnion il.val.Rel) (SetLikeUnion il.val.Rel ValSL ValSR) where
-  toStruct := il.toStandardTypeStruct req1
+  toStruct := il.toStandardTypeStruct (req.areTypeEquiv stL stR)
   valid := {
-    type_safe := il.toStandardTypeStruct_type_safe req1 stL.valid.type_safe stR.valid.type_safe
-    eval_exists := il.toStandardTypeStruct_eval_exists req1 req2 stL.valid.eval_exists stR.valid.eval_exists
+    type_safe := il.toStandardTypeStruct_type_safe stL stR (req.areTypeEquiv stL stR)
+    eval_exists := il.toStandardTypeStruct_eval_exists stL stR req
   }
 
 /-

@@ -596,6 +596,60 @@ theorem forall_left_mem_iff_rel_exists [IsBiUnique rel] (h: SetHEq rel sl sr) (l
 
 end SetHEq
 
+theorem setHEq_iff_forall_iff_imp_and_imp [IsBiUnique rel] : (SetHEq rel sl sr) ↔ ((∀l, (l ∈ sl) → (∃r ∈ sr, rel l r)) ∧ (∀r, (r ∈ sr) → (∃l ∈ sl, rel l r))) := by
+  constructor
+  · intro lm1
+    refine ⟨?_, ?_⟩
+    · intro l lm2
+      have lm3 := (lm1.forall_left_mem_iff_right_mem_and_rel_exists l).mp lm2
+      rcases lm3 with ⟨r, lm3, lm4⟩
+      exists r
+    · intro r lm2
+      have lm3 := (lm1.forall_right_mem_iff_left_mem_and_rel_exists r).mp lm2
+      rcases lm3 with ⟨l, lm3, lm4⟩
+      exists l
+  · rintro ⟨lm1, lm2⟩
+    simp [setHEq_iff_forall_iff_and_forall_iff]
+    refine ⟨?_, ?_⟩
+    · intro l
+      constructor
+      · exact lm1 l
+      · rintro ⟨r, lm3, lm4⟩
+        rcases lm2 r lm3 with ⟨l2, lm5, lm6⟩
+        have lm7 := IsBiUnique.leftUnique lm4 lm6
+        rw [lm7]
+        exact lm5
+    · intro r
+      constructor
+      · exact lm2 r
+      · rintro ⟨l, lm3, lm4⟩
+        rcases lm1 l lm3 with ⟨l2, lm5, lm6⟩
+        have lm7 := IsBiUnique.rightUnique lm4 lm6
+        rw [lm7]
+        exact lm5
+
+
+theorem not_setHEq_iff_exists_or_exists [IsBiUnique rel] : (¬SetHEq rel sl sr) ↔ ((∃l ∈ sl, ∀r, (r ∉ sr) ∨ (¬rel l r)) ∨ (∃r ∈ sr, ∀l, (l ∉ sl) ∨ (¬rel l r))) := by
+  rewrite [setHEq_iff_forall_iff_imp_and_imp]
+  simp only [not_and_or, not_forall, not_exists, exists_prop]
+
+
+/-
+    refine SetHEq.of_mem_iff_mem_of_rel₂ ?_ ?_
+    · intro l
+      specialize lm1 l
+      by_cases lm3: l ∈ sl
+      · specialize lm1 lm3
+        rcases lm1 with ⟨r, lm1⟩
+        exists r
+        simp [lm1, lm3]
+        by_contra lm4
+        by_cases lm5: ∃r2, r2 ∈ sr
+        · rcases lm5 with ⟨r2, lm5⟩
+          specialize lm2 r2 lm5
+          rcases lm2 with ⟨l2, lm2⟩
+-/
+
 
 /-
 theorem setHEq_iff_rel_iff_iff [IsBiUnique rel] : (SetHEq rel sl sr) ↔ (∀l r, (rel l r) ↔ (l ∈ sl ↔ r ∈ sr)) := by

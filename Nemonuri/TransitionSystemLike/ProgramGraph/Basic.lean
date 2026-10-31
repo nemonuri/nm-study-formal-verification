@@ -129,6 +129,7 @@ theorem value_valueSet_ext {s1 s2: StandardTypeStruct Var Val ValS} (req: ∀(va
 end StandardTypeStruct
 
 
+
 structure StandardType (EC Var Val ValS: Type*) [EvalLike EC Var Val] [SetLike ValS Val]
   extends toStruct: StandardTypeStruct Var Val ValS where
   valid: IsStandardType (SetLike.coe ∘ toStruct.dom) EC
@@ -154,6 +155,8 @@ theorem eval_safe {sty: StandardType EC Var Val ValS} {var: Var} {ec: EC} : sty.
   exact lm1
 
 theorem eval_safe_at {sty: StandardType EC Var Val ValS} (var: Var) (ec: EC) : sty.IsEvalSafe var ec := sty.eval_safe
+
+theorem isValueSafe_of_eval (sty: StandardType EC Var Val ValS) {var: Var} {ec: EC} : sty.IsValueSafe var (ec var) := sty.eval_safe
 
 theorem eval_exists {sty: StandardType EC Var Val ValS} {var: Var} {val: Val} (req: sty.IsValueSafe var val) : ∃(ec: EC), ec var = val := by
   have lm1 := sty.valid.eval_exists var val
