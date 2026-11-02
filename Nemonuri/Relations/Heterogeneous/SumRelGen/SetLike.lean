@@ -1,6 +1,7 @@
 module
 
 public import Nemonuri.Relations.Heterogeneous.IsBiUnique.SetLike
+public import Nemonuri.Relations.Heterogeneous.SumRelGen.Fintype
 
 @[expose] public section
 
@@ -287,8 +288,66 @@ theorem isMem_eq_true_iff [HasPartialCongruence rel] [∀(sal: Sαl), DecidableP
 
 
 instance [HasPartialCongruence rel] [∀(sal: Sαl), DecidablePred (· ∈ sal)] [∀(sar: Sαr), DecidablePred (· ∈ sar)]
-         (su: SumUnion rel) (slu: SetLikeUnion rel Sαl Sαr) : Decidable (su ∈ slu) :=
+         (slu: SetLikeUnion rel Sαl Sαr) (su: SumUnion rel) : Decidable (su ∈ slu) :=
          decidable_of_decidable_of_iff isMem_eq_true_iff
+
+
+def toFinset [∀(sal: Sαl), Fintype sal] [∀(sar: Sαr), Fintype sar]
+             (slu: SetLikeUnion rel Sαl Sαr) : Finset (SumUnion rel) :=
+  slu.toSumUnion.funElim
+    (fun (sal: Sαl) =>
+      let unattach : ↑sal ↪ αl := ⟨Subtype.val, Subtype.val_injective⟩
+      (Finset.univ: Finset sal).map unattach |> finsetOfLeftFinset rel )
+    (fun (sar: Sαr) =>
+      let unattach : ↑sar ↪ αr := ⟨Subtype.val, Subtype.val_injective⟩
+      (Finset.univ: Finset sar).map unattach |> finsetOfRightFinset rel )
+    (by
+      intro sal sar lm1
+      dsimp [finsetOfLeftFinset, finsetOfRightFinset]
+      simp [Finset.ext_iff]
+      simp [setLikeHEq_def, setHEq_iff_forall_iff] at lm1
+      intro su
+      specialize lm1 su
+      conv =>
+        conv => lhs; arg 1; ext; arg 2; rw [Eq.comm]
+        conv => rhs; arg 1; ext; arg 2; rw [Eq.comm]
+      exact lm1 )
+
+theorem toFinset_mem_iff_self_mem [∀(sal: Sαl), Fintype sal] [∀(sar: Sαr), Fintype sar] {slu: SetLikeUnion rel Sαl Sαr} (su: SumUnion rel)
+  : (su ∈ slu.toFinset) ↔ (su ∈ slu) := by
+  dsimp [toFinset, toSumUnion]
+  cases slu using indOfSumUnion with
+  | inl sl =>
+    simp [sum_simp]
+    dsimp [ofSumUnion, funElim_eq_ofSum, finsetOfLeftFinset]
+    simp
+    conv =>
+      rhs; dsimp [setOfLeftSet]
+      arg 1; ext; arg 2; rw [Eq.comm]
+    rfl
+  | inr sr =>
+    simp [sum_simp]
+    dsimp [ofSumUnion, funElim_eq_ofSum, finsetOfRightFinset]
+    simp
+    conv =>
+      rhs; dsimp [setOfRightSet]
+      arg 1; ext; arg 2; rw [Eq.comm]
+    rfl
+
+instance toFintype [∀(sal: Sαl), Fintype sal] [∀(sar: Sαr), Fintype sar] (slu: SetLikeUnion rel Sαl Sαr) : Fintype ↑slu :=
+  have lm1 su := (toFinset_mem_iff_self_mem su).mp
+  let reattach : ↑slu.toFinset ↪ ↑slu := ⟨Subtype.map id lm1, Subtype.map_injective lm1 Function.injective_id⟩
+  {
+    elems := slu.toFinset.attach.map reattach
+    complete := by
+      subst reattach
+      simp
+      intro su lm2
+      exists su
+      simp [Subtype.map_def]
+      exact (toFinset_mem_iff_self_mem su).mpr lm2
+  }
+
 
 
 

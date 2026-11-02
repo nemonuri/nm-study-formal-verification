@@ -227,6 +227,9 @@ namespace SumUnion
 
 def ofSum (s: αl ⊕ αr) : SumUnion rel := Quotient.mk _ s
 
+@[defeq]
+theorem ofSum_def {s: αl ⊕ αr} : (ofSum s: SumUnion rel) = ⟦s⟧ := rfl
+
 def liftOfSum {β: Sort*} (f: (αl ⊕ αr) → β) (req: ∀(s1 s2: (αl ⊕ αr)), SumEquivGen rel s1 s2 → f s1 = f s2) (su: SumUnion rel) : β :=
   Quotient.lift f req su
 
@@ -545,6 +548,16 @@ theorem left?_inr_eq_none_iff {r: αr} : ((.ofSum (.inr r): SumUnion rel).left? 
   dsimp [left?, funElim_eq_ofSum]
   simp [HasPartialCongruence.leftOfRel?_eq_none_iff_not_rel]
 
+@[sum_simp]
+theorem left?_eq_none_iff {su: SumUnion rel} : (su.left? = .none) ↔ (∃r, su = (.ofSum (.inr r)) ∧ (∀ (l : αl), ¬rel l r)) := by
+  cases su using indInlInrOfSum with
+  | inl l =>
+    simp [sum_simp]
+    intro _ _
+    exists l
+  | inr r =>
+    simp [sum_simp]
+
 def right? (su: SumUnion rel) : Option αr :=
   su.funElim (HasPartialCongruence.rightOfRel? rel ·) Option.some (by
     intro l r lm1
@@ -569,6 +582,60 @@ theorem right?_inr {r: αr} : (.ofSum (.inr r): SumUnion rel).right? = .some r :
 theorem right?_inl_eq_none_iff {l: αl} : ((.ofSum (.inl l): SumUnion rel).right? = .none) ↔ (∀ (r : αr), ¬rel l r) := by
   dsimp [right?, funElim_eq_ofSum]
   simp [HasPartialCongruence.rightOfRel?_eq_none_iff_not_rel]
+
+@[sum_simp]
+theorem right?_eq_none_iff {su: SumUnion rel} : (su.right? = .none) ↔ (∃l, su = (.ofSum (.inl l)) ∧ (∀ (r : αr), ¬rel l r)) := by
+  cases su using indInlInrOfSum with
+  | inl l =>
+    simp [sum_simp]
+  | inr r =>
+    simp [sum_simp]
+    intro _ _
+    exists r
+
+theorem rel_of_left?_eq_some_and_right?_eq_some {su: SumUnion rel} {l: αl} {r: αr} (req1: su.left? = .some l) (req2: su.right? = .some r)
+  : rel l r := by
+  simp [sum_simp] at req1 req2
+  subst req2
+  simpa [sum_simp] using req1
+
+theorem not_rel_of_left?_eq_some_and_right?_eq_none {su: SumUnion rel} {l: αl} (req1: su.left? = .some l) (req2: su.right? = .none) (r: αr) : ¬rel l r := by
+  simp [sum_simp] at req1 req2
+  subst req1
+  simp [sum_simp] at req2
+  exact req2 r
+
+theorem not_rel_of_left?_eq_none_and_right?_eq_some {su: SumUnion rel} {r: αr} (req1: su.left? = .none) (req2: su.right? = .some r) (l: αl) : ¬rel l r := by
+  simp [sum_simp] at req1 req2
+  subst req2
+  simp [sum_simp] at req1
+  exact req1 l
+
+theorem false_of_left?_eq_none_and_right?_eq_none {su: SumUnion rel} (req1: su.left? = .none) (req2: su.right? = .none) : False := by
+  simp [sum_simp] at req1 req2
+  rcases req1 with ⟨r, lm1, lm2⟩
+  subst lm1
+  simp [sum_simp] at req2
+  rcases req2 with ⟨l, lm3, lm4⟩
+  exact lm4 r lm3
+
+/-
+theorem left?_eq_some_and_right?_eq_some_iff_rel {su: SumUnion rel} {l: αl} {r: αr}
+  : (su.left? = .some l ∧ su.right? = .some r) ↔ (rel l r) := by
+-/
+  --simp [sum_simp]
+/-
+  cases su using indInlInrOfSum with
+  | inl l2 =>
+    simp [sum_simp]
+    constructor
+    · rintro ⟨lm1, lm2⟩
+      subst lm1
+      exact lm2
+    · intro lm1
+      by_contra lm2
+      simp at lm2
+-/
 
 
 def isIntersection (su: SumUnion rel) : Bool := su.left?.isSome && su.right?.isSome
