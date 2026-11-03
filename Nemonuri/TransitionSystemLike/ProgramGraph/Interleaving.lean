@@ -654,8 +654,8 @@ theorem toStandardType_def {il: EvalEquiv ECL VarL ValL ECR VarR ValR} : il.toSt
 variable (ValSL ValSR) in
 instance toStandardTypeConcrete (il: EvalEquiv ECL VarL ValL ECR VarR ValR) : StandardType.Concrete (il.EvalInter ECL ECR) (SumUnion il.var.Rel) (SumUnion il.val.Rel) (SetLikeUnion il.val.Rel ValSL ValSR) where
   standardType := il.toStandardType ValSL ValSR
+  decidableEq := inferInstance
   specToFintype := il.toBasic.setLikeUnionToFintype
-  decidableMem := il.toBasic.setLikeUnionToDecidableMem
 
 @[defeq, standard_type_norm]
 theorem standardTypeAt_eq_toStandardType {il: EvalEquiv ECL VarL ValL ECR VarR ValR}

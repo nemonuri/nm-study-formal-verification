@@ -129,6 +129,38 @@ theorem value_valueSet_ext {s1 s2: StandardTypeStruct Var Val ValS} (req: ∀(va
   decidableMem (valS: ValS) : DecidablePred (· ∈ valS)
 -/
 
+def isMemOf [DecidableEq Val] (valS: ValS) [Fintype valS] (val: Val) : Bool :=
+  (Finset.univ: Finset valS).val.liftOn (fun vs => vs.any (fun v => decide (v.val = val))) (by
+    intro vs1 vs2 lm1
+    change List.Perm vs1 vs2 at lm1
+    induction lm1 with
+    | nil => dsimp only [List.any_nil]
+    | cons v _ lm1 =>
+      rewrite [Bool.eq_iff_iff] at ⊢ lm1
+      simp at ⊢ lm1
+      rw [lm1]
+    | swap v1 v2 vs =>
+      rewrite [Bool.eq_iff_iff]
+      simp
+      conv => lhs; rw [or_left_comm]
+    | trans _ _ lm1 lm2 => exact lm1.trans lm2 )
+
+theorem isMemOf_eq_true_iff_mem [DecidableEq Val] {valS: ValS} [Fintype valS] {val: Val}
+  : (isMemOf valS val = .true) ↔ (val ∈ valS) := by
+  rename Fintype ↑valS => ft
+  rcases ft with ⟨⟨vs, lm1⟩, lm2⟩
+  dsimp [isMemOf, Finset.univ]
+  cases vs using Quotient.ind
+  rename_i vs
+  dsimp only [Quotient.liftOn_mk]
+  simp at ⊢ lm2
+  specialize lm2 val
+  simp [lm2]
+
+instance (priority := 10) decidableMem [DecidableEq Val] (valS: ValS) [Fintype valS] (val: Val) : Decidable (val ∈ valS) :=
+  decidable_of_decidable_of_iff isMemOf_eq_true_iff_mem
+
+
 def isSubsetOf (s: StandardTypeStruct Var Val ValS) (valS: ValS) [Fintype valS] (var: Var) [DecidablePred (· ∈ (s.dom var))] : Bool :=
   (Finset.univ: Finset valS).val.lift (fun vs => vs.all (fun v => decide (v.val ∈ s.dom var))) (by
     intro vs1 vs2 lm1
@@ -174,7 +206,7 @@ theorem isSubsetOf_eq_true_iff_isValueSetSafe {s: StandardTypeStruct Var Val Val
     dsimp [isValueSafe_def] at lm1
     exact lm1 v lm4
 
-scoped instance (priority := 10) decidableIsValueSetSafe (s: StandardTypeStruct Var Val ValS) (valS: ValS) [Fintype valS] (var: Var) [DecidablePred (· ∈ (s.dom var))] : Decidable (s.IsValueSetSafe var valS) :=
+instance (priority := 10) decidableIsValueSetSafe (s: StandardTypeStruct Var Val ValS) (valS: ValS) [Fintype valS] (var: Var) [DecidablePred (· ∈ (s.dom var))] : Decidable (s.IsValueSetSafe var valS) :=
   decidable_of_decidable_of_iff isSubsetOf_eq_true_iff_isValueSetSafe
 
 end StandardTypeStruct
@@ -438,10 +470,11 @@ def TmpeType : Type _ := Type → ((Type → Type) → (Type → Type)) → Type
 
 class Concrete (EC Var Val ValS: Type*) [EvalLike EC Var Val] [SetLike ValS Val] where
   standardType : StandardType EC Var Val ValS
+  decidableEq: DecidableEq Val --decidableMem (valS: ValS) : DecidablePred (· ∈ valS)
   specToFintype (valS: ValS) : Fintype valS      --decidableSpecSafe : standardType.DecidableSpecSafe
-  decidableMem (valS: ValS) : DecidablePred (· ∈ valS)
 
-attribute [reducible, instance] Concrete.decidableMem Concrete.specToFintype --Concrete.decidableSpecSafe
+
+attribute [reducible, instance] Concrete.decidableEq Concrete.specToFintype --Concrete.decidableSpecSafe
 
 namespace Concrete
 
@@ -723,7 +756,7 @@ def equivOfToSubtype : AtomicProp EC Var Val ValS ≃ { toStruct: AtomicPropStru
   toFun x := ⟨x.toStruct, x.valid⟩
   invFun x := ⟨x.val, x.property⟩
 
-open StandardTypeStruct in
+
 instance (priority := low) toFintype [Fintype Var] [Fintype ValS] : Fintype (AtomicProp EC Var Val ValS) := Fintype.ofEquiv _ equivOfToSubtype.symm
 
 
@@ -731,7 +764,7 @@ instance decidableEvalSpecSafe {ap: AtomicProp EC Var Val ValS} {ec: EC} : Decid
   ap.toStruct.decidableEvalSpecSafe
 
 
-instance {ap: AtomicProp EC Var Val ValS} : DecidablePred (· ∈ ap.spec) := Concrete.decidableMem EC Var ap.spec
+--instance {ap: AtomicProp EC Var Val ValS} : DecidablePred (· ∈ ap.spec) := inferInstance
 
 @[defeq]
 theorem decideEvalSpecSafe_eq_decide {ap: AtomicProp EC Var Val ValS} {ec: EC}

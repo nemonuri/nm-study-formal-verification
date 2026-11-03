@@ -2,6 +2,7 @@ module
 
 public import Nemonuri.Relations.Heterogeneous.IsBiUnique.SetLike
 public import Nemonuri.Relations.Heterogeneous.SumRelGen.Fintype
+public import Mathlib.Data.Setoid.Basic
 
 @[expose] public section
 
@@ -347,6 +348,327 @@ instance toFintype [∀(sal: Sαl), Fintype sal] [∀(sar: Sαr), Fintype sar] (
       simp [Subtype.map_def]
       exact (toFinset_mem_iff_self_mem su).mpr lm2
   }
+
+protected instance fintype [DecidableEq Sαl] [DecidableEq Sαr] [DecidableRel (SetLikeHEq rel Sαl Sαr)] [Fintype Sαl] [Fintype Sαr] : Fintype (SetLikeUnion rel Sαl Sαr) :=
+  inferInstanceAs (Fintype (SumUnion ((SetLikeHEq rel Sαl Sαr))))
+
+
+def areEq [∀(sal: Sαl), Fintype sal] [DecidableEq αl] (sal1 sal2: Sαl) : Bool :=
+  let fs1 : Finset αl := (Finset.univ: Finset sal1).map ⟨Subtype.val, Subtype.val_injective⟩
+  let fs2 : Finset αl := (Finset.univ: Finset sal2).map ⟨Subtype.val, Subtype.val_injective⟩
+  decide (fs1 = fs2)
+
+theorem areEq_true_iff_eq [∀(sal: Sαl), Fintype sal] [DecidableEq αl] {sal1 sal2: Sαl}
+  : (areEq sal1 sal2 = .true) ↔ (sal1 = sal2) := by
+  simp [areEq, Finset.ext_iff]
+  conv => rhs; simp [SetLike.ext_iff]
+
+instance (priority := 10) [∀(sal: Sαl), Fintype sal] [DecidableEq αl] : DecidableEq Sαl :=
+  fun _ _ => decidable_of_decidable_of_iff areEq_true_iff_eq
+
+
+variable (rel) in
+def areSetLikeHEqAux [DecidableRel rel] {sal: Sαl} [Fintype sal] {sar: Sαr} [Fintype sar] (ls: List ↑sal) : (List ↑sar) → Bool
+  | [] => .true
+  | r::rs => ls.any (fun l => decide (rel l.val r.val)) && areSetLikeHEqAux ls rs
+
+/-
+attribute [-simp] Subtype.exists Subtype.forall in
+theorem areSetLikeHEqAux_perm_cons [DecidableRel rel] {sal: Sαl} [Fintype sal] {sar: Sαr} [Fintype sar]
+  (ls1 ls2: List ↑sal) (req1: ls1.Perm ls2) (rs1 rs2: List ↑sar) (req2: rs1.Perm rs2)
+  (req3: areSetLikeHEqAux rel ls1 rs1 = areSetLikeHEqAux rel ls2 rs2) (l: ↑sal)
+  : areSetLikeHEqAux rel (l :: ls1) rs1 = areSetLikeHEqAux rel (l :: ls2) rs2 := by
+  cases req2 with
+  | nil => dsimp [areSetLikeHEqAux]
+  | @cons r rs1 rs2 lm1 =>
+    rewrite [Bool.eq_iff_iff] at req3 ⊢
+    simp [areSetLikeHEqAux, req1.mem_iff] at req3 ⊢
+    intro lm2
+    by_cases lm3: ∃ x ∈ ls2, rel ↑x ↑r
+    · clear lm2
+      rcases lm3 with ⟨l2, lm3, lm4⟩
+      specialize req3 l2 lm3 lm4
+      exact areSetLikeHEqAux_perm_cons ls1 ls2 req1 rs1 rs2 lm1 req3 l
+    · simp [lm3] at lm2
+      simp at lm3
+      specialize lm3 l
+      simp [lm2] at lm3
+-/
+    --by_cases lm3: l ∈ ls2
+    --·
+
+/-
+    by_cases lm2: l ∈ ls1 ∧ rel l.val r.val
+    · have lm3 : ∃x ∈ ls1, rel ↑x ↑r := by exists l
+      simp [lm3] at ⊢ req3
+      rcases lm2 with ⟨lm2, lm4⟩
+      simp [lm4]
+      simp only [req1.mem_iff] at lm3
+      simp [lm3] at req3
+      exact areSetLikeHEqAux_perm_cons ls1 ls2 req1 rs1 rs2 lm1 req3 l
+    · rewrite [and_comm] at lm2
+      simp at lm2
+      by_cases lm3: rel l.val r.val
+      · specialize lm2 lm3
+        simp [lm3]
+        have lm4 : ¬∃ x ∈ ls1, rel ↑x ↑r := by
+          simp
+          intro l2 lm4_1 lm4_2
+          have lm4_3 := IsBiUnique.leftUnique lm3 lm4_2
+          simp at lm4_3
+          subst lm4_3
+          contradiction
+        simp [lm4] at req3
+-/
+
+/-
+attribute [-simp] Subtype.exists Subtype.forall in
+theorem areSetLikeHEqAux_respects_perm [DecidableRel rel] {sal: Sαl} [Fintype sal] {sar: Sαr} [Fintype sar]
+  (ls1 ls2: List ↑sal) (req1: ls1.Perm ls2) (rs1 rs2: List ↑sar) (req2: rs1.Perm rs2)
+  : areSetLikeHEqAux rel ls1 rs1 = areSetLikeHEqAux rel ls2 rs2 := by
+  cases req1 with
+  | nil =>
+    induction req2 <;> try simp [areSetLikeHEqAux]
+    case trans lm1 lm2 => exact lm1.trans lm2
+  | @cons l ls1 ls2 lm1 =>
+    have lm2 : (l :: ls1).Perm (l :: ls2) := by simpa only [List.perm_cons] using lm1
+    cases req2 with
+    | nil => dsimp [areSetLikeHEqAux]
+    | @cons r rs1 rs2 lm3 =>
+      dsimp [areSetLikeHEqAux]
+      have lm4 := areSetLikeHEqAux_respects_perm (l :: ls1) (l :: ls2) lm2 rs1 rs2 lm3
+      rw [lm4, Bool.eq_iff_iff]
+      simp
+      intro _
+      simp only [lm1.mem_iff]
+    | swap r1 r2 rs =>
+      rw [Bool.eq_iff_iff]
+      simp [areSetLikeHEqAux]
+      conv => lhs; rw [and_left_comm]
+      simp [lm1.mem_iff]
+      intro _ _
+      exact areSetLikeHEqAux_respects_perm (l :: ls1) (l :: ls2) lm2 rs rs List.Perm.rfl
+    | trans lm3 lm4 =>
+      rename_i rs3
+      rcases rs1 with _ | ⟨r1, rs1⟩
+      <;> rcases rs2 with _ | ⟨r2, rs2⟩
+      <;> rcases rs3 with _ | ⟨r3, rs3⟩
+      <;> try simp at lm3 lm4
+      · dsimp [areSetLikeHEqAux]
+      · dsimp [areSetLikeHEqAux]
+        rw [Bool.eq_iff_iff]
+        simp
+-/
+/-
+      rename_i rs3
+      have lm5 := areSetLikeHEqAux_respects_perm _ _ lm2 rs1 rs3 lm3
+      have lm6 := areSetLikeHEqAux_respects_perm _ _ lm2 rs3 rs2 lm4
+-/
+      --have lm7 := lm5.trans lm6
+
+/-
+      rw [lm7]
+      rcases rs2 with _ | ⟨r, rs⟩
+      · dsimp [areSetLikeHEqAux]
+      · dsimp [areSetLikeHEqAux]
+        rw [Bool.eq_iff_iff]
+        simp [lm1.mem_iff]
+        intro _
+        exact areSetLikeHEqAux_respects_perm _ _ lm2 rs rs List.Perm.rfl
+-/
+/-
+    rcases rs1 with _ | ⟨r1, rs1⟩
+    <;> rcases rs2 with _ | ⟨r2, rs2⟩
+    <;> try simp at req2
+    · dsimp [areSetLikeHEqAux]
+    · rw [Bool.eq_iff_iff]
+      simp [areSetLikeHEqAux]
+      by_cases lm3: r1 = r2
+      · subst lm3
+        simp [lm1.mem_iff]
+        intro lm3
+        simp at req2
+        exact areSetLikeHEqAux_respects_perm _ _ lm2 rs1 rs2 req2
+      · simp [lm1.mem_iff]
+        by_cases lm4: rel l.val r1.val
+        · simp [lm4]
+          have lm5 := (IsBiUnique.right_ne_iff_not_rel lm4 r2.val).mp ?h1
+          case h1 => simpa using lm3
+          simp [lm5]
+-/
+
+/-
+    · cases req2 with
+      | nil => dsimp [areSetLikeHEqAux]
+      | trans lm1 lm2 =>
+        simp at lm1
+        subst lm1
+        simp at lm2
+        subst lm2
+        dsimp [areSetLikeHEqAux]
+    · cases req2 with
+      | @cons _ _ rs2 lm3 =>
+        dsimp [areSetLikeHEqAux]
+        have lm4 := areSetLikeHEqAux_respects_perm (l :: ls1) (l :: ls2) lm2 rs1 rs2 lm3
+        rw [lm4, Bool.eq_iff_iff]
+        simp
+        intro _
+        simp only [lm1.mem_iff]
+      | swap r2 _ rs =>
+        rw [Bool.eq_iff_iff]
+        simp [areSetLikeHEqAux]
+        conv => lhs; rw [and_left_comm]
+        simp [lm1.mem_iff]
+        intro _ _
+        exact areSetLikeHEqAux_respects_perm (l :: ls1) (l :: ls2) lm2 rs rs List.Perm.rfl
+      | trans lm3 lm4 =>
+        have lm5 := lm3.trans lm4
+-/
+
+/-
+    cases req2 with
+    | nil => dsimp [areSetLikeHEqAux]
+    | @cons r rs1 rs2 lm3 =>
+      dsimp [areSetLikeHEqAux]
+      have lm4 := areSetLikeHEqAux_respects_perm (l :: ls1) (l :: ls2) lm2 rs1 rs2 lm3
+      rw [lm4, Bool.eq_iff_iff]
+      simp
+      intro _
+      simp only [lm1.mem_iff]
+    | swap r1 r2 rs =>
+      rw [Bool.eq_iff_iff]
+      simp [areSetLikeHEqAux]
+      conv => lhs; rw [and_left_comm]
+      simp [lm1.mem_iff]
+      intro _ _
+      exact areSetLikeHEqAux_respects_perm (l :: ls1) (l :: ls2) lm2 rs rs List.Perm.rfl
+    | trans lm3 lm4 =>
+      rename_i rs3
+      have lm5 := areSetLikeHEqAux_respects_perm _ _ lm2 rs1 rs3 lm3
+      have lm6 := areSetLikeHEqAux_respects_perm _ _ lm2.symm rs3 rs2 lm4
+      have lm7 := lm5.trans lm6
+      rw [lm7]
+      rcases rs2 with _ | ⟨r, rs⟩
+      · dsimp [areSetLikeHEqAux]
+      · dsimp [areSetLikeHEqAux]
+        rw [Bool.eq_iff_iff]
+        simp [lm1.mem_iff]
+        intro _
+        exact areSetLikeHEqAux_respects_perm _ _ lm2 rs rs List.Perm.rfl
+-/
+
+  --| swap l1 l2 ls =>
+    --have lm1 : (l2 :: l1 :: ls).Perm (l1 :: l2 :: ls) := List.Perm.swap l1 l2 ls
+
+
+/-
+attribute [-simp] Subtype.exists Subtype.forall in
+variable (rel) in
+def areSetLikeHEq [DecidableRel rel] (sal: Sαl) [Fintype sal] (sar: Sαr) [Fintype sar] : Bool :=
+  let fsL : Finset ↑sal := Finset.univ
+  let fsR : Finset ↑sar := Finset.univ
+  if fsL.val.card ≠ fsR.val.card then .false else
+  Quotient.liftOn₂ fsL.val fsR.val (areSetLikeHEqAux rel) (by
+    intro ls1 rs1 ls2 rs2 lm1 lm2
+    change List.Perm _ _ at lm1 lm2
+    induction lm1 with
+    | nil =>
+      induction lm2 <;> try simp [areSetLikeHEqAux]
+      case trans lm1 lm2 => exact lm1.trans lm2
+    | @cons l ls1 ls2 lm1 lm3 =>
+  )
+-/
+
+/-
+variable (rel) in
+def areSetLikeHEqAux [DecidableRel rel] {sal: Sαl} [Fintype sal] {sar: Sαr} [Fintype sar] : (List ↑sal) → (List ↑sar) → Bool
+  | [], [] => .true
+  | l::ls, r::rs => decide (rel l.val r.val) && areSetLikeHEqAux ls rs
+  | _, _ => .false
+
+
+variable (rel) in
+def areSetLikeHEq [DecidableRel rel] (sal: Sαl) [Fintype sal] (sar: Sαr) [Fintype sar] : Bool :=
+  let listFun (x1: { x: List ↑sal // x.Nodup }) (x2: { x: List ↑sar // x.Nodup }) : Bool := areSetLikeHEqAux rel x1.val x2.val
+  let fsL : Finset ↑sal := Finset.univ
+  let fsR : Finset ↑sar := Finset.univ
+  let ⟨msL, lm1⟩ := fsL
+  let listFun' := Quotient.pliftOn msL (fun ls h => listFun ⟨ls, (by cases msL using Quotient.ind; rewrite [h] at lm1; simp at lm1; exact lm1)⟩) (by
+    intro ls1 ls2 lm2 lm3 lm4
+    subst lm2
+    have lm5 : ls1.Nodup := lm1
+    have lm6 : ls2.Nodup := by rewrite [lm3] at lm1; dsimp at lm1; exact lm1
+    simp at lm3
+    change List.Perm ls1 ls2 at lm4
+    subst listFun
+    simp [funext_iff]
+    intro rs lm7
+    induction lm4 with
+    | nil => rfl
+    | cons l lm10 lm4 =>
+      simp at lm5 lm6 lm4
+      rcases lm5 with ⟨lm5, lm8⟩
+      rcases lm6 with ⟨lm6, lm9⟩
+      specialize lm4 lm8 ?h1 lm8 lm9
+      case h1 =>
+        refine Multiset.coe_eq_coe.mpr ?_
+        exact lm10
+      induction rs with
+      | nil => dsimp [areSetLikeHEqAux]
+      | cons r rs lm10 =>
+        dsimp [areSetLikeHEqAux]
+        rewrite [Bool.eq_iff_iff]
+        simp at lm7
+        rcases lm7 with ⟨lm7, lm11⟩
+        simp
+        intro lm12
+        specialize lm10 lm11
+  )
+-/
+/-
+      induction rs with
+      | nil => dsimp [areSetLikeHEqAux]
+      | cons r rs lm10 =>
+        dsimp [areSetLikeHEqAux]
+        rewrite [Bool.eq_iff_iff]
+        simp at lm7
+        rcases lm7 with ⟨lm7, lm11⟩
+        simp
+        intro lm12
+-/
+
+
+
+
+
+  --let listFun' := Quotient.pliftOn fsL.val
+/-
+  let setoL : Setoid ({ x: List ↑sal // x.Nodup }) := Setoid.comap Subtype.val (List.isSetoid ↑sal)
+  let setoR : Setoid ({ x: List ↑sar // x.Nodup }) := Setoid.comap Subtype.val (List.isSetoid ↑sal)
+  let qL : Quotient setoL :=
+-/
+  --if fsL.val.card ≠ fsR.val.card then .false else
+
+
+
+
+/-
+  Quotient.liftOn₂ fsL.val fsR.val (areSetLikeHEqAux rel) (by
+    intro ls1 rs1 ls2 rs2 lm1 lm2
+    change List.Perm _ _ at lm1 lm2
+    induction lm1 with
+    | nil =>
+      induction lm2 <;> (try dsimp [areSetLikeHEqAux])
+      case trans lm1 lm2 => exact lm1.trans lm2
+    | cons l _ lm1 =>
+      induction lm2 with
+      | nil => dsimp [areSetLikeHEqAux]
+      | cons r _ lm2 =>
+        dsimp [areSetLikeHEqAux]
+        rw [Bool.eq_iff_iff]
+        simp
+        intro lm3
+-/
 
 
 
