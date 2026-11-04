@@ -381,29 +381,274 @@ theorem areEq_true_iff_eq [∀(sal: Sαl), Fintype sal] [DecidableEq αl] {sal1 
 instance (priority := 10) [∀(sal: Sαl), Fintype sal] [DecidableEq αl] : DecidableEq Sαl :=
   fun _ _ => decidable_of_decidable_of_iff areEq_true_iff_eq
 
-
+/-
 variable (rel) in
-def areSetLikeHEq [DecidableRel rel] (sal: Sαl) [Fintype sal] (sar: Sαr) [Fintype sar] : Bool :=
-  let fsL : Finset αl := (Finset.univ: Finset ↑sal).map ⟨Subtype.val, Subtype.val_injective⟩
-  let fsR : Finset αr := (Finset.univ: Finset ↑sar).map ⟨Subtype.val, Subtype.val_injective⟩
+def areHEqFinset [DecidableRel rel] (fsL: Finset αl) (fsR: Finset αr) : Bool :=
   if fsL.val.card ≠ fsR.val.card then .false else
   Quotient.liftOn₂ fsL.val fsR.val (fun ls rs => isHSublist rel ls rs) (by
     intro ls1 rs1 ls2 rs2 lm1 lm2
     change List.Perm _ _ at lm1 lm2
     exact isHSublist_respects_perm ls1 ls2 lm1 rs1 rs2 lm2)
 
+#print List.isPerm
+
+private theorem _root_.Multiset.ndinsert_ne_zero {α: Type*} [DecidableEq α] (as: Multiset α) (a: α) : as.ndinsert a ≠ 0 := by
+  intro lm1
+  cases as using Quotient.ind
+  rename_i as
+  dsimp [Insert.insert] at lm1
+  simp only [Multiset.coe_eq_zero] at lm1
+  dsimp [List.insert] at lm1
+  split at lm1
+  · rename_i lm2
+    subst lm1; simp at lm2
+  · simp at lm1
+
+
+theorem areHEqFinset_eq_true_iff_setHEq [DecidableRel rel] (fsL: Finset αl) (fsR: Finset αr)
+  : areHEqFinset rel fsL fsR = SetHEq rel ↑fsL ↑fsR := by
+  classical
+  cases fsL using Finset.induction with
+  | empty =>
+    cases fsR using Finset.induction with
+    | empty =>
+      simp [setHEq_iff_forall_iff, areHEqFinset]
+      change isHSublist rel [] []
+      dsimp
+    | insert r fsR lm1 lm2 =>
+      clear lm2
+      rw [← finsetOfLeftFinset_eq_finsetOfRightFinset_iff_setHEq, Finset.ext_iff]
+      dsimp [finsetOfLeftFinset, finsetOfRightFinset, areHEqFinset]
+      simp
+      conv => lhs; arg 1; rw [Eq.comm]; simp [Multiset.ndinsert_ne_zero]
+      simp
+      exists (.ofSum (.inr r))
+      simp
+  | insert l fsL lm1 lm2 =>
+    clear lm2
+    rw [← finsetOfLeftFinset_eq_finsetOfRightFinset_iff_setHEq, Finset.ext_iff]
+    cases fsR using Finset.induction with
+    | empty =>
+      dsimp [finsetOfLeftFinset, finsetOfRightFinset, areHEqFinset]
+      simp [Multiset.ndinsert_ne_zero]
+      exists (.ofSum (.inl l))
+      simp
+    | insert r fsR lm3 lm4 =>
+      clear lm4
+      have lm4 := areHEqFinset_eq_true_iff_setHEq fsL fsR
+      rewrite [← finsetOfLeftFinset_eq_finsetOfRightFinset_iff_setHEq, Finset.ext_iff] at lm4
+      dsimp [areHEqFinset] at lm4 ⊢
+      simp at ⊢ lm4
+      simp [lm1, lm3]
+      rcases fsL with ⟨ls, lm5⟩
+      rcases fsR with ⟨rs, lm6⟩
+      cases ls using Quotient.ind
+      cases rs using Quotient.ind
+      rename_i ls rs
+      revert ls rs
+      simp
+      intro ls lm5 lm1 rs lm6 lm2
+      dsimp [finsetOfLeftFinset, finsetOfRightFinset]
+      simp [isHSublist, hcontains]
+      intro lm3
+      --rcases lm3 with ⟨lm3_1, lm3_2⟩
+      --simp at lm3_1 lm3_2
+      constructor
+      · rintro ⟨lm4, lm7, lm8⟩ su
+        --simp [lm4] at lm3_1 lm3_2
+        --replace lm3_1 h := lm3_1 h su
+        constructor
+        · intro lm9
+          rcases lm9 with lm9 | lm9
+          · subst lm9
+            simp [sum_simp]
+            exact lm7
+          · rcases lm9 with ⟨l2, lm9, lm10⟩
+            rewrite [Eq.comm] at lm10
+            subst lm10
+            simp [sum_simp]
+            specialize lm8 l2 lm9
+            exact lm8
+        · intro lm9
+          rcases lm9 with lm9 | lm9
+          · subst lm9
+            simp [sum_simp]
+            rcases lm7 with lm7 | lm7
+            · left; exact lm7
+            · rcases lm7 with ⟨r2, lm7, lm9⟩
+              simp [lm4] at lm3
+              replace lm3 := lm3.mp ?h1
+              case h1 =>
+                intro l2 lm10
+                have lm8_1 := lm8 l2 lm10
+                rcases lm8_1 with lm8_1 | lm8_1
+                · have lm11 := inl_eq_inr_iff_rel.mpr lm8_1
+                  have lm12 := lm3.symm.not.mp ?h1
+                  case h1 =>
+                    simp
+                    exists (.ofSum (.inl l2))
+                    simp [sum_simp, lm10]
+                    intro r3 lm12 lm13
+                    have lm14 := IsBiUnique.rightUnique lm8_1 lm13
+                    subst lm14
+                    exact lm2 lm12
+                  by_contra lm13
+                  revert lm12
+                  simp at ⊢ lm13
+                  intro l3 lm14
+                  specialize lm8 l3 lm14
+                  --rcases lm12 with ⟨l3, lm12, lm13⟩
+                  --specialize lm13 r2 lm7
+-/
+/-
+      constructor
+      · rintro ⟨lm4, lm7, lm8⟩ su
+        simp [lm4] at lm3
+        cases su using indInlInrOfSum with
+        | inl l2 =>
+          simp [sum_simp]
+          constructor
+          · intro lm9
+            rcases lm9 with lm9 | lm9
+            · subst lm9
+              exact lm7
+            · right
+              specialize lm8 l2 lm9
+              rcases lm8 with lm8 | lm8
+              · rcases lm7 with lm7 | lm7
+                · have lm10 := IsBiUnique.leftUnique lm8 lm7
+                  subst lm10
+                  contradiction
+                ·
+-/
+/-
+      intro lm3
+      constructor
+      · rintro ⟨lm4, lm7, lm8⟩
+        simp [lm4] at lm3
+        dsimp [isHSublist] at lm3 lm8
+        simp at lm3 lm8
+        simp [hcontains] at lm7 lm3 lm8
+        intro su
+-/
+/-
+        intro su
+        cases su using indInlInrOfSum with
+        | inl l2 =>
+          simp [sum_simp]
+          constructor
+          · intro lm9
+            rcases lm9 with lm9 | lm9
+            · subst lm9
+-/
+      --dsimp [areHEqFinset]
+      --simp
+
+
+
+
+variable (rel) in
+def areSetLikeHEq [DecidableEq αl] [DecidableEq αr] [DecidableRel rel] (sal: Sαl) [Fintype sal] (sar: Sαr) [Fintype sar] : Bool :=
+  let fsL : Finset αl := (Finset.univ: Finset ↑sal).map ⟨Subtype.val, Subtype.val_injective⟩
+  let fsR : Finset αr := (Finset.univ: Finset ↑sar).map ⟨Subtype.val, Subtype.val_injective⟩
+  decide (finsetOfLeftFinset rel fsL = finsetOfRightFinset rel fsR)
+
+theorem areSetLikeHEq_eq_true_iff_setlikeHEq [DecidableEq αl] [DecidableEq αr] [DecidableRel rel] (sal: Sαl) [Fintype sal] (sar: Sαr) [Fintype sar]
+  : (areSetLikeHEq rel sal sar = .true) ↔ (SetLikeHEq rel Sαl Sαr sal sar) := by
+  conv =>
+    rhs
+    rw [setLikeHEq_iff_finset_setHEq, ← finsetOfLeftFinset_eq_finsetOfRightFinset_iff_setHEq]
+  dsimp [areSetLikeHEq]
+  simp only [decide_eq_true_eq]
+
+instance (priority := 10) decidableSetLikeHEq [DecidableEq αl] [DecidableEq αr] [DecidableRel rel] (sal: Sαl) [Fintype sal] (sar: Sαr) [Fintype sar] : Decidable (SetLikeHEq rel Sαl Sαr sal sar) :=
+  decidable_of_decidable_of_iff (areSetLikeHEq_eq_true_iff_setlikeHEq sal sar)
+
 /-
 attribute [-simp] Subtype.exists Subtype.forall in
 theorem areSetLikeHEq_eq_true_iff_setlikeHEq [DecidableRel rel] (sal: Sαl) [Fintype sal] (sar: Sαr) [Fintype sar]
   : (areSetLikeHEq rel sal sar = .true) ↔ (SetLikeHEq rel Sαl Sαr sal sar) := by
+  conv =>
+    rhs
+    rw [setLikeHEq_iff_finset_setHEq, ← finsetOfLeftFinset_eq_finsetOfRightFinset_iff_setHEq, Finset.ext_iff]
+  simp [finsetOfLeftFinset, finsetOfRightFinset]
   rename Fintype ↑sal => ftL
   rename Fintype ↑sar => ftR
   rcases ftL with ⟨fsL, lm1⟩
   rcases ftR with ⟨fsR, lm2⟩
-  conv =>
-    rhs
-    dsimp [setLikeHEq_def]
+  classical
+  cases fsL using Finset.induction with
+  | empty =>
+    cases fsR using Finset.induction with
+    | empty =>
+      simp [areSetLikeHEq]
+      dsimp [Finset.univ]
+      simp
+      conv => lhs; change (isHSublist rel [] [])
+      simp
+      intro su
+      simp at lm1 lm2
+      have lm3 : IsEmpty ↑sal := ⟨lm1⟩
+      have lm4 : IsEmpty ↑sar := ⟨lm2⟩
+      simp only [IsEmpty.exists_iff]
+    | insert r fsR lm3 lm4 =>
+      clear lm4
+      simp [areSetLikeHEq]
+      dsimp [Finset.univ]
+      simp at lm1 lm2
+      have lm4 : IsEmpty ↑sal := ⟨lm1⟩
+      have lm5 : Nonempty ↑sar := ⟨r⟩
+      simp
+      intro lm6
+      rewrite [Eq.comm] at lm6
+      rcases fsR with ⟨rs, _⟩
+      cases rs using Quotient.ind
+      rename_i rs _
+      simp at lm6
+      rcases rs <;> dsimp [Insert.insert] at lm6
+      · simp at lm6
+      · dsimp [List.insert] at lm6
+        split at lm6
+        <;> simp at lm6
+  | insert l fsL lm3 lm4 =>
+    clear lm4
+    cases fsR using Finset.induction with
+    | empty =>
+      simp [areSetLikeHEq]
+      dsimp [Finset.univ]
+      simp at lm1 lm2
+      have lm4 : IsEmpty ↑sar := ⟨lm2⟩
+      have lm5 : Nonempty ↑sal := ⟨l⟩
+      simp
+      _
+    | insert r fsR lm4 lm5 =>
+      clear lm5
+      dsimp [areSetLikeHEq, Finset.univ]
+      simp
 -/
+/-
+    dsimp [areSetLikeHEq, Finset.univ]
+    simp
+    rcases fsL with ⟨ls, lm4⟩
+    rcases fsR with ⟨rs, lm5⟩
+    cases ls using Quotient.ind
+    cases rs using Quotient.ind
+    rename_i ls rs
+    simp
+    revert ls rs
+    simp
+    intro ls lm1 lm2 lm3 rs lm4 lm5
+-/
+      --dsimp [Insert.insert] at lm6
+
+
+
+
+
+
+  --dsimp [areSetLikeHEq]
+
+
 /-
   rcases ftL with ⟨⟨ls, lm1⟩, lm2⟩
   rcases ftR with ⟨⟨rs, lm3⟩, lm4⟩
