@@ -1060,6 +1060,7 @@ theorem setRelGen_iff [IsBiUnique rel] {sl: Set αl} {sr: Set αr} : SetRelGen r
 
 end SetRelGenSection
 
+
 end Nemonuri.Relations.Heterogeneous
 
 end

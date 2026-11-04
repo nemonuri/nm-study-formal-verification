@@ -14,13 +14,13 @@ variable {αl αr: Type*}
 namespace SumUnion
 
 
-def finsetOfLeftFinset (rel: αl → αr → Prop) [IsBiUnique rel] (fsl: Finset αl) : Finset (SumUnion rel) := fsl.map ⟨.ofSum ∘ .inl, inl_ofSum_injective⟩
+def finsetOfLeftFinset (rel: αl → αr → Prop) [IsBiUnique rel] (fsL: Finset αl) : Finset (SumUnion rel) := fsL.map ⟨.ofSum ∘ .inl, inl_ofSum_injective⟩
 
-def finsetOfRightFinset (rel: αl → αr → Prop) [IsBiUnique rel] (fsr: Finset αr) : Finset (SumUnion rel) := fsr.map ⟨.ofSum ∘ .inr, inr_ofSum_injective⟩
+def finsetOfRightFinset (rel: αl → αr → Prop) [IsBiUnique rel] (fsR: Finset αr) : Finset (SumUnion rel) := fsR.map ⟨.ofSum ∘ .inr, inr_ofSum_injective⟩
 
 
-def hunionFinset (rel: αl → αr → Prop) [DecidableEq αl] [DecidableEq αr] [DecidableRel rel] [IsBiUnique rel] (fsl: Finset αl) (fsr: Finset αr) : Finset (SumUnion rel) :=
-  (finsetOfLeftFinset rel fsl) ∪ (finsetOfRightFinset rel fsr)
+def hunionFinset (rel: αl → αr → Prop) [DecidableEq αl] [DecidableEq αr] [DecidableRel rel] [IsBiUnique rel] (fsL: Finset αl) (fsR: Finset αr) : Finset (SumUnion rel) :=
+  (finsetOfLeftFinset rel fsL) ∪ (finsetOfRightFinset rel fsR)
 
 
 protected instance fintype (rel: αl → αr → Prop) [DecidableEq αl] [DecidableEq αr] [DecidableRel rel] [IsBiUnique rel] [Fintype αl] [Fintype αr] : Fintype (SumUnion rel) where
@@ -37,7 +37,28 @@ protected instance fintype (rel: αl → αr → Prop) [DecidableEq αl] [Decida
       right
       exists r
 
-#check Finset.decidableEq
+
+theorem finsetOfLeftFinset_coe_eq_coe_setOfLeftSet (rel: αl → αr → Prop) [IsBiUnique rel] (fsL: Finset αl) : ↑(finsetOfLeftFinset rel fsL) = setOfLeftSet rel ↑fsL := by
+  refine Set.ext ?_
+  intro su
+  cases su using indInlInrOfSum <;> (
+    dsimp [finsetOfLeftFinset]
+    simp [sum_simp] )
+
+theorem finsetOfRightFinset_coe_eq_coe_setOfRightSet (rel: αl → αr → Prop) [IsBiUnique rel] (fsR: Finset αr) : ↑(finsetOfRightFinset rel fsR) = setOfRightSet rel ↑fsR := by
+  refine Set.ext ?_
+  intro su
+  cases su using indInlInrOfSum <;> (
+    dsimp [finsetOfRightFinset]
+    simp [sum_simp] )
+
+
+theorem finsetOfLeftFinset_eq_finsetOfRightFinset_iff_setOfLeftSet_eq_setOfRightSet {rel: αl → αr → Prop} [IsBiUnique rel] {fsL: Finset αl} {fsR: Finset αr}
+  : (finsetOfLeftFinset rel fsL = finsetOfRightFinset rel fsR) ↔ (setOfLeftSet rel ↑fsL = setOfRightSet rel ↑fsR) := by
+  conv =>
+    lhs
+    rw [← SetLike.coe_injective.eq_iff, finsetOfLeftFinset_coe_eq_coe_setOfLeftSet rel fsL, finsetOfRightFinset_coe_eq_coe_setOfRightSet rel fsR]
+
 
 end SumUnion
 

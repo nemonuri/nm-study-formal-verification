@@ -1,5 +1,6 @@
 module
 
+public import Nemonuri.Relations.Heterogeneous.HContains
 public import Nemonuri.Relations.Heterogeneous.IsBiUnique.SetLike
 public import Nemonuri.Relations.Heterogeneous.SumRelGen.Fintype
 public import Mathlib.Data.Setoid.Basic
@@ -80,6 +81,20 @@ theorem rightOfRel?_eq_some_iff_projectLeftSetToRightSet_eq
   : (HasPartialCongruence.rightOfRel? (SetHEq rel) sal = .some sar) ↔ (projectLeftSetToRightSet rel sal = sar) := by
   simp [HasPartialCongruence.rightOfRel?_eq_some_iff_rel]
 -/
+
+--setOfLeftSet rel ↑fsL = setOfRightSet rel ↑fsR
+
+/-
+variable (rel) in
+theorem
+-/
+
+
+variable (rel) in
+theorem finsetOfLeftFinset_eq_finsetOfRightFinset_iff_setHEq [IsBiUnique rel] (fsL: Finset αl) (fsR: Finset αr)
+  : (finsetOfLeftFinset rel fsL = finsetOfRightFinset rel fsR) ↔ (SetHEq rel ↑fsL ↑fsR) := by
+  dsimp [setHEq_def]
+  exact finsetOfLeftFinset_eq_finsetOfRightFinset_iff_setOfLeftSet_eq_setOfRightSet
 
 end SumUnion
 
@@ -368,9 +383,150 @@ instance (priority := 10) [∀(sal: Sαl), Fintype sal] [DecidableEq αl] : Deci
 
 
 variable (rel) in
+def areSetLikeHEq [DecidableRel rel] (sal: Sαl) [Fintype sal] (sar: Sαr) [Fintype sar] : Bool :=
+  let fsL : Finset αl := (Finset.univ: Finset ↑sal).map ⟨Subtype.val, Subtype.val_injective⟩
+  let fsR : Finset αr := (Finset.univ: Finset ↑sar).map ⟨Subtype.val, Subtype.val_injective⟩
+  if fsL.val.card ≠ fsR.val.card then .false else
+  Quotient.liftOn₂ fsL.val fsR.val (fun ls rs => isHSublist rel ls rs) (by
+    intro ls1 rs1 ls2 rs2 lm1 lm2
+    change List.Perm _ _ at lm1 lm2
+    exact isHSublist_respects_perm ls1 ls2 lm1 rs1 rs2 lm2)
+
+/-
+attribute [-simp] Subtype.exists Subtype.forall in
+theorem areSetLikeHEq_eq_true_iff_setlikeHEq [DecidableRel rel] (sal: Sαl) [Fintype sal] (sar: Sαr) [Fintype sar]
+  : (areSetLikeHEq rel sal sar = .true) ↔ (SetLikeHEq rel Sαl Sαr sal sar) := by
+  rename Fintype ↑sal => ftL
+  rename Fintype ↑sar => ftR
+  rcases ftL with ⟨fsL, lm1⟩
+  rcases ftR with ⟨fsR, lm2⟩
+  conv =>
+    rhs
+    dsimp [setLikeHEq_def]
+-/
+/-
+  rcases ftL with ⟨⟨ls, lm1⟩, lm2⟩
+  rcases ftR with ⟨⟨rs, lm3⟩, lm4⟩
+  cases ls using Quotient.ind
+  cases rs using Quotient.ind
+  rename_i ls rs
+  revert lm1 lm3
+  simp
+  intro lm1 lm2 lm3 lm4
+  dsimp [areSetLikeHEq, Finset.univ]
+  simp
+  dsimp [isHSublist, hcontains]
+  simp
+  simp [setLikeHEq_def, setHEq_iff_forall_iff_imp_and_imp]
+-/
+/-
+  constructor
+  · rintro ⟨lm5, lm6⟩
+    refine ⟨?_, ?_⟩
+    · intro l lm7
+      specialize lm6 l lm7 (lm2 l lm7)
+      rcases lm6 with ⟨r, lm6, lm8⟩
+      rcases lm6 with ⟨lm6, lm9⟩
+      exists r
+    · intro r lm7
+      by_contra lm8
+      simp at lm8
+      revert lm6
+      simp
+      rcases ls with _ | ⟨l, ls⟩
+      · rewrite [Eq.comm] at lm5
+        simp at lm5
+        subst lm5
+        specialize lm4 r lm7
+        simp at lm4
+      ·
+-/
+/-
+      have lm9 : ls ≠ [] := by
+        intro lm9_1
+        subst lm9_1
+        rewrite [Eq.comm] at lm5
+        simp at lm5
+        subst lm5
+        specialize lm4 r lm7
+        simp at lm4
+      let l := ls.head lm9
+      exists l
+      simp
+      refine ⟨?_, ?_⟩
+      · subst l; exact List.head_mem lm9
+      · intro r2 lm10 lm11 lm12
+        specialize lm8 l.val l.property
+        subst l
+      --intro r2 lm10 lm11 lm12
+-/
+/-
+      by_cases lm8: ∃l ∈ ls, rel l.val r
+      · rcases lm8 with ⟨⟨l, lm8⟩, lm9, lm10⟩
+        dsimp at lm10
+        specialize lm6 l lm8 lm9
+        exists l
+      · simp at lm8
+        have lm9 : ls ≠ [] := by
+          intro lm9_1
+          subst lm9_1
+          rewrite [Eq.comm] at lm5
+          simp at lm5
+          subst lm5
+          simp at lm4
+        rcases ls.head lm9 with ⟨l, lm10⟩
+        specialize lm6 l lm10 (lm2 l lm10)
+        rcases lm6 with ⟨r2, ⟨lm11, lm12⟩, lm13⟩
+-/
+
+
+
+/-
+      have lm8 : ls ≠ [] := by
+        intro lm8_1
+        subst lm8_1
+        rewrite [Eq.comm] at lm5
+        simp at lm5
+        subst lm5
+        simp at lm4
+      rcases lm9: ls.head lm8 with ⟨l, lm10⟩
+      exists l
+      specialize lm6 l lm10
+      simp [← lm9] at lm6
+      rcases lm6 with ⟨r2, ⟨lm6, lm12⟩, lm11⟩
+-/
+/-
+      rcases rs with _ | ⟨r, rs⟩
+      · simp at lm4
+      · rcases ls with _ | ⟨l, ls⟩
+        · simp at lm5
+        · simp at lm3 lm4 lm1 lm2 lm5 lm6
+          rcases l with ⟨l, lm8⟩
+          rcases r with ⟨r, lm9⟩
+          simp at lm4 lm6
+          specialize lm6 l lm8
+          simp at lm6
+          rcases lm6 with ⟨r2, ⟨lm6, lm10⟩, lm11⟩
+-/
+/-
+          rcases lm4 with lm4 | lm4
+          · rw [Eq.comm] at lm4
+            subst lm4
+            simp at lm6
+-/
+      --by_contra lm8
+      --simp at lm8
+
+
+
+--def hcontains (l: )
+
+/-
+variable (rel) in
 def areSetLikeHEqAux [DecidableRel rel] {sal: Sαl} [Fintype sal] {sar: Sαr} [Fintype sar] (ls: List ↑sal) : (List ↑sar) → Bool
   | [] => .true
   | r::rs => ls.any (fun l => decide (rel l.val r.val)) && areSetLikeHEqAux ls rs
+-/
 
 /-
 attribute [-simp] Subtype.exists Subtype.forall in
