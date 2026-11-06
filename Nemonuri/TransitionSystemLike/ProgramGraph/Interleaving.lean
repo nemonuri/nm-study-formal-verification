@@ -617,12 +617,16 @@ end ToStandardType
 
 --StandardType (il.EvalInter ECL ECR) (SumUnion il.var.Rel) (SumUnion il.val.Rel) (SetLikeUnion il.val.Rel ValSL ValSR)
 
-variable (VarL ValL VarR ValR) in
+variable (ECL VarL ValL ECR VarR ValR) in
 structure Concrete extends toBasic: Interleaving VarL ValL VarR ValR where
-  partialCongruence: PartialCongruence toBasic.val.Rel
+  partialCongruenceVal: PartialCongruence toBasic.val.Rel
+  partialCongruenceVar: PartialCongruence toBasic.var.Rel
+  updateOpLeft: EvalLike.UpdateOP ECL VarL ValL
+  updateOpRight: EvalLike.UpdateOP ECR VarR ValR
+
 
 variable (ECL VarL ValL ECR VarR ValR) in
-structure EvalEquiv extends toConcrete: Interleaving.Concrete VarL ValL VarR ValR where
+structure EvalEquiv extends toConcrete: Interleaving.Concrete ECL VarL ValL ECR VarR ValR where
   valid: toBasic.IsEvalEquiv ECL ECR
 
 
@@ -635,9 +639,155 @@ protected instance setLikeUnionToDecidableMem [∀(sl: ValSL), DecidablePred (·
 
 namespace EvalEquiv
 
-variable [StandardType.Concrete ECL VarL ValL ValSL] [StandardType.Concrete ECR VarR ValR ValSR]
+section StandardTypeConcrete
 
-instance (il: EvalEquiv ECL VarL ValL ECR VarR ValR) : HasPartialCongruence il.val.Rel := ⟨il.partialCongruence⟩
+
+instance (il: EvalEquiv ECL VarL ValL ECR VarR ValR) : HasPartialCongruence il.val.Rel := ⟨il.partialCongruenceVal⟩
+
+instance (il: EvalEquiv ECL VarL ValL ECR VarR ValR) : HasPartialCongruence il.var.Rel := ⟨il.partialCongruenceVar⟩
+
+def rightOfLeftEval? (il: EvalEquiv ECL VarL ValL ECR VarR ValR) (ecL: ECL) (varR: VarR) : Option ValR :=
+  (HasPartialCongruence.leftOfRel? il.var.Rel varR).bind (fun x => (HasPartialCongruence.rightOfRel? il.val.Rel (ecL x)))
+
+def leftOfRightEval? (il: EvalEquiv ECL VarL ValL ECR VarR ValR) (ecR: ECR) (varL: VarL) : Option ValL :=
+  (HasPartialCongruence.rightOfRel? il.var.Rel varL).bind (fun x => (HasPartialCongruence.leftOfRel? il.val.Rel (ecR x)))
+
+
+theorem rightOfLeftEval?_eq_none_iff {il: EvalEquiv ECL VarL ValL ECR VarR ValR} {ecL varR}
+  : (il.rightOfLeftEval? ecL varR = .none) ↔ (∀(varL: VarL), ¬il.var.Rel varL varR) := by
+  conv =>
+    lhs
+    dsimp [rightOfLeftEval?]
+    simp [HasPartialCongruence.leftOfRel?_eq_some_iff_rel, HasPartialCongruence.rightOfRel?_eq_none_iff_not_rel]
+  constructor
+  · intro lm1 varL lm2
+    rcases il.valid.right_exists ecL with ⟨ecR, lm3⟩
+    simp [funHEq_iff] at lm3
+    specialize lm3 _ _ lm2
+    specialize lm1 varL lm2 (ecR varR)
+    exact lm1 lm3
+  · intro lm1 varL lm2 _ _
+    specialize lm1 varL
+    exact lm1 lm2
+
+theorem leftOfRightEval?_eq_none_iff {il: EvalEquiv ECL VarL ValL ECR VarR ValR} {ecR varL}
+  : (il.leftOfRightEval? ecR varL = .none) ↔ (∀(varR: VarR), ¬il.var.Rel varL varR) := by
+  conv =>
+    lhs
+    dsimp [leftOfRightEval?]
+    simp [HasPartialCongruence.rightOfRel?_eq_some_iff_rel, HasPartialCongruence.leftOfRel?_eq_none_iff_not_rel]
+  constructor
+  · intro lm1 varR lm2
+    rcases il.valid.left_exists ecR with ⟨ecL, lm3⟩
+    simp [funHEq_iff] at lm3
+    specialize lm3 _ _ lm2
+    specialize lm1 varR lm2 (ecL varL)
+    exact lm1 lm3
+  · intro lm1 varR lm2 _ _
+    specialize lm1 varR
+    exact lm1 lm2
+
+theorem rightOfLeftEval?_eq_some_iff {il: EvalEquiv ECL VarL ValL ECR VarR ValR} {ecL varR valR}
+  : (il.rightOfLeftEval? ecL varR = .some valR) ↔ (∃(varL: VarL), il.var.Rel varL varR ∧ il.val.Rel (ecL varL) valR) := by
+  conv =>
+    lhs
+    dsimp [rightOfLeftEval?]
+    simp [Option.bind_eq_some_iff, HasPartialCongruence.leftOfRel?_eq_some_iff_rel, HasPartialCongruence.rightOfRel?_eq_some_iff_rel]
+
+theorem leftOfRightEval?_eq_some_iff {il: EvalEquiv ECL VarL ValL ECR VarR ValR} {ecR varL valL}
+  : (il.leftOfRightEval? ecR varL = .some valL) ↔ (∃(varR: VarR), il.var.Rel varL varR ∧ il.val.Rel valL (ecR varR)) := by
+  conv =>
+    lhs
+    dsimp [leftOfRightEval?]
+    simp [Option.bind_eq_some_iff, HasPartialCongruence.leftOfRel?_eq_some_iff_rel, HasPartialCongruence.rightOfRel?_eq_some_iff_rel]
+
+
+
+def updateRightEvalOfLeftEval [Fintype VarR] (il: EvalEquiv ECL VarL ValL ECR VarR ValR) (ecL: ECL) (ecR: ECR) : ECR :=
+  let fsFun (fs: Finset VarR) : ECR := fs.val.lift (fun ls => il.updateOpRight.updateAllOfPFun (il.rightOfLeftEval? ecL) ls ecR) (by
+    intro ls1 ls2 lm1
+    have lm2 x := il.updateOpRight.updateAllOfPFun_respects_perm x ls1 ls2 lm1
+    simp [funext_iff] at lm2
+    exact lm2 _ ecR)
+  fsFun Finset.univ
+
+def updateLeftEvalOfRightEval [Fintype VarL] (il: EvalEquiv ECL VarL ValL ECR VarR ValR) (ecR: ECR) (ecL: ECL) : ECL :=
+  let fsFun (fs: Finset VarL) : ECL := fs.val.lift (fun ls => il.updateOpLeft.updateAllOfPFun (il.leftOfRightEval? ecR) ls ecL) (by
+    intro ls1 ls2 lm1
+    have lm2 x := il.updateOpLeft.updateAllOfPFun_respects_perm x ls1 ls2 lm1
+    simp [funext_iff] at lm2
+    exact lm2 _ ecL)
+  fsFun Finset.univ
+
+theorem updateRightEvalOfLeftEval_funHEq [Fintype VarR] (il: EvalEquiv ECL VarL ValL ECR VarR ValR) (ecL: ECL) (ecR: ECR) --(req: FunHEq il.var.Rel il.val.Rel ↑ecL ↑ecR)
+  : FunHEq il.var.Rel il.val.Rel ↑ecL ↑(il.updateRightEvalOfLeftEval ecL ecR) := by
+  simp [funHEq_iff]
+  intro vl vr lm1
+  dsimp [updateRightEvalOfLeftEval]
+  rename Fintype VarR => ft
+  rcases ft with ⟨⟨ls, lm2⟩, lm3⟩
+  dsimp [Finset.univ]
+  cases ls using Quotient.ind
+  rename_i ls
+  dsimp only [Quotient.lift_mk]
+  simp at lm2 lm3
+  specialize lm3 vr
+  generalize lm4: il.rightOfLeftEval? ecL = pf
+  rcases lm5: pf vr with _ | val
+  · subst lm4
+    have lm6 := rightOfLeftEval?_eq_none_iff.mp lm5 vl
+    contradiction
+  · have lm6 := il.updateOpRight.updateAllOfPFun_eq_apply_of_mem_and_eq_some pf vr ls lm3 val lm5 ecR
+    rw [lm6]
+    rewrite [Eq.comm] at lm4
+    subst lm4
+    rcases rightOfLeftEval?_eq_some_iff.mp lm5 with ⟨varR, lm7, lm8⟩
+    have lm9 := IsBiUnique.leftUnique lm1 lm7
+    rw [lm9]
+    exact lm8
+
+
+
+theorem updateLeftEvalOfRightEval_funHEq [Fintype VarL] (il: EvalEquiv ECL VarL ValL ECR VarR ValR) (ecL: ECL) (ecR: ECR) --(req: FunHEq il.var.Rel il.val.Rel ↑ecL ↑ecR)
+  : FunHEq il.var.Rel il.val.Rel ↑(il.updateLeftEvalOfRightEval ecR ecL) ↑ecR := by
+  simp [funHEq_iff]
+  intro vl vr lm1
+  dsimp [updateLeftEvalOfRightEval]
+  rename Fintype VarL => ft
+  rcases ft with ⟨⟨ls, lm2⟩, lm3⟩
+  dsimp [Finset.univ]
+  cases ls using Quotient.ind
+  rename_i ls
+  dsimp only [Quotient.lift_mk]
+  simp at lm2 lm3
+  specialize lm3 vl
+  generalize lm4: il.leftOfRightEval? ecR = pf
+  rcases lm5: pf vl with _ | val
+  · subst lm4
+    have lm6 := leftOfRightEval?_eq_none_iff.mp lm5 vr
+    contradiction
+  · have lm6 := il.updateOpLeft.updateAllOfPFun_eq_apply_of_mem_and_eq_some pf vl ls lm3 val lm5 ecL
+    rw [lm6]
+    rewrite [Eq.comm] at lm4
+    subst lm4
+    rcases leftOfRightEval?_eq_some_iff.mp lm5 with ⟨varR, lm7, lm8⟩
+    have lm9 := IsBiUnique.rightUnique lm1 lm7
+    rw [lm9]
+    exact lm8
+
+
+def mergeEffect [Fintype VarR] [Fintype VarL] (il: EvalEquiv ECL VarL ValL ECR VarR ValR) {ActL ActR: Type*} (effL: ActL → ECL → ECL) (effR: ActR → ECR → ECR) (actSum: ActL ⊕ ActR) (ec: il.EvalInter ECL ECR) : il.EvalInter ECL ECR :=
+  match actSum with
+  | .inl actL =>
+    let ecLNext : ECL := effL actL ec.left
+    ⟨ecLNext, il.updateRightEvalOfLeftEval ecLNext ec.right, il.updateRightEvalOfLeftEval_funHEq _ _⟩
+  | .inr actR =>
+    let ecRNext : ECR := effR actR ec.right
+    ⟨il.updateLeftEvalOfRightEval ecRNext ec.left, ecRNext, il.updateLeftEvalOfRightEval_funHEq _ _⟩
+
+
+
+variable [StandardType.Concrete ECL VarL ValL ValSL] [StandardType.Concrete ECR VarR ValR ValSR]
 
 open StandardType hiding Concrete
 open StandardType.Concrete
@@ -669,6 +819,7 @@ theorem standardTypeAt_eq_toBasic_toStandardType {il: EvalEquiv ECL VarL ValL EC
   dsimp [standardTypeAt_eq_toStandardType, EvalEquiv.toStandardType]
 -/
 
+
 def atomicPropOfLeft (il: EvalEquiv ECL VarL ValL ECR VarR ValR) (apL: AtomicProp ECL VarL ValL ValSL) : AtomicProp (il.EvalInter ECL ECR) (SumUnion il.var.Rel) (SumUnion il.val.Rel) (SetLikeUnion il.val.Rel ValSL ValSR) where
   var := .ofSum (.inl apL.var)
   spec := .ofSumUnion il.val.Rel ValSL ValSR (.ofSum (.inl apL.spec))
@@ -685,6 +836,35 @@ def atomicPropOfRight (il: EvalEquiv ECL VarL ValL ECR VarR ValR) (apR: AtomicPr
     simp [standard_type_norm, sum_simp]
     exact apR.valid.spec_safe
 
+theorem atomicPropOfLeft_injective (il: EvalEquiv ECL VarL ValL ECR VarR ValR) : Function.Injective (il.atomicPropOfLeft: AtomicProp ECL VarL ValL ValSL → AtomicProp (il.EvalInter ECL ECR) (SumUnion il.var.Rel) (SumUnion il.val.Rel) (SetLikeUnion il.val.Rel ValSL ValSR)) := by
+  intro ap1 ap2 lm3
+  rcases ap1 with ⟨⟨v1, s1⟩, lm1⟩
+  rcases ap2 with ⟨⟨v2, s2⟩, lm2⟩
+  simp
+  simp [atomicPropOfLeft, sum_simp] at lm3
+  rcases lm3 with ⟨lm3, lm4⟩
+  refine ⟨lm3, ?_⟩
+  rewrite [SetLike.ext_iff] at ⊢ lm4
+  intro v
+  specialize lm4 (.ofSum (.inl v))
+  simp [sum_simp] at lm4
+  exact lm4
+
+theorem atomicPropOfRight_injective (il: EvalEquiv ECL VarL ValL ECR VarR ValR) : Function.Injective (il.atomicPropOfRight: AtomicProp ECR VarR ValR ValSR → AtomicProp (il.EvalInter ECL ECR) (SumUnion il.var.Rel) (SumUnion il.val.Rel) (SetLikeUnion il.val.Rel ValSL ValSR)) := by
+  intro ap1 ap2 lm3
+  rcases ap1 with ⟨⟨v1, s1⟩, lm1⟩
+  rcases ap2 with ⟨⟨v2, s2⟩, lm2⟩
+  simp
+  simp [atomicPropOfRight, sum_simp] at lm3
+  rcases lm3 with ⟨lm3, lm4⟩
+  refine ⟨lm3, ?_⟩
+  rewrite [SetLike.ext_iff] at ⊢ lm4
+  intro v
+  specialize lm4 (.ofSum (.inr v))
+  simp [sum_simp] at lm4
+  exact lm4
+
+
 open SumUnion in
 theorem atomicPropOfLeft_eq_atomicPropOfRight_iff {il: EvalEquiv ECL VarL ValL ECR VarR ValR} {apL: AtomicProp ECL VarL ValL ValSL} {apR: AtomicProp ECR VarR ValR ValSR}
   : (il.atomicPropOfLeft apL = il.atomicPropOfRight apR) ↔ (il.var.Rel apL.var apR.var ∧ SetLikeHEq il.val.Rel ValSL ValSR apL.spec apR.spec) := by
@@ -693,6 +873,24 @@ theorem atomicPropOfLeft_eq_atomicPropOfRight_iff {il: EvalEquiv ECL VarL ValL E
   intro lm1
   dsimp [setLikeHEq_def, setOfLeftSet, setOfRightSet]
   simp only [setHEq_iff_forall_iff]
+
+/-
+def areAtomicPropEq (il: EvalEquiv ECL VarL ValL ECR VarR ValR) [DecidableEq (SumUnion il.var.Rel)] [DecidableEq (SetLikeUnion il.val.Rel ValSL ValSR)]
+  (ap1 ap2: AtomicProp (il.EvalInter ECL ECR) (SumUnion il.var.Rel) (SumUnion il.val.Rel) (SetLikeUnion il.val.Rel ValSL ValSR)) : Bool :=
+  (decide (ap1.var = ap2.var)) && (decide (ap1.spec = ap2.spec))
+
+theorem areAtomicPropEq_eq_true_iff_eq {il: EvalEquiv ECL VarL ValL ECR VarR ValR} [DecidableEq (SumUnion il.var.Rel)] [DecidableEq (SetLikeUnion il.val.Rel ValSL ValSR)]
+  {ap1 ap2: AtomicProp (il.EvalInter ECL ECR) (SumUnion il.var.Rel) (SumUnion il.val.Rel) (SetLikeUnion il.val.Rel ValSL ValSR)}
+  : (il.areAtomicPropEq ap1 ap2 = .true) ↔ (ap1 = ap2) := by
+  dsimp [areAtomicPropEq]
+  rcases ap1 with ⟨⟨_, _⟩, _⟩
+  rcases ap2 with ⟨⟨_, _⟩, _⟩
+  simp
+
+instance decidableAtomicPropEq (il: EvalEquiv ECL VarL ValL ECR VarR ValR) [DecidableEq (SumUnion il.var.Rel)] [DecidableEq (SetLikeUnion il.val.Rel ValSL ValSR)]
+  : DecidableEq (AtomicProp (il.EvalInter ECL ECR) (SumUnion il.var.Rel) (SumUnion il.val.Rel) (SetLikeUnion il.val.Rel ValSL ValSR)) :=
+  fun _ _ => decidable_of_decidable_of_iff (il.areAtomicPropEq_eq_true_iff_eq)
+-/
 
 open StandardType.AtomicProp
 
@@ -878,261 +1076,233 @@ protected instance hasAtomicPropSigletonOP [HasSingletonOP ECL VarL ValL ValSL] 
           contradiction )
 
 
+end StandardTypeConcrete
 
-/-
-theorem toAtomicPropSigletonOPStruct_isSigletonOP [HasSingletonOP ECL VarL ValL ValSL] [HasSingletonOP ECR VarR ValR ValSR] {il: EvalEquiv ECL VarL ValL ECR VarR ValR}
-  : IsSingletonOP (il.toAtomicPropSigletonOPStruct ValSL ValSR) := by
-  refine .mk ?_ ?_
-  · intro var val req
--/
+section StandardTypeConcreteFinite
 
-/-
-        · simp [atomicPropOfLeft_eq_atomicPropOfRight_iff, HasSingletonOP.var_eq]
-          refine ⟨lm3, ?_⟩
-          dsimp [SumUnion.setLikeHEq_def]
-          simp [HasSingletonOP.spec_eq_singleton, SumUnion.setHEq_iff_forall_iff_imp_and_imp]
-          rename_i lm5 _ lm6
-          simp [sum_simp] at lm5 lm6
-          subst lm5
-          simp [sum_simp] at lm6
-          exact lm6
-        · rename_i lm5 lm6
-          simp [sum_simp] at lm5 lm6
-          subst lm5 lm2
-          simp [sum_simp] at lm6
-          simp [standard_type_norm, sum_simp] at req
-          rcases req with ⟨ecR, lm7⟩
-          specialize lm6 (ecR r2)
-          contradiction
-        · rename_i lm5 _ lm6
-          simp [sum_simp] at lm5 lm6
-          subst lm6 lm1
-          simp [sum_simp] at lm5
-          simp [standard_type_norm, sum_simp] at req
-          rcases req with ⟨ecL, lm7⟩
-          specialize lm5 (ecL l1)
-          contradiction
-        · rename_i lm5 lm6
-          simp [sum_simp] at lm5 lm6
-          rcases
--/
-        --dsimp [areTypeEquiv_def] at lm4
-        --simp [standardTypeAt_eq_toBasic_toStandardType, Interleaving.toStandardType, sum_simp] at req
-/-
-        split
-        · rename_i valL lm4
-          revert lm4
-          simp [sum_simp]
-          intro lm4
-          subst lm4
-          simp [atomicPropOfLeft, sum_simp]
--/
+open StandardType hiding Concrete
+variable [ConcreteFinite ECL VarL ValL ValSL] [ConcreteFinite ECR VarR ValR ValSR]
 
-/-
-          simp [EvalEquiv.toStandardType, Interleaving.toStandardType, sum_simp] at req
-          cases val using SumUnion.indInlInrOfSum
-          <;> simp [sum_simp] at lm1
-          · simp [sum_simp] at req
-            rcases req with ⟨ecL, lm2⟩
-            specialize lm1 (ecL varL)
-            contradiction
--/
-/-
-open StandardType.AtomicProp
 
 variable (ValSL ValSR) in
-def toAtomicPropSigletonOPStruct [HasSingletonOP ECL VarL ValL ValSL] [HasSingletonOP ECR VarR ValR ValSR]
-  (il: EvalEquiv ECL VarL ValL ECR VarR ValR) : SingletonOPStruct (il.EvalInter ECL ECR) (SumUnion il.var.Rel) (SumUnion il.val.Rel) (SetLikeUnion il.val.Rel ValSL ValSR) :=
-  let sumFun (var: VarL ⊕ VarR) (val: ValL ⊕ ValR) (req: (il.toStandardType ValSL ValSR).IsValueSafe (.ofSum var) (.ofSum val)) : StandardType.AtomicPropStruct (SumUnion il.var.Rel) (SetLikeUnion il.val.Rel ValSL ValSR) :=
-    match var, val with
-    | .inl varL, .inl valL => ⟨(.ofSum (.inl varL)), (HasSingletonOP.singletonOP.op varL valL (by _))⟩
-    | .inr varR, .inr valR => ⟨(.ofSum (.inr varR)), (HasSingletonOP.singletonOP.op varR valR (by _))⟩
-    | .inl varL, .inr valR =>
-      match lm1: HasPartialCongruence.leftOfRel? il.val.Rel valR with
-      | .none => absurd lm1 (by _)
-      | .some valL => ⟨(.ofSum (.inl varL)), (HasSingletonOP.singletonOP.op varL valL (by _))⟩
-    | .inr varR, .inl valL =>
-      match lm1: HasPartialCongruence.rightOfRel? il.val.Rel valL with
-      | .none => absurd lm1 (by _)
-      | .some valR => ⟨(.ofSum (.inr varR)), (HasSingletonOP.singletonOP.op varR valR (by _))⟩
--/
-  --let sumFun : (VarL ⊕ VarR) → (ValL ⊕ ValR) → StandardType.AtomicPropStruct (SumUnion il.var.Rel) (SetLikeUnion il.val.Rel ValSL ValSR)
-    --| .inl varL, .inl valL => ⟨.ofSum (.inl varL), HasSingletonOP.singletonOP.op varL valL
-  --op var val req : StandardType.AtomicProp (il.EvalInter ECL ECR) (SumUnion il.var.Rel) (SumUnion il.val.Rel) (SetLikeUnion il.val.Rel ValSL ValSR) :=
-
-  --let apL : StandardType.AtomicProp ECL VarL ValL ValSL := HasSingletonOP.singletonOP.op
-/-
-  {
-    var := _
-    spec := _
-    valid := _
-  }
--/
+protected instance toStandardTypeConcreteFinite
+  (il: EvalEquiv ECL VarL ValL ECR VarR ValR) : ConcreteFinite (il.EvalInter ECL ECR) (SumUnion il.var.Rel) (SumUnion il.val.Rel) (SetLikeUnion il.val.Rel ValSL ValSR) where
+  toConcrete := il.toStandardTypeConcrete ValSL ValSR
+  hasSingletonOP := il.hasAtomicPropSigletonOP
+  decidableEqVar := inferInstance
+  fintypeVar := SumUnion.fintype il.var.Rel
+  fintypeSpec := SetLikeUnion.fintype
 
 
+example (il: EvalEquiv ECL VarL ValL ECR VarR ValR) : DecidableEq (SetLikeUnion il.val.Rel ValSL ValSR) := inferInstance
+
+instance (il: EvalEquiv ECL VarL ValL ECR VarR ValR) : DecidableEq (AtomicProp (il.EvalInter ECL ECR) (SumUnion il.var.Rel) (SumUnion il.val.Rel) (SetLikeUnion il.val.Rel ValSL ValSR)) := fun _ _ => inferInstance
+
+
+open PropositionalLogics
+
+
+example (il: EvalEquiv ECL VarL ValL ECR VarR ValR) : DecidableEq (Formula (AtomicProp (il.EvalInter ECL ECR) (SumUnion il.var.Rel) (SumUnion il.val.Rel) (SetLikeUnion il.val.Rel ValSL ValSR))) := Formula.instDecidableEq
+
+example (il: EvalEquiv ECL VarL ValL ECR VarR ValR) : DecidableEq (Cond (il.EvalInter ECL ECR) (SumUnion il.var.Rel) (SumUnion il.val.Rel) (SetLikeUnion il.val.Rel ValSL ValSR)) := fun _ _ => inferInstance
+
+
+def formulaOfLeft (il: EvalEquiv ECL VarL ValL ECR VarR ValR) : Formula (AtomicProp ECL VarL ValL ValSL) → Formula (AtomicProp (il.EvalInter ECL ECR) (SumUnion il.var.Rel) (SumUnion il.val.Rel) (SetLikeUnion il.val.Rel ValSL ValSR))
+  | .true => .true
+  | .atom ap => .atom (il.atomicPropOfLeft ap)
+  | .neg fml => .neg (il.formulaOfLeft fml)
+  | .and fml1 fml2 => .and (il.formulaOfLeft fml1) (il.formulaOfLeft fml2)
+
+def formulaOfRight (il: EvalEquiv ECL VarL ValL ECR VarR ValR) : Formula (AtomicProp ECR VarR ValR ValSR) → Formula (AtomicProp (il.EvalInter ECL ECR) (SumUnion il.var.Rel) (SumUnion il.val.Rel) (SetLikeUnion il.val.Rel ValSL ValSR))
+  | .true => .true
+  | .atom ap => .atom (il.atomicPropOfRight ap)
+  | .neg fml => .neg (il.formulaOfRight fml)
+  | .and fml1 fml2 => .and (il.formulaOfRight fml1) (il.formulaOfRight fml2)
+
+
+theorem formulaOfLeft_isCond_of_isCond {il: EvalEquiv ECL VarL ValL ECR VarR ValR} {fml: Formula (AtomicProp ECL VarL ValL ValSL)} (req: IsCond _ _ _ _ fml)
+  : IsCond _ _ _ _ (il.formulaOfLeft fml) := by
+  rcases req with _ | ⟨ap, fml, lm1⟩
+  · dsimp [formulaOfLeft]
+    exact .nil
+  · dsimp [formulaOfLeft]
+    refine .cons (il.atomicPropOfLeft ap) (il.formulaOfLeft fml) ?_
+    exact formulaOfLeft_isCond_of_isCond lm1
+
+theorem formulaOfRight_isCond_of_isCond {il: EvalEquiv ECL VarL ValL ECR VarR ValR} {fml: Formula (AtomicProp ECR VarR ValR ValSR)} (req: IsCond _ _ _ _ fml)
+  : IsCond _ _ _ _ (il.formulaOfRight fml) := by
+  rcases req with _ | ⟨ap, fml, lm1⟩
+  · dsimp [formulaOfRight]
+    exact .nil
+  · dsimp [formulaOfRight]
+    refine .cons (il.atomicPropOfRight ap) (il.formulaOfRight fml) ?_
+    exact formulaOfRight_isCond_of_isCond lm1
+
+theorem formulaOfLeft_injective (il: EvalEquiv ECL VarL ValL ECR VarR ValR) : Function.Injective (il.formulaOfLeft) := by
+  rintro fml1 fml2 lm1
+  rcases fml1 with _ | ⟨ap1⟩ | ⟨fml1⟩ | ⟨fml1L, fml1R⟩
+  <;> rcases fml2 with _ | ⟨ap2⟩ | ⟨fml2⟩ | ⟨fml2L, fml2R⟩
+  <;> try simp [formulaOfLeft] at lm1
+  · rfl
+  · simp
+    rewrite [il.atomicPropOfLeft_injective.eq_iff] at lm1
+    exact lm1
+  · simp
+    exact il.formulaOfLeft_injective lm1
+  · simp
+    rcases lm1 with ⟨lm1, lm2⟩
+    refine ⟨?_, ?_⟩
+    · exact il.formulaOfLeft_injective lm1
+    · exact il.formulaOfLeft_injective lm2
+
+theorem formulaOfRight_injective (il: EvalEquiv ECL VarL ValL ECR VarR ValR) : Function.Injective (il.formulaOfRight) := by
+  rintro fml1 fml2 lm1
+  rcases fml1 with _ | ⟨ap1⟩ | ⟨fml1⟩ | ⟨fml1L, fml1R⟩
+  <;> rcases fml2 with _ | ⟨ap2⟩ | ⟨fml2⟩ | ⟨fml2L, fml2R⟩
+  <;> try simp [formulaOfRight] at lm1
+  · rfl
+  · simp
+    rewrite [il.atomicPropOfRight_injective.eq_iff] at lm1
+    exact lm1
+  · simp
+    exact il.formulaOfRight_injective lm1
+  · simp
+    rcases lm1 with ⟨lm1, lm2⟩
+    refine ⟨?_, ?_⟩
+    · exact il.formulaOfRight_injective lm1
+    · exact il.formulaOfRight_injective lm2
+
+
+
+def condOfLeft (il: EvalEquiv ECL VarL ValL ECR VarR ValR) (cond: Cond ECL VarL ValL ValSL) : Cond (il.EvalInter ECL ECR) (SumUnion il.var.Rel) (SumUnion il.val.Rel) (SetLikeUnion il.val.Rel ValSL ValSR) where
+  formula := il.formulaOfLeft cond.formula
+  valid := il.formulaOfLeft_isCond_of_isCond cond.valid
+
+def condOfRight (il: EvalEquiv ECL VarL ValL ECR VarR ValR) (cond: Cond ECR VarR ValR ValSR) : Cond (il.EvalInter ECL ECR) (SumUnion il.var.Rel) (SumUnion il.val.Rel) (SetLikeUnion il.val.Rel ValSL ValSR) where
+  formula := il.formulaOfRight cond.formula
+  valid := il.formulaOfRight_isCond_of_isCond cond.valid
+
+theorem condOfLeft_injective (il: EvalEquiv ECL VarL ValL ECR VarR ValR) : Function.Injective (il.condOfLeft) := by
+  intro c1 c2 lm1
+  simp [condOfLeft] at lm1
+  rewrite [il.formulaOfLeft_injective.eq_iff] at lm1
+  exact Cond.ext lm1
+
+theorem condOfRight_injective (il: EvalEquiv ECL VarL ValL ECR VarR ValR) : Function.Injective (il.condOfRight) := by
+  intro c1 c2 lm1
+  simp [condOfRight] at lm1
+  rewrite [il.formulaOfRight_injective.eq_iff] at lm1
+  exact Cond.ext lm1
+
+
+variable {CCL CCR: Type*} [FiniteCondLike CCL ECL VarL ValL ValSL] [FiniteCondLike CCR ECR VarR ValR ValSR]
+
+variable (CCL CCR) in
+def CondHEq (il: EvalEquiv ECL VarL ValL ECR VarR ValR) (condL: CCL) (condR: CCR) : Prop :=
+  il.condOfLeft (FiniteCondLike.toCond condL) = il.condOfRight (FiniteCondLike.toCond condR)
+
+@[defeq]
+theorem condHEq_def {il: EvalEquiv ECL VarL ValL ECR VarR ValR} {condL: CCL} {condR: CCR}
+  : il.CondHEq CCL CCR condL condR = (il.condOfLeft (FiniteCondLike.toCond condL) = il.condOfRight (FiniteCondLike.toCond condR)) :=
+  rfl
+
+theorem condHEq_leftUnique (il: EvalEquiv ECL VarL ValL ECR VarR ValR) : Relator.LeftUnique (il.CondHEq CCL CCR) := by
+  intro cl1 cl2 cr lm1 lm2
+  dsimp [condHEq_def] at lm1 lm2
+  have lm3 := lm1.trans lm2.symm
+  rewrite [il.condOfLeft_injective.eq_iff, FiniteCondLike.toCond_Injective.eq_iff] at lm3
+  exact lm3
+
+theorem condHEq_rightUnique (il: EvalEquiv ECL VarL ValL ECR VarR ValR) : Relator.RightUnique (il.CondHEq CCL CCR) := by
+  intro cl cr1 cr2 lm1 lm2
+  dsimp [condHEq_def] at lm1 lm2
+  have lm3 := lm1.symm.trans lm2
+  rewrite [il.condOfRight_injective.eq_iff, FiniteCondLike.toCond_Injective.eq_iff] at lm3
+  exact lm3
+
+instance condHEq_isBiUnique (il: EvalEquiv ECL VarL ValL ECR VarR ValR) : IsBiUnique (il.CondHEq CCL CCR) where
+  biUnique := ⟨il.condHEq_leftUnique, il.condHEq_rightUnique⟩
+
+
+instance decidableCondHEq (il: EvalEquiv ECL VarL ValL ECR VarR ValR) : DecidableRel (il.CondHEq CCL CCR) := fun _ _ => decidable_of_decidable_of_eq condHEq_def.symm
+
+variable (CCL CCR) in
+abbrev CondUnion (il: EvalEquiv ECL VarL ValL ECR VarR ValR) : Type _ := SumUnion (il.CondHEq CCL CCR)
+
+@[defeq]
+theorem condUnion_def {il: EvalEquiv ECL VarL ValL ECR VarR ValR} : il.CondUnion CCL CCR = SumUnion (il.CondHEq CCL CCR) := rfl
+
+
+namespace CondUnion
+
+
+instance (il: EvalEquiv ECL VarL ValL ECR VarR ValR) : DecidableEq (il.CondUnion CCL CCR) :=
+  letI : DecidableEq CCL := FiniteCondLike.decidableCondLike CCL ECL VarL ValL ValSL
+  letI : DecidableEq CCR := FiniteCondLike.decidableCondLike CCR ECR VarR ValR ValSR
+  inferInstanceAs (DecidableEq (SumUnion (il.CondHEq CCL CCR)))
+
+instance (il: EvalEquiv ECL VarL ValL ECR VarR ValR) : Fintype (il.CondUnion CCL CCR) :=
+  letI : DecidableEq CCL := FiniteCondLike.decidableCondLike CCL ECL VarL ValL ValSL
+  letI : DecidableEq CCR := FiniteCondLike.decidableCondLike CCR ECR VarR ValR ValSR
+  SumUnion.fintype (il.CondHEq CCL CCR)
+
+
+variable {il: EvalEquiv ECL VarL ValL ECR VarR ValR}
+
+def toCond (cu: il.CondUnion CCL CCR) : Cond (il.EvalInter ECL ECR) (SumUnion il.var.Rel) (SumUnion il.val.Rel) (SetLikeUnion il.val.Rel ValSL ValSR) :=
+  (cu: SumUnion (il.CondHEq CCL CCR)).funElim (fun condL => il.condOfLeft (FiniteCondLike.toCond condL)) (fun condR => il.condOfRight (FiniteCondLike.toCond condR)) (by
+    intro _ _ lm1
+    exact lm1 )
+
+open SumUnion in
+theorem toCond_Injective : Function.Injective (toCond: il.CondUnion CCL CCR → _) := by
+  intro cu1 cu2 lm1
+  dsimp [toCond] at lm1
+  cases cu1 using indInlInrOfSum
+  <;> cases cu2 using indInlInrOfSum
+  <;> simp [sum_simp, funElim_eq_ofSum] at ⊢ lm1
+  · rewrite [il.condOfLeft_injective.eq_iff, FiniteCondLike.toCond_Injective.eq_iff] at lm1
+    exact lm1
+  · exact lm1
+  · exact lm1.symm
+  · rewrite [il.condOfRight_injective.eq_iff, FiniteCondLike.toCond_Injective.eq_iff] at lm1
+    exact lm1
+
+
+inductive ControlUnion {Loc1 Loc2 Act1 Act2: Type*}
+  (ctr1: Loc1 → CCL → Act1 → Loc1 → Prop) (ctr2: Loc2 → CCR → Act2 → Loc2 → Prop) (loc1: Loc1) (loc2: Loc2) : Loc1 → Loc2 → (il.CondUnion CCL CCR) → (Act1 ⊕ Act2) → Prop where
+  | left (loc: Loc1) (cond: CCL) (act: Act1) (req: ctr1 loc1 cond act loc) : ControlUnion ctr1 ctr2 loc1 loc2 loc loc2 (.ofSum (.inl cond)) (.inl act)
+  | right (loc: Loc2) (cond: CCR) (act: Act2) (req: ctr2 loc2 cond act loc) : ControlUnion ctr1 ctr2 loc1 loc2 loc1 loc (.ofSum (.inr cond)) (.inr act)
+
+
+end CondUnion
+
+
+protected instance finiteCondLike (il: EvalEquiv ECL VarL ValL ECR VarR ValR) : FiniteCondLike (il.CondUnion CCL CCR) (il.EvalInter ECL ECR) (SumUnion il.var.Rel) (SumUnion il.val.Rel) (SetLikeUnion il.val.Rel ValSL ValSR) where
+  toCond cu := cu.toCond
+  toCond_Injective := CondUnion.toCond_Injective
+  fintype := inferInstance
+
+--ctr : pgL.Loc × pgR.Loc → CondUnion CCL CCR il → pgL.Act ⊕ pgR.Act → pgL.Loc × pgR.Loc → Prop
+
+
+@[reducible]
+def toProgramGraph (il: EvalEquiv ECL VarL ValL ECR VarR ValR) (pgL: ProgramGraph CCL ECL VarL ValL ValSL) (pgR: ProgramGraph CCR ECR VarR ValR ValSR) : ProgramGraph (il.CondUnion CCL CCR) (il.EvalInter ECL ECR) (SumUnion il.var.Rel) (SumUnion il.val.Rel) (SetLikeUnion il.val.Rel ValSL ValSR) where
+  Loc := pgL.Loc × pgR.Loc
+  Act := pgL.Act ⊕ pgR.Act
+  effect := il.mergeEffect pgL.effect pgR.effect
+  ctr l cu act l' := CondUnion.ControlUnion pgL.ctr pgR.ctr l.fst l.snd l'.fst l'.snd cu act
+  loc0 l := pgL.loc0 l.fst ∧ pgR.loc0 l.snd
+  g0 := (il.condOfLeft pgL.g0).append (il.condOfRight pgR.g0)
+
+
+end StandardTypeConcreteFinite
 
 end EvalEquiv
 
 
-/-
-open SumUnion in
-theorem isValueSafe_exists_iff (il: Interleaving VarL ValL VarR ValR)
-  (stL: StandardType ECL VarL ValL ValSL) (stR: StandardType ECR VarR ValR ValSR)
-  (req1: il.AreTypeEquiv stL.toStruct stR.toStruct) (req2: il.AreEvalEquiv ECL ECR) {varR: VarR} {valL: ValL}
-  : (∃valR, stR.IsValueSafe varR valR ∧ il.val.Rel valL valR) ↔ (∃varL, stL.IsValueSafe varL valL ∧ il.var.Rel varL varR) := by
-  dsimp [areTypeEquiv_def, setLikeHEq_def] at req1
-  simp [setHEq_iff_forall_iff_and_forall_iff, ← StandardTypeStruct.isValueSafe_def] at req1
-  constructor
-  · rintro ⟨valR, lm1, lm2⟩
-    rewrite [stR.eval_exists_iff] at lm1
-    rcases lm1 with ⟨ecR, lm1⟩
-    rewrite [Eq.comm] at lm1
-    subst lm1
-    have lm3 := req2.left_exists ecR
-    rcases lm3 with ⟨ecL, lm3⟩
-    simp [funHEq_iff] at lm3
-    simp [stL.eval_exists_iff]
-    --by_cases lm4: ∀varL, ¬il.var.Rel varL varR
-    --·
--/
+--def areFormularHEq
 
-/-
-variable (ECL ECR) in
-open StandardType in
-@[reducible]
-def toHasProposition.{usl} (il: Interleaving VarL ValL VarR ValR) [HasProposition.{_,_,_,usl} ECL VarL ValL] [HasProposition.{_,_,_,usl} ECR VarR ValR]
-  : HasProposition (il.EvalInter ECL ECR) (SumUnion il.var.Rel) (SumUnion il.val.Rel) where
-  ValS := (SetLikeUnion il.val.Rel ValSL ValSR)
-  setLike := inferInstance
--/
-
-/-
-variable {il: Interleaving VarL ValL VarR ValR} {stL: StandardType ECL VarL ValL ValSL} {stR: StandardType ECR VarR ValR ValSR}
-         {req_type_equiv: il.AreTypeEquiv stL.toStruct stR.toStruct} {req_eval_equiv: il.AreEvalEquiv ECL ECR}
--/
-
-
-/-
-def isSpecSafe (il: Interleaving VarL ValL VarR ValR) (req: il.AreEvalEquiv ECL ECR)
-               (stL: StandardType ECL VarL ValL ValSL) (stR: StandardType ECR VarR ValR ValSR)
-               [stL.DecidableSpecSafe] [stR.DecidableSpecSafe]
-               [∀(sl: ValSL), DecidablePred (· ∈ sl)] [∀(sr: ValSR), DecidablePred (· ∈ sr)]
-               [∀(sl: ValSL), Fintype sl] [∀(sr: ValSR), Fintype sr]
-               [HasPartialCongruence il.val.Rel]
-               (var: SumUnion il.var.Rel) (spec: SetLikeUnion il.val.Rel ValSL ValSR) : Bool :=
-  let sumFun : (VarL ⊕ VarR) → (ValSL ⊕ ValSR) → Bool
-    | .inl varL, .inl sal => decide (stL.IsValueSetSafe varL sal)
-    | .inr varR, .inr sar => decide (stR.IsValueSetSafe varR sar)
-    | .inl varL, .inr sar =>
-      (Finset.univ: Finset sar).val.lift (fun rs => rs.all (fun r =>
-        match HasPartialCongruence.leftOfRel? il.val.Rel r.val with
-        | .none => .false
-        | .some l => decide (l ∈ stL.dom varL))) (by
-          intro rs1 rs2 lm1
-          change List.Perm rs1 rs2 at lm1
-          induction lm1 with
-          | nil => simp
-          | cons r rs lm1 =>
-            rewrite [Bool.eq_iff_iff] at ⊢ lm1
-            simp at lm1 ⊢
-            intro _
-            exact lm1
-          | swap r1 r2 rs =>
-            rewrite [Bool.eq_iff_iff]
-            simp
-            constructor <;> (
-            rintro ⟨lm1, lm2, lm3⟩
-            exact ⟨lm2, lm1, lm3⟩ )
-          | trans _ _ lm1 lm2 => exact lm1.trans lm2 )
-    | .inr varR, .inl sal =>
-      (Finset.univ: Finset sal).val.lift (fun ls => ls.all (fun l =>
-        match HasPartialCongruence.rightOfRel? il.val.Rel l.val with
-        | .none => .false
-        | .some r => decide (r ∈ stR.dom varR))) (by
-          intro ls1 ls2 lm1
-          change List.Perm ls1 ls2 at lm1
-          induction lm1 with
-          | nil => simp
-          | cons l ls lm1 =>
-            rewrite [Bool.eq_iff_iff] at ⊢ lm1
-            simp at lm1 ⊢
-            intro _
-            exact lm1
-          | swap l1 l2 ls =>
-            rewrite [Bool.eq_iff_iff]
-            simp
-            constructor <;> (
-            rintro ⟨lm1, lm2, lm3⟩
-            exact ⟨lm2, lm1, lm3⟩ )
-          | trans _ _ lm1 lm2 => exact lm1.trans lm2)
-  SumUnion.liftOfSumOn₂ var spec sumFun (by
-    intro su1 sls1 su2 sls2 lm1 lm2
-    rcases su1 with ⟨varL1⟩ | ⟨varR1⟩
-    <;> rcases su2 with ⟨varL2⟩ | ⟨varR2⟩
-    <;> (simp [sum_simp] at lm1; try (subst lm1))
-    <;> rcases sls1 with ⟨sl1⟩ | ⟨sr1⟩
-    <;> rcases sls2 with ⟨sl2⟩ | ⟨sr2⟩
-    <;> (simp [sum_simp] at lm2; try (subst lm2); try rfl)
-    <;> (subst sumFun; simp)
-    · simp
-  )
--/
-
-
-/-
-    let sumFun : (ValSL ⊕ ValSR) → Bool
-      | .inl sal => match var.left? with | .some l => decide (stL.IsValueSetSafe l sal) | .none => .false
-      | .inr sar => match var.right? with | .some r => decide (stR.IsValueSetSafe r sar) | .none => .false
-    spec.toSumUnion.liftOfSum sumFun (by
-      simp [sum_simp]
-      --have lm4 := il.toStandardTypeStruct_eval_exists req_type_equiv req_eval_equiv stL.valid.eval_exists stR.valid.eval_exists
-      refine ⟨?_, ?_⟩ <;> (
-        intro sal sar lm1
-        dsimp [SumUnion.setLikeHEq_def] at lm1
-        subst sumFun
-        dsimp
-        generalize lm2: var.left? = l?
-        generalize lm3: var.right? = r?
-        rcases l? with _ | ⟨l⟩
-        <;> rcases r? with _ | ⟨r⟩
-        <;> simp )
-      · intro lm4
-        simp [sum_simp] at lm3
-        subst lm3
-        simp [sum_simp] at lm2
-        simp [StandardTypeStruct.isValueSetSafe_eq_isValueSafe, stR.eval_exists_iff] at lm4
-    )
--/
-        --dsimp [StandardTypeStruct.isValueSetSafe_eq_isValueSafe, StandardTypeStruct.isValueSafe_def] at lm4
-
-
-
-/-
-        <;> simp [StandardTypeStruct.isValueSetSafe_def, Set.subset_def]
-        <;> (
-          cases var using SumUnion.indInlInrOfSum
-          <;> simp [sum_simp] at lm2 lm3 ))
-      · rewrite [Eq.comm] at lm3
-        subst lm3
-        simp [StandardType.not_mem_iff_forall_eval_ne]
-        by_contra lm5
-        simp at lm5
--/
-        --have lm3 := req.left_exists
-
-/-
-@[reducible]
-def toDecidableSpecSafe : (il.toStandardType stL stR req_type_equiv req_eval_equiv).DecidableSpecSafe
--/
-
-/-
-@[reducible]
-def toConcreteStandardType (il: Interleaving VarL ValL VarR ValR)
-  (stL: StandardType ECL VarL ValL ValSL) (stR: StandardType ECR VarR ValR ValSR)
-  (req1: il.AreTypeEquiv stL.toStruct stR.toStruct) (req2: il.AreEvalEquiv ECL ECR)
-  : StandardType.Concrete (il.EvalInter ECL ECR) (SumUnion il.var.Rel) (SumUnion il.val.Rel) (SetLikeUnion il.val.Rel ValSL ValSR) where
-  standardType := il.toStandardType stL stR req1 req2
--/
 
 end Interleaving
 

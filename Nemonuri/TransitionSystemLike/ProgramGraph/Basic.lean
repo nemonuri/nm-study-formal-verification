@@ -28,6 +28,19 @@ def setLikeOfIndicatorLike (C α: Type*) [FunLike C α Bool] : SetLike C α wher
     simp [Set.ext_iff] at lm1
     exact lm1
 
+def areFinsetLikeEq {C α: Type*} [SetLike C α] [DecidableEq α] (c1 c2: C) [Fintype ↑c1] [Fintype ↑c2] : Bool :=
+  let fs1: Finset α := (Finset.univ: Finset ↑c1).map ⟨Subtype.val, Subtype.val_injective⟩
+  let fs2: Finset α := (Finset.univ: Finset ↑c2).map ⟨Subtype.val, Subtype.val_injective⟩
+  decide (fs1 = fs2)
+
+theorem areFinsetLikeEq_eq_true_iff_eq {C α: Type*} [SetLike C α] [DecidableEq α] {c1 c2: C} [Fintype ↑c1] [Fintype ↑c2] : (areFinsetLikeEq c1 c2 = .true) ↔ (c1 = c2) := by
+  dsimp [areFinsetLikeEq]
+  simp [SetLike.ext_iff]
+
+instance (priority := 10) decidableFinsetLikeEq (C α: Type*) [DecidableEq α] [SetLike C α] [∀(c: C), Fintype ↑c] : DecidableEq C :=
+  fun _ _ => decidable_of_decidable_of_iff areFinsetLikeEq_eq_true_iff_eq
+
+
 namespace ProgramGraph
 
 structure Eval (Var Val: Type*) where
@@ -56,6 +69,267 @@ instance : FunLike EC Var Val where
 
 @[defeq]
 theorem coe_coe_eq_coe {ec: EC} : ((ec: Eval Var Val): Var → Val) = (ec: Var → Val) := rfl
+
+
+variable (EC Var Val) in
+structure UpdateOPStructure where
+  op: Var → Val → EC → EC
+
+open Classical in
+structure IsUpdateOP (s: UpdateOPStructure EC Var Val) : Prop where
+  update_eq (var: Var) (val: Val) (ec: EC) : Function.update (↑ec) var val = ↑(s.op var val ec)
+
+variable (EC Var Val) in
+structure UpdateOP extends toStruct: UpdateOPStructure EC Var Val where
+  valid: IsUpdateOP toStruct
+
+namespace UpdateOP
+
+
+instance subsingleton : Subsingleton (UpdateOP EC Var Val) where
+  allEq := by
+    rintro ⟨⟨op1⟩, ⟨lm1⟩⟩ ⟨⟨op2⟩, ⟨lm2⟩⟩
+    simp [funext_iff]
+    simp at lm1 lm2
+    intro var val ec
+    specialize lm1 var val ec
+    specialize lm2 var val ec
+    have lm3 := lm1.symm.trans lm2
+    exact DFunLike.coe_injective.eq_iff.mp lm3
+
+theorem op_idem (upd: UpdateOP EC Var Val) (var: Var) (val1 val2: Val) (ec: EC)
+  : upd.op var val2 (upd.op var val1 ec) = upd.op var val2 ec := by
+  have lm1 := upd.valid.update_eq var
+  refine DFunLike.coe_injective.eq_iff.mp ?_
+  simp only [← lm1]
+  simp only [Function.update_idem]
+
+open Classical in
+theorem op_apply (upd: UpdateOP EC Var Val) (var': Var) (val: Val) (ec: EC) (var: Var)
+  : (upd.op var' val ec) var = if var = var' then val else ec var := by
+  rewrite [← upd.valid.update_eq, Function.update_apply]
+  rfl
+
+theorem op_eq_self_iff (upd: UpdateOP EC Var Val) (ec: EC) (var: Var) (val: Val)
+  : (ec = upd.op var val ec) ↔ (ec var = val) := by
+  classical
+  conv => lhs; rw [← DFunLike.coe_injective.eq_iff, ← upd.valid.update_eq, Function.eq_update_self_iff]
+
+theorem op_eq_self (upd: UpdateOP EC Var Val) (ec: EC) (var: Var)
+  : upd.op var (ec var) ec = ec := by
+  classical
+  refine DFunLike.coe_injective.eq_iff.mp ?_
+  rw [← upd.valid.update_eq]
+  exact Function.update_eq_self _ _
+
+theorem op_apply_eq_of_ne (upd: UpdateOP EC Var Val) (ec: EC) (val: Val) {var var': Var} (req: var ≠ var')
+  : (upd.op var' val ec) var = ec var := by
+  simp [upd.op_apply, req]
+
+theorem op_comm (upd: UpdateOP EC Var Val) (ec: EC) {var1 var2: Var} (req1: var1 ≠ var2) (val1 val2: Val)
+  : upd.op var1 val1 (upd.op var2 val2 ec) = upd.op var2 val2 (upd.op var1 val1 ec) := by
+  classical
+  refine DFunLike.coe_injective.eq_iff.mp ?_
+  simp [← upd.valid.update_eq]
+  symm
+  exact Function.update_comm req1 _ _ _
+
+
+def updateIfSome (upd: UpdateOP EC Var Val) (var: Var) (val?: Option Val) (ec: EC) : EC :=
+  match val? with
+  | .none => ec
+  | .some val => upd.op var val ec
+
+def updateOfPFun (upd: UpdateOP EC Var Val) (pf: Var → Option Val) (var: Var) (ec: EC) : EC := upd.updateIfSome var (pf var) ec
+
+def updateAllOfPFun (upd: UpdateOP EC Var Val) (pf: Var → Option Val) : List Var → EC → EC
+  | [] => id
+  | var::vars => (fun ec =>
+      let ecNext : EC := upd.updateOfPFun pf var ec
+      upd.updateAllOfPFun pf vars ecNext)
+
+
+theorem updateAllOfPFun_apply_eq_of_not_mem (upd: UpdateOP EC Var Val) (pf: Var → Option Val) (var: Var) (vars: List Var) (req: var ∉ vars) (ec: EC)
+  : (upd.updateAllOfPFun pf vars ec) var = ec var := by
+  cases vars with
+  | nil => dsimp [updateAllOfPFun]
+  | cons var2 vars =>
+    simp at req
+    rcases req with ⟨lm1, lm2⟩
+    dsimp [updateAllOfPFun, updateOfPFun]
+    generalize pf var2 = val?
+    rcases val? with _ | val
+    · dsimp [updateIfSome]
+      exact upd.updateAllOfPFun_apply_eq_of_not_mem pf var vars lm2 ec
+    · dsimp [updateIfSome]
+      have lm3:= upd.updateAllOfPFun_apply_eq_of_not_mem pf var vars lm2 (upd.op var2 val ec)
+      refine Eq.trans lm3 ?_
+      exact upd.op_apply_eq_of_ne _ _ lm1
+
+
+
+theorem updateAllOfPFun_swap_eq (upd: UpdateOP EC Var Val) (pf: Var → Option Val) (var1 var2: Var) (vars: List Var)
+  : upd.updateAllOfPFun pf (var1 :: var2 :: vars) = upd.updateAllOfPFun pf (var2 :: var1 :: vars) := by
+  refine funext ?_
+  intro ec
+  by_cases lm1: var1 = var2
+  · subst lm1; rfl
+  · dsimp [updateAllOfPFun, updateOfPFun]
+    generalize lm2: pf var1 = val1?
+    generalize lm3: pf var2 = val2?
+    rcases val1? with _ | val1
+    <;> rcases val2? with _ | val2
+    <;> dsimp [updateIfSome]
+    · rw [← (upd.op_comm ec lm1 val1 val2)]
+
+
+theorem updateAllOfPFun_cons_apply_eq_of_mem (upd: UpdateOP EC Var Val) (pf: Var → Option Val) (var: Var) (vars: List Var) (req: var ∈ vars) (ec: EC)
+  : (upd.updateAllOfPFun pf (var :: vars) ec) = (upd.updateAllOfPFun pf vars ec) := by
+  cases vars with
+  | nil => simp at req
+  | cons var2 vars =>
+    simp at req
+    rcases req with lm1 | lm1
+    · subst lm1
+      dsimp [updateAllOfPFun, updateOfPFun]
+      generalize pf var = val?
+      rcases val? with _ | val
+      · dsimp [updateIfSome]
+      · dsimp [updateIfSome]
+        conv => lhs; arg 4; rw [upd.op_idem]
+    · dsimp [updateAllOfPFun, updateOfPFun]
+      generalize lm2: pf var = val?
+      generalize lm3: pf var2 = val2?
+      rcases val? with _ | val
+      <;> rcases val2? with _ | val2
+      <;> dsimp [updateIfSome]
+      · have lm4 := upd.updateAllOfPFun_cons_apply_eq_of_mem pf var vars lm1 ec
+        dsimp [updateAllOfPFun, updateOfPFun] at lm4
+        simp [lm2] at lm4
+        dsimp [updateIfSome] at lm4
+        exact lm4
+      · by_cases lm4: var = var2
+        · subst lm4
+          rw [upd.op_idem]
+        · rw [← (upd.op_comm ec lm4 val val2)]
+          have lm5 := upd.updateAllOfPFun_cons_apply_eq_of_mem pf var vars lm1 (upd.op var2 val2 ec)
+          dsimp [updateAllOfPFun, updateOfPFun] at lm5
+          simp [lm2] at lm5
+          dsimp [updateIfSome] at lm5
+          exact lm5
+
+
+theorem updateAllOfPFun_eq_apply_of_mem_and_eq_some (upd: UpdateOP EC Var Val)
+  (pf: Var → Option Val) (var: Var) (vars: List Var) (req1: var ∈ vars) (val: Val) (req2: pf var = .some val) (ec: EC)
+  : (upd.updateAllOfPFun pf vars ec) var = val := by
+  cases vars with
+  | nil => simp at req1
+  | cons var2 vars =>
+    simp at req1
+    rcases req1 with lm1 | lm1
+    · subst lm1
+      by_cases lm1: var ∈ vars
+      · have lm2 := upd.updateAllOfPFun_cons_apply_eq_of_mem pf var vars lm1 ec
+        rewrite [DFunLike.ext_iff] at lm2
+        specialize lm2 var
+        refine Eq.trans lm2 ?_
+        exact upd.updateAllOfPFun_eq_apply_of_mem_and_eq_some pf var vars lm1 val req2 ec
+      · have lm2 := upd.updateAllOfPFun_apply_eq_of_not_mem pf var vars lm1
+        dsimp [updateAllOfPFun, updateOfPFun]
+        simp [req2]
+        dsimp [updateIfSome]
+        specialize lm2 (upd.op var val ec)
+        refine Eq.trans lm2 ?_
+        simp [upd.op_apply]
+    · by_cases lm2: var = var2
+      · subst lm2
+        have lm2 := upd.updateAllOfPFun_cons_apply_eq_of_mem pf var vars lm1 ec
+        rw [lm2]
+        exact upd.updateAllOfPFun_eq_apply_of_mem_and_eq_some pf var vars lm1 val req2 ec
+      · dsimp [updateAllOfPFun, updateOfPFun]
+        exact upd.updateAllOfPFun_eq_apply_of_mem_and_eq_some pf var vars lm1 val req2 _
+
+theorem updateAllOfPFun_eq_apply_of_eq_none (upd: UpdateOP EC Var Val) (pf: Var → Option Val) (var: Var) (req: pf var = .none) (vars: List Var) (ec: EC)
+  : (upd.updateAllOfPFun pf vars ec) var = ec var := by
+  cases vars with
+  | nil => dsimp [updateAllOfPFun]
+  | cons var2 vars =>
+    dsimp [updateAllOfPFun, updateOfPFun]
+    generalize lm1: pf var2 = val?
+    rcases val? with _ | val
+    · dsimp [updateIfSome]
+      exact upd.updateAllOfPFun_eq_apply_of_eq_none pf var req vars ec
+    · dsimp [updateIfSome]
+      have lm2 := upd.updateAllOfPFun_eq_apply_of_eq_none pf var req vars (upd.op var2 val ec)
+      refine Eq.trans lm2 ?_
+      have lm3 : var ≠ var2 := by intro lm3; subst lm3; simp [req] at lm1
+      exact upd.op_apply_eq_of_ne ec val lm3
+
+
+theorem updateAllOfPFun_respects_perm (upd: UpdateOP EC Var Val) (pf: Var → Option Val) (vs1 vs2: List Var) (req: vs1.Perm vs2) : upd.updateAllOfPFun pf vs1 = upd.updateAllOfPFun pf vs2 := by
+  induction req with
+  | nil => rfl
+  | @cons v vs1 vs2 lm1 lm2 =>
+    simp [funext_iff] at ⊢ lm2
+    intro ec
+    simp [DFunLike.ext_iff] at ⊢ lm2
+    intro v2
+    dsimp [updateAllOfPFun]
+    specialize lm2 (upd.updateOfPFun pf v ec) v2
+    exact lm2
+  | swap v1 v2 vs => exact upd.updateAllOfPFun_swap_eq pf v2 v1 vs
+  | trans _ _ lm1 lm2 => exact lm1.trans lm2
+
+
+
+/-
+    simp [DFunLike.ext_iff] at ⊢ lm2
+    intro v2
+    specialize lm2 v2
+    dsimp [updateAllOfPFun, updateOfPFun]
+    generalize pf v = val?
+    rcases val? with _ | val
+    · dsimp [updateIfSome]
+      exact lm2
+    · dsimp [updateIfSome]
+-/
+      --rcases lm3 with lm3 | lm3
+      --· subst lm3
+/-
+    by_cases lm3: v ∈ vs1
+    · have lm4 := lm1.mem_iff.mp lm3
+      rw [(upd.updateAllOfPFun_cons_apply_eq_of_mem pf v vs1 lm3 ec), (upd.updateAllOfPFun_cons_apply_eq_of_mem pf v vs2 lm4 ec)]
+      exact lm2
+    · have lm4 := lm3
+      simp [lm1.mem_iff] at lm4
+      simp [DFunLike.ext_iff] at ⊢ lm2
+      intro v2
+-/
+/-
+    dsimp [updateAllOfPFun, updateOfPFun]
+    generalize lm3: pf v = val?
+    rcases val? with _ | ⟨val⟩
+    · dsimp [updateIfSome]
+      exact lm2
+    · dsimp [updateIfSome]
+      simp [DFunLike.ext_iff] at ⊢ lm2
+      intro v2
+      specialize lm2 v2
+-/
+
+
+end UpdateOP
+
+variable (EC Var Val) in
+class HasUpdateOP where
+  updateOP: UpdateOP EC Var Val
+
+namespace HasUpdateOP
+
+
+
+end HasUpdateOP
+
 
 end EvalLike
 
@@ -308,163 +582,9 @@ instance subsingleton : Subsingleton (StandardType EC Var Val ValS) where
 inductive IsEvalSafeSet (sty: StandardType EC Var Val ValS) (ec: EC) : ValS → Prop where
   | intro (var: Var) (req: sty.IsEvalSafe var ec) : IsEvalSafeSet sty ec (sty.dom var)
 
-/-
-theorem isEvalSafeSet_iff_eval_safe {sty: StandardType EC Var Val ValS} {ec: EC} {valS: ValS}
-  : (IsEvalSafeSet sty ec valS) ↔ (∃(var: Var), (sty.dom var = valS) ∧ sty.IsEvalSafe var ec) := by
-  constructor
-  · intro lm1
-    rcases lm1 with ⟨var, lm1⟩
-    exists var
-  · rintro ⟨var, lm1, lm2⟩
-    rewrite [Eq.comm] at lm1
-    subst lm1
-    exact .intro var lm2
--/
-
-
-
-/-
-def IsSafe (sty: StandardType EC Var Val) (v: Var) (D: Set Val) : Prop := D ⊆ sty.dom v
-
-
-theorem isSafe_iff {sty: StandardType EC Var Val} {var: Var} {D: Set Val}
-  : IsSafe sty var D ↔ (∀(val: Val), (val ∈ D) → (val ∈ sty.dom var)) := by
-  simp [IsSafe, Set.subset_def]
-
-
-namespace DecidableSafe
-
-@[reducible]
-def of_iff {sty: StandardType EC Var Val} (ValS: Type*) [SetLike ValS Val] (dec: ∀(var: Var) (vals: ValS), Decidable (∀ (val: Val), ((val ∈ vals) → (val ∈ sty.dom var))))
-  : sty.DecidableSafe ValS :=
-  fun _ _ => decidable_of_iff' _ sty.isSafe_iff
-
-end DecidableSafe
--/
 
 abbrev DecidableSpecSafe (sty: StandardType EC Var Val ValS) : Type _ := (v: Var) → (spec: ValS) → Decidable (sty.IsValueSetSafe v spec)
 
-/-
-@[ext (flat := false)]
-structure ValueSetSafeDecidableStruct (EC Var Val ValS: Type*) [EvalLike EC Var Val] [SetLike ValS Val]
-  extends toBase: StandardTypeStruct Var Val ValS where
-  isValueSetSafe: Var → ValS → Bool
-  --dom : Var → Set Val
-  --isSafe : Var → ValI → Bool
-
-structure IsValueSetSafeDecidable {EC Var Val ValS: Type*} [EvalLike EC Var Val] [SetLike ValS Val] (s: ValueSetSafeDecidableStruct EC Var Val ValS) : Prop
-  extends toBase: IsStandardType (SetLike.coe ∘ s.dom) EC where
-  isValueSetSafe_valid (var: Var) (valS: ValS) : ((s.isValueSetSafe var valS) = .true) ↔ (s.IsValueSetSafe var valS)
-
-structure ValueSetSafeDecidable (EC Var Val ValS: Type*) [EvalLike EC Var Val] [SetLike ValS Val]
-  extends toStruct: ValueSetSafeDecidableStruct EC Var Val ValS where
-  valid: IsValueSetSafeDecidable toStruct
-
-namespace IsValueSetSafeDecidable
-
-variable {EC Var Val ValS: Type*} [EvalLike EC Var Val] [SetLike ValS Val] {s: ValueSetSafeDecidableStruct EC Var Val ValS}
-
-def toStandardType (h: IsValueSetSafeDecidable s) : StandardType EC Var Val ValS := ⟨s.toBase, h.toBase⟩
-
-theorem toStandardType_congr {s1 s2: ValueSetSafeDecidableStruct EC Var Val ValS} {h1: IsValueSetSafeDecidable s1} {h2: IsValueSetSafeDecidable s2}
-  (req: h1.toStandardType = h2.toStandardType)
-  : s1 = s2 := by
-  rewrite [StandardType.eval_ext_iff] at req
-  rcases h1 with ⟨lm1_1, lm2_1⟩
-  rcases h2 with ⟨lm1_2, lm2_2⟩
-  dsimp [toStandardType, StandardType.isEvalSafe_def] at req
-  rw [ValueSetSafeDecidableStruct.ext_iff]
-  refine ⟨?_, ?_⟩
-  · rw [StandardTypeStruct.value_valueSet_ext_iff]
-    intro var valS val lm3
-    have lm4_1 := lm1_1.eval_exists
-    have lm4_2 := lm1_2.eval_exists
-    simp [← StandardTypeStruct.isValueSafe_def] at lm4_1 lm4_2
-    specialize lm4_1 var val
-    specialize lm4_2 var val
-    constructor
-    · intro lm5
-      obtain ⟨ec, lm6⟩ := lm4_1 lm5
-      rewrite [Eq.comm] at lm6
-      subst lm6
-      specialize req ec var
-      exact req.mp lm5
-    · intro lm5
-      obtain ⟨ec, lm6⟩ := lm4_2 lm5
-      rewrite [Eq.comm] at lm6
-      subst lm6
-      specialize req ec var
-      exact req.mpr lm5
-  · simp only [funext_iff]
-    intro var valS
-    specialize lm2_1 var valS
-    specialize lm2_2 var valS
-    have lm4_1 := lm1_1.eval_exists
-    have lm4_2 := lm1_2.eval_exists
-    simp [← StandardTypeStruct.isValueSafe_def] at lm4_1 lm4_2
-    specialize lm4_1 var
-    specialize lm4_2 var
-    dsimp [StandardTypeStruct.isValueSetSafe_eq_isValueSafe] at lm2_1 lm2_2
-    replace req := fun ec => req ec var
-    by_contra lm3
-    rcases lm5: s1.isValueSetSafe var valS
-    · simp [lm5] at lm3
-      simp [lm3] at lm2_2
-      simp [lm5] at lm2_1
-      rcases lm2_1 with ⟨val, lm6, lm7⟩
-      specialize lm2_2 val lm6
-      specialize lm4_2 val lm2_2
-      obtain ⟨ec, lm4_2⟩ := lm4_2
-      rewrite [Eq.comm] at lm4_2
-      subst lm4_2
-      specialize req ec
-      simp [lm2_2, lm7] at req
-    · simp [lm5] at lm3
-      simp [lm3] at lm2_2
-      simp [lm5] at lm2_1
-      rcases lm2_2 with ⟨val, lm6, lm7⟩
-      specialize lm2_1 val lm6
-      specialize lm4_1 val lm2_1
-      obtain ⟨ec, lm4_1⟩ := lm4_1
-      rewrite [Eq.comm] at lm4_1
-      subst lm4_1
-      specialize req ec
-      simp [lm2_1, lm7] at req
-
-theorem toStandardType_congr_iff {s1 s2: ValueSetSafeDecidableStruct EC Var Val ValS} (req1: IsValueSetSafeDecidable s1) (req2: IsValueSetSafeDecidable s2)
-  : (s1 = s2) ↔ (req1.toStandardType = req2.toStandardType) := by
-  constructor
-  · intro lm1; subst lm1; rfl
-  · exact toStandardType_congr
-
---instance {h: IsValueSetSafeDecidable s} {var: Var} {valS: ValS} : Decidable (s.IsValueSetSafe var valS) :=
---  decidable_of_iff (s.isValueSetSafe var valS = .true) (by simp)
-
-end IsValueSetSafeDecidable
-
-namespace ValueSetSafeDecidable
-
-variable {EC Var Val ValS: Type*} [EvalLike EC Var Val] [SetLike ValS Val]
-
-def toStandardType (v: ValueSetSafeDecidable EC Var Val ValS) : StandardType EC Var Val ValS := v.valid.toStandardType
-
-theorem toStandardType_injective : Function.Injective (toStandardType: ValueSetSafeDecidable EC Var Val ValS → StandardType EC Var Val ValS) := by
-  rintro ⟨s1, lm1⟩ ⟨s2, lm2⟩
-  simp [toStandardType]
-  exact IsValueSetSafeDecidable.toStandardType_congr
-
-
-instance subsingleton : Subsingleton (ValueSetSafeDecidable EC Var Val ValS) where
-  allEq v1 v2 := by
-    rw [← toStandardType_injective.eq_iff]
-    exact Subsingleton.elim _ _
-
-instance decidableValueSetSafe {s: ValueSetSafeDecidable EC Var Val ValS} {var: Var} {valS: ValS} : Decidable (s.IsValueSetSafe var valS) :=
-  decidable_of_iff (s.isValueSetSafe var valS) (s.valid.isValueSetSafe_valid var valS)
-
-
-end ValueSetSafeDecidable
--/
 
 def TmpeType : Type _ := Type → ((Type → Type) → (Type → Type)) → Type → Type
 
@@ -686,9 +806,47 @@ structure AtomicProp (EC Var Val ValS: Type*) [EvalLike EC Var Val] [SetLike Val
 
 namespace AtomicProp
 
+
+/-
+def areAtomicPropEq (il: EvalEquiv ECL VarL ValL ECR VarR ValR) [DecidableEq (SumUnion il.var.Rel)] [DecidableEq (SetLikeUnion il.val.Rel ValSL ValSR)]
+  (ap1 ap2: AtomicProp (il.EvalInter ECL ECR) (SumUnion il.var.Rel) (SumUnion il.val.Rel) (SetLikeUnion il.val.Rel ValSL ValSR)) : Bool :=
+  (decide (ap1.var = ap2.var)) && (decide (ap1.spec = ap2.spec))
+
+theorem areAtomicPropEq_eq_true_iff_eq {il: EvalEquiv ECL VarL ValL ECR VarR ValR} [DecidableEq (SumUnion il.var.Rel)] [DecidableEq (SetLikeUnion il.val.Rel ValSL ValSR)]
+  {ap1 ap2: AtomicProp (il.EvalInter ECL ECR) (SumUnion il.var.Rel) (SumUnion il.val.Rel) (SetLikeUnion il.val.Rel ValSL ValSR)}
+  : (il.areAtomicPropEq ap1 ap2 = .true) ↔ (ap1 = ap2) := by
+  dsimp [areAtomicPropEq]
+  rcases ap1 with ⟨⟨_, _⟩, _⟩
+  rcases ap2 with ⟨⟨_, _⟩, _⟩
+  simp
+
+instance decidableAtomicPropEq (il: EvalEquiv ECL VarL ValL ECR VarR ValR) [DecidableEq (SumUnion il.var.Rel)] [DecidableEq (SetLikeUnion il.val.Rel ValSL ValSR)]
+  : DecidableEq (AtomicProp (il.EvalInter ECL ECR) (SumUnion il.var.Rel) (SumUnion il.val.Rel) (SetLikeUnion il.val.Rel ValSL ValSR)) :=
+  fun _ _ => decidable_of_decidable_of_iff (il.areAtomicPropEq_eq_true_iff_eq)
+-/
+
+
 open Concrete
 
 variable [Concrete EC Var Val ValS]
+
+
+section AtomicPropEqSection
+
+variable [DecidableEq Var] [DecidableEq ValS]
+
+def areEq (ap1 ap2: AtomicProp EC Var Val ValS) : Bool := (decide (ap1.var = ap2.var)) && (decide (ap1.spec = ap2.spec))
+
+theorem areEq_eq_true_iff_eq {ap1 ap2: AtomicProp EC Var Val ValS} : (ap1.areEq ap2 = .true) ↔ ap1 = ap2 := by
+  dsimp [areEq]
+  rcases ap1 with ⟨⟨_, _⟩, _⟩
+  rcases ap2 with ⟨⟨_, _⟩, _⟩
+  simp
+
+instance decidableAtomicPropEq : DecidableEq (AtomicProp EC Var Val ValS) := fun _ _ => decidable_of_decidable_of_iff areEq_eq_true_iff_eq
+
+end AtomicPropEqSection
+
 
 structure SingletonOPStruct (EC Var Val ValS: Type*) [EvalLike EC Var Val] [SetLike ValS Val] [Concrete EC Var Val ValS] where
   op (var: Var) (val: Val) (req: (standardTypeAt EC ValS).IsValueSafe var val) : AtomicProp EC Var Val ValS
@@ -880,10 +1038,11 @@ end AtomicProp
 class ConcreteFinite (EC Var Val: Type*) (ValS: outParam (Type*)) [EvalLike EC Var Val] [SetLike ValS Val]
   extends toConcrete: Concrete EC Var Val ValS where
   hasSingletonOP: AtomicProp.HasSingletonOP EC Var Val ValS
+  decidableEqVar: DecidableEq Var
   fintypeVar: Fintype Var
   fintypeSpec: Fintype ValS
 
-attribute [reducible, instance] ConcreteFinite.hasSingletonOP ConcreteFinite.fintypeVar ConcreteFinite.fintypeSpec
+attribute [reducible, instance] ConcreteFinite.hasSingletonOP ConcreteFinite.decidableEqVar ConcreteFinite.fintypeVar ConcreteFinite.fintypeSpec
 
 
 /-
@@ -1103,6 +1262,18 @@ theorem ofAtoms_toAtoms_leftInverse : Function.LeftInverse (ofAtoms: List (Atomi
 theorem toAtoms_injective : Function.Injective (toAtoms: Cond EC Var Val ValS → List (AtomicProp EC Var Val ValS)) := ofAtoms_toAtoms_leftInverse.injective
 
 
+instance [DecidableEq (AtomicProp EC Var Val ValS)] : DecidableEq (Cond EC Var Val ValS) := fun c1 c2 => decidable_of_iff (c1.formula = c2.formula) (by rcases c1; rcases c2; simp)
+
+set_option linter.unusedVariables false in
+protected def append (cond1 cond2: Cond EC Var Val ValS) : Cond EC Var Val ValS :=
+  cond1.recNilCons (motive := fun x => (x = cond1) → Cond EC Var Val ValS) (fun _ => cond2) (fun ap cond lm1 => Cond.cons ap (Cond.append cond cond2)) rfl
+  decreasing_by
+    rewrite [Eq.comm] at lm1
+    subst lm1
+    exact size_lt_size_cons
+
+
+
 end Cond
 
 
@@ -1121,6 +1292,10 @@ variable {CC EC Var Val ValS: Type*} [EvalLike EC Var Val] [SetLike ValS Val] [S
 
 def toFormula (cond: CC) : Formula (AtomicProp EC Var Val ValS) := (FiniteCondLike.toCond cond).formula
 
+variable (CC EC Var Val ValS) in
+@[reducible]
+def decidableCondLike [DecidableEq (AtomicProp EC Var Val ValS)] : DecidableEq CC := fun c1 c2 =>
+  decidable_of_iff ((FiniteCondLike.toCond c1: Cond EC Var Val ValS) = FiniteCondLike.toCond c2) (FiniteCondLike.toCond_Injective.eq_iff)
 
 end FiniteCondLike
 
