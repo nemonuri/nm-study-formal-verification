@@ -383,7 +383,7 @@ namespace AtomicPropStruct
 
 def IsEvalSpecSafe (s: AtomicPropStruct Var ValS) (ec: EC) : Prop := (ec s.var) ∈ s.spec
 
-@[defeq, pl_simp]
+@[defeq] --, pl_simp low
 theorem isEvalSpecSafe_def {s: AtomicPropStruct Var ValS} {ec: EC} : s.IsEvalSpecSafe ec = ((ec s.var) ∈ s.spec) := rfl
 
 
@@ -1009,7 +1009,7 @@ theorem append_semEquiv_and (cond1 cond2: Cond EC Var Val ValS)
 
 open PropositionalLogics in
 @[pl_simp]
-theorem append_isSat_iff_and_isSat (cond1 cond2: Cond EC Var Val ValS) (e)
+theorem append_isSat_iff_and_isSat (cond1 cond2: Cond EC Var Val ValS) (e: PropositionalLogics.Eval (AtomicProp EC Var Val ValS))
   : (e ⊨ₚ (cond1.append cond2).formula) ↔ (e ⊨ₚ (cond1.formula ∧ₚ cond2.formula)) := by
   have lm1 := append_semEquiv_and cond1 cond2
   dsimp [semEquiv_def] at lm1
@@ -1044,10 +1044,16 @@ instance [FiniteCondLike CC EC Var Val ValS] : FormulaLike CC (AtomicProp EC Var
     exact lm1
 
 variable (CC) in
-abbrev FormulaType [FiniteCondLike CC EC Var Val ValS] : Type _ := Formula (AtomicProp EC Var Val ValS)
+abbrev AtomicPropType [FiniteCondLike CC EC Var Val ValS] : Type _ := AtomicProp EC Var Val ValS
+
+variable (CC) in
+abbrev FormulaType [FiniteCondLike CC EC Var Val ValS] : Type _ := Formula (AtomicPropType CC)
 
 @[pl_simp]
 theorem coe_eq_iff_eq [FiniteCondLike CC EC Var Val ValS] {c1 c2: CC} : ((↑c1: FormulaType CC) = ↑c2) ↔ (c1 = c2) := FormulaLike.coe_injective.eq_iff
+
+@[defeq, pl_simp low]
+theorem coe_formula_def [FiniteCondLike CC EC Var Val ValS] (cc: CC) : (↑cc: FormulaType CC) = (FiniteCondLike.toCond cc).formula := rfl
 
 variable (CC EC Var Val ValS) in
 instance decidableCondLikeEq [FiniteCondLike CC EC Var Val ValS] [DecidableEq (AtomicProp EC Var Val ValS)] : DecidableEq CC := fun c1 c2 =>

@@ -185,7 +185,7 @@ end Notation
 @[scoped grind =]
 theorem isSat_iff [DecidableEq ts.AP] (p: Formula ts.AP) (s: ts.S)
   : (⟦s⟧{ts} ⊨ₚ p) ↔ (𝐿{ts}⸨s⸩ ⊨ₚ p) := by
-  dsimp [pl_simp]
+  dsimp [IndicatorLike.coe]
   refine propext_iff.mp ?_
   refine congrFun ?_ p
   refine congrArg _ ?_

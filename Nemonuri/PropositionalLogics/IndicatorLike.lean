@@ -13,7 +13,7 @@ class IndicatorLike (E: semiOutParam Type*) (AP: Type*) where
   protected coe : E → AP → Bool
   coe_injective : Function.Injective coe
 
-attribute [coe, pl_simp] IndicatorLike.coe
+attribute [coe] IndicatorLike.coe
 
 namespace IndicatorLike
 
@@ -28,12 +28,17 @@ protected def satRel : Eval.SatRel AP where
   rel μ fml := μ.evalFormula fml = .true
   valid μ := by refine ⟨?_, ?_, ?_, ?_⟩ <;> simp [pl_simp]
 
-@[defeq]
+@[defeq, pl_simp]
 theorem satRel_rel_def {μ fml} : (IndicatorLike.satRel AP).rel μ fml = (μ.evalFormula fml = .true) := rfl
 
 
 instance [IndicatorLike E AP] : HasFormulaSatRel AP where
   satRel := IndicatorLike.satRel AP
+
+@[defeq, pl_simp]
+theorem coe_satRel_rel_def (e: E) (fml: Formula AP) [IndicatorLike E AP]
+  : (HasFormulaSatRel.satRel.rel ↑e fml) = ((IndicatorLike.satRel AP).rel ↑e fml) :=
+  rfl
 
 open HasFormulaSatRel
 
@@ -53,6 +58,7 @@ instance ofFinset [DecidableEq AP] : IndicatorLike (Finset AP) AP where
 
 
 instance (F: Type*) [FormulaLike F AP] (e: E) (f: F) [IndicatorLike E AP] : Decidable (satRel.rel e (f: Formula AP)) := inferInstance
+
 
 --example (e: E) (fml: Formula AP)
 

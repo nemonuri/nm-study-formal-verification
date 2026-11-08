@@ -60,7 +60,23 @@ instance evalLike : EvalLike (il.EvalInter ECL ECR) (SumUnion il.var.Rel) (SumUn
 @[defeq]
 theorem apply_def {ei: il.EvalInter ECL ECR} {su: SumUnion il.var.Rel} : ei su = ei.toEval.eval su := rfl
 
+
+section ApplySection
+
+attribute [local simp] toEval FunInter.toFun SumUnion.funElim₂ SumUnion.funElim_eq_ofSum
+
+@[defeq, sum_simp]
+theorem apply_inl_eq {ei: il.EvalInter ECL ECR} {varL: VarL} : ei (.ofSum (.inl varL)) = (.ofSum (.inl (ei.left varL))) := by
+  dsimp [apply_def]
+
+@[defeq, sum_simp]
+theorem apply_inr_eq {ei: il.EvalInter ECL ECR} {varR: VarR} : ei (.ofSum (.inr varR)) = (.ofSum (.inr (ei.right varR))) := by
+  dsimp [apply_def]
+
+end ApplySection
+
 end EvalInter
+
 
 def AreTypeEquivAt (il: Interleaving VarL ValL VarR ValR) (stsL: StandardTypeStruct VarL ValL ValSL) (stsR: StandardTypeStruct VarR ValR ValSR) (varL: VarL) (varR: VarR) : Prop :=
   SumUnion.SetLikeHEq il.val.Rel ValSL ValSR (stsL.dom varL) (stsR.dom varR)
@@ -819,8 +835,11 @@ theorem standardTypeAt_eq_toBasic_toStandardType {il: EvalEquiv ECL VarL ValL EC
   dsimp [standardTypeAt_eq_toStandardType, EvalEquiv.toStandardType]
 -/
 
+variable (ValSL ValSR) in
+abbrev AtomicPropUnion (il: EvalEquiv ECL VarL ValL ECR VarR ValR) : Type _ := AtomicProp (il.EvalInter ECL ECR) (SumUnion il.var.Rel) (SumUnion il.val.Rel) (SetLikeUnion il.val.Rel ValSL ValSR)
 
-def atomicPropOfLeft (il: EvalEquiv ECL VarL ValL ECR VarR ValR) (apL: AtomicProp ECL VarL ValL ValSL) : AtomicProp (il.EvalInter ECL ECR) (SumUnion il.var.Rel) (SumUnion il.val.Rel) (SetLikeUnion il.val.Rel ValSL ValSR) where
+
+def atomicPropOfLeft (il: EvalEquiv ECL VarL ValL ECR VarR ValR) (apL: AtomicProp ECL VarL ValL ValSL) : il.AtomicPropUnion ValSL ValSR where
   var := .ofSum (.inl apL.var)
   spec := .ofSumUnion il.val.Rel ValSL ValSR (.ofSum (.inl apL.spec))
   valid := by
@@ -828,7 +847,7 @@ def atomicPropOfLeft (il: EvalEquiv ECL VarL ValL ECR VarR ValR) (apL: AtomicPro
     simp [standard_type_norm, sum_simp]
     exact apL.valid.spec_safe
 
-def atomicPropOfRight (il: EvalEquiv ECL VarL ValL ECR VarR ValR) (apR: AtomicProp ECR VarR ValR ValSR) : AtomicProp (il.EvalInter ECL ECR) (SumUnion il.var.Rel) (SumUnion il.val.Rel) (SetLikeUnion il.val.Rel ValSL ValSR) where
+def atomicPropOfRight (il: EvalEquiv ECL VarL ValL ECR VarR ValR) (apR: AtomicProp ECR VarR ValR ValSR) : il.AtomicPropUnion ValSL ValSR where
   var := .ofSum (.inr apR.var)
   spec := .ofSumUnion il.val.Rel ValSL ValSR (.ofSum (.inr apR.spec))
   valid := by
@@ -836,7 +855,7 @@ def atomicPropOfRight (il: EvalEquiv ECL VarL ValL ECR VarR ValR) (apR: AtomicPr
     simp [standard_type_norm, sum_simp]
     exact apR.valid.spec_safe
 
-theorem atomicPropOfLeft_injective (il: EvalEquiv ECL VarL ValL ECR VarR ValR) : Function.Injective (il.atomicPropOfLeft: AtomicProp ECL VarL ValL ValSL → AtomicProp (il.EvalInter ECL ECR) (SumUnion il.var.Rel) (SumUnion il.val.Rel) (SetLikeUnion il.val.Rel ValSL ValSR)) := by
+theorem atomicPropOfLeft_injective (il: EvalEquiv ECL VarL ValL ECR VarR ValR) : Function.Injective (il.atomicPropOfLeft: AtomicProp ECL VarL ValL ValSL → il.AtomicPropUnion ValSL ValSR) := by
   intro ap1 ap2 lm3
   rcases ap1 with ⟨⟨v1, s1⟩, lm1⟩
   rcases ap2 with ⟨⟨v2, s2⟩, lm2⟩
@@ -850,7 +869,7 @@ theorem atomicPropOfLeft_injective (il: EvalEquiv ECL VarL ValL ECR VarR ValR) :
   simp [sum_simp] at lm4
   exact lm4
 
-theorem atomicPropOfRight_injective (il: EvalEquiv ECL VarL ValL ECR VarR ValR) : Function.Injective (il.atomicPropOfRight: AtomicProp ECR VarR ValR ValSR → AtomicProp (il.EvalInter ECL ECR) (SumUnion il.var.Rel) (SumUnion il.val.Rel) (SetLikeUnion il.val.Rel ValSL ValSR)) := by
+theorem atomicPropOfRight_injective (il: EvalEquiv ECL VarL ValL ECR VarR ValR) : Function.Injective (il.atomicPropOfRight: AtomicProp ECR VarR ValR ValSR → il.AtomicPropUnion ValSL ValSR) := by
   intro ap1 ap2 lm3
   rcases ap1 with ⟨⟨v1, s1⟩, lm1⟩
   rcases ap2 with ⟨⟨v2, s2⟩, lm2⟩
@@ -864,6 +883,20 @@ theorem atomicPropOfRight_injective (il: EvalEquiv ECL VarL ValL ECR VarR ValR) 
   simp [sum_simp] at lm4
   exact lm4
 
+
+@[pl_simp]
+theorem atomicPropOfLeft_isEvalSpecSafe_iff (il: EvalEquiv ECL VarL ValL ECR VarR ValR) (apL: AtomicProp ECL VarL ValL ValSL) (ec: il.EvalInter ECL ECR)
+  : ((il.atomicPropOfLeft apL: il.AtomicPropUnion ValSL ValSR).IsEvalSpecSafe ec) ↔ apL.IsEvalSpecSafe ec.left := by
+  open SumUnion in
+  dsimp [pl_simp, atomicPropOfLeft, AtomicPropStruct.isEvalSpecSafe_def]
+  simp [sum_simp]
+
+@[pl_simp]
+theorem atomicPropOfRight_isEvalSpecSafe_iff (il: EvalEquiv ECL VarL ValL ECR VarR ValR) (apR: AtomicProp ECR VarR ValR ValSR) (ec: il.EvalInter ECL ECR)
+  : ((il.atomicPropOfRight apR: il.AtomicPropUnion ValSL ValSR).IsEvalSpecSafe ec) ↔ apR.IsEvalSpecSafe ec.right := by
+  open SumUnion in
+  dsimp [pl_simp, atomicPropOfRight, AtomicPropStruct.isEvalSpecSafe_def]
+  simp [sum_simp]
 
 open SumUnion in
 theorem atomicPropOfLeft_eq_atomicPropOfRight_iff {il: EvalEquiv ECL VarL ValL ECR VarR ValR} {apL: AtomicProp ECL VarL ValL ValSL} {apR: AtomicProp ECR VarR ValR ValSR}
@@ -1107,17 +1140,46 @@ example (il: EvalEquiv ECL VarL ValL ECR VarR ValR) : DecidableEq (Formula (Atom
 example (il: EvalEquiv ECL VarL ValL ECR VarR ValR) : DecidableEq (Cond (il.EvalInter ECL ECR) (SumUnion il.var.Rel) (SumUnion il.val.Rel) (SetLikeUnion il.val.Rel ValSL ValSR)) := fun _ _ => inferInstance
 
 
-def formulaOfLeft (il: EvalEquiv ECL VarL ValL ECR VarR ValR) : Formula (AtomicProp ECL VarL ValL ValSL) → Formula (AtomicProp (il.EvalInter ECL ECR) (SumUnion il.var.Rel) (SumUnion il.val.Rel) (SetLikeUnion il.val.Rel ValSL ValSR))
+def formulaOfLeft (il: EvalEquiv ECL VarL ValL ECR VarR ValR) : Formula (AtomicProp ECL VarL ValL ValSL) → Formula (il.AtomicPropUnion ValSL ValSR)
   | .true => .true
   | .atom ap => .atom (il.atomicPropOfLeft ap)
   | .neg fml => .neg (il.formulaOfLeft fml)
   | .and fml1 fml2 => .and (il.formulaOfLeft fml1) (il.formulaOfLeft fml2)
 
-def formulaOfRight (il: EvalEquiv ECL VarL ValL ECR VarR ValR) : Formula (AtomicProp ECR VarR ValR ValSR) → Formula (AtomicProp (il.EvalInter ECL ECR) (SumUnion il.var.Rel) (SumUnion il.val.Rel) (SetLikeUnion il.val.Rel ValSL ValSR))
+def formulaOfRight (il: EvalEquiv ECL VarL ValL ECR VarR ValR) : Formula (AtomicProp ECR VarR ValR ValSR) → Formula (il.AtomicPropUnion ValSL ValSR)
   | .true => .true
   | .atom ap => .atom (il.atomicPropOfRight ap)
   | .neg fml => .neg (il.formulaOfRight fml)
   | .and fml1 fml2 => .and (il.formulaOfRight fml1) (il.formulaOfRight fml2)
+
+--set_option trace.Meta.synthInstance true in
+example (il: EvalEquiv ECL VarL ValL ECR VarR ValR) : IndicatorLike (il.EvalInter ECL ECR) (il.AtomicPropUnion ValSL ValSR) := inferInstance
+
+section FormulaSimpSection
+
+variable {il: EvalEquiv ECL VarL ValL ECR VarR ValR} {ei: il.EvalInter ECL ECR}
+
+@[pl_simp]
+theorem formulaOfLeft_isSat_iff_isSat (fml: Formula (AtomicProp ECL VarL ValL ValSL)) : (ei ⊨ₚ (il.formulaOfLeft fml)) ↔ (ei.left ⊨ₚ fml) := by
+  rcases fml with _ | _ | ⟨fml⟩ | ⟨fmlL, fmlR⟩
+  <;> (dsimp [formulaOfLeft]; simp [pl_simp])
+  · refine not_iff_not.mpr ?_
+    exact formulaOfLeft_isSat_iff_isSat fml
+  · have lm1 := formulaOfLeft_isSat_iff_isSat fmlL
+    have lm2 := formulaOfLeft_isSat_iff_isSat fmlR
+    rw [lm1, lm2]
+
+@[pl_simp]
+theorem formulaOfRight_isSat_iff_isSat (fml: Formula (AtomicProp ECR VarR ValR ValSR)) : (ei ⊨ₚ (il.formulaOfRight fml)) ↔ (ei.right ⊨ₚ fml) := by
+  rcases fml with _ | _ | ⟨fml⟩ | ⟨fmlL, fmlR⟩
+  <;> (dsimp [formulaOfRight]; simp [pl_simp])
+  · refine not_iff_not.mpr ?_
+    exact formulaOfRight_isSat_iff_isSat fml
+  · have lm1 := formulaOfRight_isSat_iff_isSat fmlL
+    have lm2 := formulaOfRight_isSat_iff_isSat fmlR
+    rw [lm1, lm2]
+
+end FormulaSimpSection
 
 
 theorem formulaOfLeft_isCond_of_isCond {il: EvalEquiv ECL VarL ValL ECR VarR ValR} {fml: Formula (AtomicProp ECL VarL ValL ValSL)} (req: IsCond _ _ _ _ fml)
@@ -1194,6 +1256,14 @@ theorem condOfRight_injective (il: EvalEquiv ECL VarL ValL ECR VarR ValR) : Func
   rewrite [il.formulaOfRight_injective.eq_iff] at lm1
   exact Cond.ext lm1
 
+@[defeq, pl_simp]
+theorem condOfLeft_formula_def {il: EvalEquiv ECL VarL ValL ECR VarR ValR} {cond: Cond ECL VarL ValL ValSL}
+  : (il.condOfLeft cond).formula = il.formulaOfLeft cond.formula := rfl
+
+@[defeq, pl_simp]
+theorem condOfRight_formula_def {il: EvalEquiv ECL VarL ValL ECR VarR ValR} {cond: Cond ECR VarR ValR ValSR}
+  : (il.condOfRight cond).formula = il.formulaOfRight cond.formula := rfl
+
 
 variable {CCL CCR: Type*} [FiniteCondLike CCL ECL VarL ValL ValSL] [FiniteCondLike CCR ECR VarR ValR ValSR]
 
@@ -1268,6 +1338,13 @@ theorem toCond_Injective : Function.Injective (toCond: il.CondUnion CCL CCR → 
   · rewrite [il.condOfRight_injective.eq_iff, FiniteCondLike.toCond_Injective.eq_iff] at lm1
     exact lm1
 
+@[defeq, pl_simp]
+theorem inl_toCond_def {condL: CCL} : toCond (.ofSum (.inl condL): il.CondUnion CCL CCR) = il.condOfLeft (FiniteCondLike.toCond condL) := by
+  dsimp [toCond, SumUnion.funElim_eq_ofSum]
+
+@[defeq, pl_simp]
+theorem inr_toCond_def {condR: CCR} : toCond (.ofSum (.inr condR): il.CondUnion CCL CCR) = il.condOfRight (FiniteCondLike.toCond condR) := by
+  dsimp [toCond, SumUnion.funElim_eq_ofSum]
 
 inductive ControlUnion {Loc1 Loc2 Act1 Act2: Type*}
   (ctr1: Loc1 → CCL → Act1 → Loc1 → Prop) (ctr2: Loc2 → CCR → Act2 → Loc2 → Prop) (loc1: Loc1) (loc2: Loc2) : Loc1 → Loc2 → (il.CondUnion CCL CCR) → (Act1 ⊕ Act2) → Prop where

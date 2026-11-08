@@ -190,27 +190,24 @@ open Interleaving.EvalEquiv
 open PropositionalLogics
 
 theorem example1 : (TrS.mk .pre .pre ⟨3⟩) ∈ ts.I := by
-  dsimp [TrS.mk, PgS.mk, pg, toProgramGraph, Loc0]
+  dsimp [TrS.mk]
   refine ⟨?_, ?_⟩
-  · simp
+  · simp [Loc0]
   · simp [pl_simp]
-    refine ⟨?_, ?_⟩
-    · simp [condOfLeft, formulaOfLeft, pl_simp]
-    · simp [condOfRight, formulaOfRight, pl_simp]
+
 
 theorem example2 : ∃(act: ts.Act), (TrS.mk .pre .pre ⟨3⟩) ─⌞act⌟→{ts} (TrS.mk .post .pre ⟨6⟩) := by
   dsimp
   exists (.inl .act)
-  dsimp [TrS.mk, PgS.mk, pg]
+  dsimp [TrS.mk, pg]
   refine .intro _ _ ?g _ _ ?_ ?_
   case g => exact (.ofSum (.inl .tau))
   · dsimp
     refine .left _ _ _ ?_
     refine .intro
-  · dsimp [FormulaLike.coe, FiniteCondLike.toFormula, FiniteCondLike.toCond, CondUnion.toCond, SumUnion.funElim_eq_ofSum,
-          condOfLeft, formulaOfLeft, pl_simp]
-    simp [pl_simp]
-    --dsimp [isSat_def, HasFormulaSatRel.satRel, IndicatorLike.satRel_rel_def, ]
+  · simp [pl_simp, FiniteCondLike.toCond]
+    --simp [pl_simp, FiniteCondLike.toCond, formulaOfLeft]
+
 
 
 
