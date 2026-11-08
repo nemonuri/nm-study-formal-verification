@@ -329,7 +329,6 @@ theorem setLikeHEq_iff_finset_setHEq [IsBiUnique rel] {Sαl Sαr: Type*} [SetLik
 
 
 
-#print setLikeHEq_iff_finset_setHEq
 
       --| inr r0 =>
       --  simp [sum_simp]

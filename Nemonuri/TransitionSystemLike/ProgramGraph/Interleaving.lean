@@ -1091,7 +1091,7 @@ protected instance toStandardTypeConcreteFinite
   hasSingletonOP := il.hasAtomicPropSigletonOP
   decidableEqVar := inferInstance
   fintypeVar := SumUnion.fintype il.var.Rel
-  fintypeSpec := SetLikeUnion.fintype
+  --fintypeSpec := SetLikeUnion.fintype
 
 
 example (il: EvalEquiv ECL VarL ValL ECR VarR ValR) : DecidableEq (SetLikeUnion il.val.Rel ValSL ValSR) := inferInstance
@@ -1237,13 +1237,13 @@ namespace CondUnion
 
 
 instance (il: EvalEquiv ECL VarL ValL ECR VarR ValR) : DecidableEq (il.CondUnion CCL CCR) :=
-  letI : DecidableEq CCL := FiniteCondLike.decidableCondLike CCL ECL VarL ValL ValSL
-  letI : DecidableEq CCR := FiniteCondLike.decidableCondLike CCR ECR VarR ValR ValSR
+  letI : DecidableEq CCL := FiniteCondLike.decidableCondLikeEq CCL ECL VarL ValL ValSL
+  letI : DecidableEq CCR := FiniteCondLike.decidableCondLikeEq CCR ECR VarR ValR ValSR
   inferInstanceAs (DecidableEq (SumUnion (il.CondHEq CCL CCR)))
 
 instance (il: EvalEquiv ECL VarL ValL ECR VarR ValR) : Fintype (il.CondUnion CCL CCR) :=
-  letI : DecidableEq CCL := FiniteCondLike.decidableCondLike CCL ECL VarL ValL ValSL
-  letI : DecidableEq CCR := FiniteCondLike.decidableCondLike CCR ECR VarR ValR ValSR
+  letI : DecidableEq CCL := FiniteCondLike.decidableCondLikeEq CCL ECL VarL ValL ValSL
+  letI : DecidableEq CCR := FiniteCondLike.decidableCondLikeEq CCR ECR VarR ValR ValSR
   SumUnion.fintype (il.CondHEq CCL CCR)
 
 

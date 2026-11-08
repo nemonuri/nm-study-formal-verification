@@ -22,26 +22,6 @@ public import Nemonuri.PropositionalLogics
 
 namespace Nemonuri
 
-/-
-section Notation
-
-syntax:40 " 𝒰 " term:40 : term
-
-macro_rules
-  | `(𝒰 $α) => ``((Finset.univ : Finset $α))
-
-end Notation
--/
-
-/-
-def attachUniv (α: Type _) [Fintype α] : α ↪ (𝒰 α) where
-  toFun a := ⟨a, Finset.mem_univ a⟩
-  inj' a1 a2 := by simp
-
-def attachUnivToFinset (α: Type _) [Fintype α] : Finset α ↪o Finset (𝒰 α) :=
-  Finset.mapEmbedding (attachUniv α)
--/
-
 open PropositionalLogics Formula
 
 
@@ -158,28 +138,11 @@ end Notation
 
 variable [ConcreteFinite ts]
 
-/-
-protected abbrev univ : Finset ts.AP := @Finset.univ _ (@ConcreteFinite.fintypeAP ts _)
-
-@[defeq] theorem univ_eq : ts.univ = Finset.univ := rfl
--/
-
-/-
-/-- Not always injective -/
-def evalStateToBoolPred (s: ts.S) : ts.AP → Bool :=
-  ts.L s
-
-@[reducible]
-def evalStateKernel : Setoid ts.S := Setoid.ker ts.evalStateToBoolPred
-
-omit [ts.ConcreteFinite] [IsStateSpaceValid ts] in
-@[defeq] theorem evalStateKernel_eq_ker : Quotient ts.evalStateKernel = Quotient (Setoid.ker ts.evalStateToBoolPred) := rfl
--/
 
 
 --set_option trace.Meta.synthInstance true in
-instance : EvalLike (Quotient ts.toLabelingSetoid) ts.AP where
-  coe s := Quotient.liftOn s (Eval.mk ∘ ts.labeling) (by
+instance : IndicatorLike (Quotient ts.toLabelingSetoid) ts.AP where
+  coe s := Quotient.liftOn s (ts.labeling) (by
     intro s1 s2 lm1
     change ts.LabelingEquiv s1 s2 at lm1
     dsimp [LabelingEquiv] at lm1
@@ -194,40 +157,6 @@ instance : EvalLike (Quotient ts.toLabelingSetoid) ts.AP where
     change ts.LabelingEquiv _ _
     ext x; exact lm1 x
 
-    --dsimp [Function.RightInverse, Function.LeftInverse] at lm2
-
-    --have lm2 := lm1.surjective
-    --refine funext ?_
-    --intro ap
-    --specialize lm1 ev
-    --exact lm1
-/-
-    simp [toLabelingQuotient]
-    simp [funext_iff] at lm2 ⊢
-    exact lm2 ev
--/
-
-/-
-
-    exists ts.toLabelingQuotient (finv ev)
-    simp [toLabelingQuotient]
-    exact lm2.symm
--/
-/-
-    simp
-    obtain ⟨f, lm2⟩ := (inferInstance: ts.IsStateSpaceValid).surjection_exists
-    obtain ⟨s, lm3⟩ := @lm2 ev
-    exists Quotient.mk ts.evalStateKernel s
-    simp
-    dsimp [evalStateToBoolPred]
-    simp only [funext_iff]
-    intro ap
--/
-
-/-
-instance (priority := low) : Formula.HasEvalLike ts.AP where
-  Carrier := (Quotient ts.toLabelingSetoid)
--/
 
 section Notation
 
@@ -240,7 +169,8 @@ end Notation
 
 
 /-- Not always injective -/
-def evalStateToFinset (s: ts.S) : Finset (ts.AP) := (Indicator.mk (ts.labeling s)).toFinset
+def evalStateToFinset [Fintype ts.AP] (s: ts.S) : Finset (ts.AP) := { ap: ts.AP | ts.labeling s ap = .true }
+
 
 section Notation
 
@@ -254,20 +184,21 @@ end Notation
 
 @[scoped grind =]
 theorem isSat_iff [DecidableEq ts.AP] (p: Formula ts.AP) (s: ts.S)
-  : ⟦s⟧{ts} ⊨ₚ p ↔ 𝐿{ts}⸨s⸩ ⊨ₚ p := by
-  dsimp [SatRel.IsSat, DFunLike.coe, SatRel.defaultAt, Inhabited.default, SatRel.default]
+  : (⟦s⟧{ts} ⊨ₚ p) ↔ (𝐿{ts}⸨s⸩ ⊨ₚ p) := by
+  dsimp [pl_simp]
   refine propext_iff.mp ?_
   refine congrFun ?_ p
   refine congrArg _ ?_
-  dsimp [EvalLike.toIndicator, EvalLike.coe]
+  congr
+  --dsimp [EvalLike.toIndicator, EvalLike.coe]
   dsimp [toLabelingQuotient]
-  refine DFunLike.ext'_iff.mp ?_
-  refine congrArg Eval.mk ?_
+  --refine DFunLike.ext'_iff.mp ?_
+  --refine congrArg Eval.mk ?_
   refine funext ?_
   intro ap
-  dsimp [evalStateToFinset, Indicator.fn, Indicator.mk]
-  dsimp [labeling]
-  simp [Indicator.ofFinset_toFinset_leftInverse.eq]
+  dsimp [evalStateToFinset, labeling] --, Indicator.fn, Indicator.mk
+  simp
+  --simp [Indicator.ofFinset_toFinset_leftInverse.eq]
 
 
 
