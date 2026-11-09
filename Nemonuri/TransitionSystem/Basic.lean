@@ -286,7 +286,7 @@ structure IsActionDeterministic (ts: TransitionSystem) : Prop where
   initial_subsingleton : ts.I.Subsingleton
   post_subsingleton (s: ts.S) (α: ts.Act) : (𝑃𝑜𝑠𝑡{ts}⸨s, α⸩).Subsingleton
 
-structure IsAPDeterministic (ts: TransitionSystem) [ConcreteFinite ts] : Prop where
+structure IsAPDeterministic (ts: TransitionSystem) [Fintype ts.AP] : Prop where
   initial_subsingleton : ts.I.Subsingleton
   post_subsingleton (s: ts.S) (A: ts.AP → Bool) : ((𝑃𝑜𝑠𝑡{ts}⸨s⸩) ∩ { s': ts.S | (𝐿{ts}⸨s'⸩) = { ap | A ap = .true } }).Subsingleton
 

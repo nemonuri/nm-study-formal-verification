@@ -1152,6 +1152,147 @@ def toTransitionSystem (pg: ProgramGraph CC EC Var Val ValS) : TransitionSystem 
 instance (pg: ProgramGraph CC EC Var Val ValS) : Fintype pg.toTransitionSystem.AP := inferInstanceAs (Fintype (pg.Loc ⊕ CC))
 
 
+structure IsInitialSubsingleton (pg: ProgramGraph CC EC Var Val ValS) : Prop where
+  loc0_subsingleton : pg.Loc0.Subsingleton
+  g0_subsingleton (ec1 ec2: EC) : (ec1 ⊨ₚ pg.g0.formula) → (ec2 ⊨ₚ pg.g0.formula) → ec1 = ec2
+
+
+namespace IsInitialSubsingleton
+
+variable {pg: ProgramGraph CC EC Var Val ValS}
+
+theorem transitionSystem_initial_subsingleton (h: pg.IsInitialSubsingleton) : pg.toTransitionSystem.I.Subsingleton := by
+  rcases h with ⟨lm1, lm2⟩
+  dsimp [Loc0] at lm1 ⊢
+  rintro ⟨loc, ec⟩
+  simp
+  intro lm3 lm4 loc2 ec2 lm5 lm6
+  specialize lm1 lm3 lm5
+  subst lm1
+  simp
+  exact lm2 ec ec2 lm4 lm6
+
+end IsInitialSubsingleton
+
+
+structure IsActionDeterministic (pg: ProgramGraph CC EC Var Val ValS) : Prop where
+  initial_subsingleton : pg.IsInitialSubsingleton
+  post_loc (ec: EC) (cc1 cc2: CC) (lpr: pg.Loc) (act: pg.Act) (lpo1 lpo2: pg.Loc)
+    : (ec ⊨ₚ (cc1: FormulaType CC)) → (ec ⊨ₚ (cc2: FormulaType CC)) →
+      (pg.ctr lpr cc1 act lpo1) → (pg.ctr lpr cc2 act lpo2) → lpo1 = lpo2
+
+namespace IsActionDeterministic
+
+variable {pg: ProgramGraph CC EC Var Val ValS}
+
+theorem transitionSystem_isActionDeterministic (h: pg.IsActionDeterministic) : pg.toTransitionSystem.IsActionDeterministic := by
+  rcases h with ⟨lm1, lm2⟩
+  refine ⟨?_, ?_⟩
+  · exact lm1.transitionSystem_initial_subsingleton
+  · simp [TransitionSystem.SetOfDirectSuccessorAt]
+    rintro lpr ec act ⟨lpo1, ec1⟩ lm3 ⟨lpo2, ec2⟩ lm4
+    simp at lm3 lm4 ⊢
+    rcases lm3 with ⟨_, g2, _, _, lm3_1, lm3_2⟩
+    rcases lm4 with ⟨_, g3, _, _, lm4_1, lm4_2⟩
+    refine ⟨?_, Eq.refl _⟩
+    exact lm2 ec g2 g3 lpr act lpo1 lpo2 lm3_2 lm4_2 lm3_1 lm4_1
+
+end IsActionDeterministic
+
+/-
+theorem toTransitionSystem_isAPDeterministic_of (pg: ProgramGraph CC EC Var Val ValS) (req: pg.IsInitialSubsingleton)
+  : pg.toTransitionSystem.IsAPDeterministic := by
+  refine ⟨?_, ?_⟩
+  · exact req.transitionSystem_initial_subsingleton
+  · simp
+    intro lpr ec ind
+    simp [TransitionSystem.SetOfDirectSuccessor, TransitionSystem.SetOfDirectSuccessorAt]
+    rintro ⟨lpo1, ec1⟩ lm1 ⟨lpo2, ec2⟩ lm2
+    simp at lm1 lm2 ⊢
+    rcases lm1 with ⟨lm1, lm3⟩
+    rcases lm2 with ⟨lm2, lm4⟩
+    simp [Set.ext_iff] at lm3 lm4
+    rcases lm3 with ⟨lm3, lm5⟩
+    rcases lm4 with ⟨lm4, lm6⟩
+    dsimp [TransitionSystem.evalStateToFinset, TransitionSystem.labeling] at lm3 lm5 lm4 lm6
+    simp [ProgramGraph.labeling] at lm3 lm5 lm4 lm6
+    rcases lm1 with ⟨act1, lm1⟩
+    rcases lm2 with ⟨act2, lm2⟩
+    rcases lm1 with ⟨_, g1, _, _, lm1, lm7⟩
+    rcases lm2 with ⟨_, g2, _, _, lm2, lm8⟩
+    specialize lm3 lpo1
+    specialize lm4 lpo2
+    simp at lm3 lm4
+-/
+    --specialize lm5 g1
+    --specialize lm6 g1
+
+    --rcases lm2 with ⟨_, g2, _, _, lm2_1, lm2_2⟩
+
+/-
+theorem toTransitionSystem_isAPDeterministic_of (pg: ProgramGraph CC EC Var Val ValS)
+  : pg.toTransitionSystem.IsAPDeterministic := by
+  rcases pg with ⟨Loc, Act, eff, ctr, loc0, g0⟩
+  refine ⟨?_, ?_⟩
+  · simp [Loc0]
+    rintro ⟨l1, ec1⟩ lm1 ⟨l2, ec2⟩ lm2
+    simp at lm1 lm2 ⊢
+-/
+
+/-
+theorem initial_state_subsingleton_iff (pg: ProgramGraph CC EC Var Val ValS)
+  : pg.toTransitionSystem.I.Subsingleton ↔ (pg.Loc0.Subsingleton ∧ Subsingleton { ec: EC // ec ⊨ₚ pg.g0.formula }) := by
+-/
+
+/-
+by
+  dsimp [toTransitionSystem]
+  rintro ⟨loc, ec⟩
+  simp [Loc0]
+  intro lm1 lm2 loc2 ec2 lm3 lm4
+-/
+
+/-
+theorem toTransitionSystem_isActionDeterministic_of (pg: ProgramGraph CC EC Var Val ValS) (req1: pg.toTransitionSystem.I.Subsingleton)
+  : pg.toTransitionSystem.IsActionDeterministic := by
+  refine ⟨?_, ?_⟩
+  · exact req1--rcases pg with ⟨Loc, Act, eff, ctr, loc0, g0⟩
+  · revert req1
+    dsimp [Loc0]
+    intro lm1
+    simp
+    intro loc ec act
+    simp [toTransitionSystem, TransitionSystem.SetOfDirectSuccessorAt]
+    rintro ⟨loc2, ec2⟩
+    simp
+    intro lm2 loc3 ec3 lm3
+    rcases lm2 with ⟨_, g2, _, _, lm2, lm4⟩
+    rcases lm3 with ⟨_, g3, _, _, lm3, lm5⟩
+    simp
+-/
+    --simp [Set.Subsingleton] at lm1
+    --simp
+
+/-
+    simp [Loc0] at req1 ⊢
+    rintro ⟨l1, ec1⟩ lm1 ⟨l2, ec2⟩ lm2
+    simp at lm1 lm2
+    rcases lm1 with ⟨lm1, lm3⟩
+    rcases lm2 with ⟨lm2, lm4⟩
+    simp
+    refine ⟨?_, ?_⟩
+    · exact req1 lm1 lm2
+    · cases g0 using Cond.recNilCons with
+      | nil =>
+        simp at req2
+      | cons ap cond =>
+        simp [pl_simp] at lm3 lm4 req2; clear req2
+        rcases lm3 with ⟨lm3, lm5⟩
+        rcases lm4 with ⟨lm4, lm6⟩
+        dsimp [StandardType.AtomicPropStruct.isEvalSpecSafe_def] at lm3 lm4
+-/
+      --intro var
+      --simp [isSat_def, HasFormulaSatRel.satRel, pl_simp] at lm3 lm4
 
 
 /-

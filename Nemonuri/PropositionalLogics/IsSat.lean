@@ -110,6 +110,40 @@ theorem unsatisfiable_iff_neg_valid (p: Formula AP)
   simp only [not_exists]
   simp only [IsSat.neg_iff]
 
+/-
+theorem isSat_leftUnique_of (rel: Eval AP → Formula AP → Prop)
+  (req1: ∀e, ¬rel e Formula.true)
+  (req2: Relator.LeftUnique (fun (e: Eval AP) (ap: AP) => rel e (.atom ap) ∧ e ap = .true))
+  (req3: ∀e fml, ¬rel e (Formula.neg fml))
+  : Relator.LeftUnique (fun e fml => (e ⊨ₚ fml) ∧ rel e fml) := by
+  intro e1 e2 fml
+  simp
+  intro lm1 lm2 lm3 lm4
+  --refine funext ?_
+  --intro ap
+  induction fml with
+  | true =>
+    exact (req1 e1 lm2) |> False.elim
+  | atom ap =>
+    simp [pl_simp] at lm1 lm3 req2
+    simp [Relator.LeftUnique] at req2
+    exact req2 lm2 lm1 lm4 lm3
+  | neg fml lm5 =>
+    exact (req3 _ _ lm2) |> False.elim
+  | and fml1 fml2 lm5 lm6 =>
+    simp [pl_simp] at lm1 lm3
+    --exact req2 lm1 lm3
+/-
+    clear lm1 lm3
+    specialize req1 lm2 lm4
+    simp at req1
+    exact req1
+-/
+  | neg fml lm5 =>
+    simp [pl_simp] at lm1 lm3
+    have lm6 := HasFormulaSatRel.valid_at ⟨ind1⟩
+-/
+
 end Nemonuri.PropositionalLogics
 
 end

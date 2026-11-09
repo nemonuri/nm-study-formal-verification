@@ -206,11 +206,38 @@ theorem example2 : ∃(act: ts.Act), (TrS.mk .pre .pre ⟨3⟩) ─⌞act⌟→{
     refine .left _ _ _ ?_
     refine .intro
   · simp [pl_simp, FiniteCondLike.toCond]
-    --simp [pl_simp, FiniteCondLike.toCond, formulaOfLeft]
 
 
+theorem example3 : ∃(act: ts.Act), (TrS.mk .post .pre ⟨6⟩) ─⌞act⌟→{ts} (TrS.mk .post .post ⟨7⟩) := by
+  dsimp [TrS.mk, pg]
+  exists (.inr .act)
+  refine .intro _ _ ?g _ _ ?_ ?_
+  case g => exact (.ofSum (.inr .tau))
+  · dsimp
+    refine .right _ _ _ ?_
+    refine .intro
+  · simp [pl_simp, FiniteCondLike.toCond]
 
 
+theorem example4 : ∃(act: ts.Act), (TrS.mk .pre .pre ⟨3⟩) ─⌞act⌟→{ts} (TrS.mk .pre .post ⟨4⟩) := by
+  dsimp [TrS.mk, pg]
+  exists (.inr .act)
+  refine .intro _ _ ?g _ _ ?_ ?_
+  case g => exact (.ofSum (.inr .tau))
+  · dsimp
+    refine .right _ _ _ ?_
+    refine .intro
+  · simp [pl_simp, FiniteCondLike.toCond]
+
+theorem example5 : ∃(act: ts.Act), (TrS.mk .pre .post ⟨4⟩) ─⌞act⌟→{ts} (TrS.mk .post .post ⟨8⟩) := by
+  dsimp [TrS.mk, pg]
+  exists (.inl .act)
+  refine .intro _ _ ?g _ _ ?_ ?_
+  case g => exact (.ofSum (.inl .tau))
+  · dsimp
+    refine .left _ _ _ ?_
+    refine .intro
+  · simp [pl_simp, FiniteCondLike.toCond]
 
 end Examples.InterleavingOfProgramGraphs
 

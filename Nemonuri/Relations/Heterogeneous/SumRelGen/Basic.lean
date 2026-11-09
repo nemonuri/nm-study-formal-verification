@@ -638,7 +638,6 @@ theorem left?_eq_some_and_right?_eq_some_iff_rel {su: SumUnion rel} {l: αl} {r:
 -/
 
 
-def isIntersection (su: SumUnion rel) : Bool := su.left?.isSome && su.right?.isSome
 
 
 def leftD (su: SumUnion rel) (dflt: αl) : αl := su.left?.getD dflt
