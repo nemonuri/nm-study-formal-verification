@@ -244,6 +244,12 @@ end Append
 
 def stepL? (o: OptionProd α β) (sp: SequenceProd α β) : SequenceProd α β := ⟨Sequence.cons? o.fst? sp.fst, Sequence.cons? o.snd? sp.snd⟩
 
+
+
+def stepR (a: α) (b: β) : SequenceProd α β → SequenceProd α β
+  | ⟨fst, snd⟩ => ⟨Sequence.snoc a fst, Sequence.snoc b snd⟩
+
+
 end Nemonuri.SequenceProd
 
 end

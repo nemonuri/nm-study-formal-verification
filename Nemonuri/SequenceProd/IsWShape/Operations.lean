@@ -40,6 +40,12 @@ theorem not_nil : ¬(nil: SequenceProd α β).IsWShape := by
   dsimp at lm1
   simp [Sequence.nil_empty] at lm1
 
+
+theorem stepR_iff : (sp.stepR a b).IsWShape ↔ sp.IsWShape := by
+  dsimp [IsWShape, stepR, Sequence.snoc]
+  simp
+
+
 end Nemonuri.SequenceProd.IsWShape
 
 end

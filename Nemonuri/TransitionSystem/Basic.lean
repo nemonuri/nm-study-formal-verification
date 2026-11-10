@@ -4,11 +4,8 @@ module
 public import Mathlib.Data.Finite.Defs
 public import Mathlib.Data.Setoid.Basic
 public import Cslib.Foundations.Semantics.LTS.Basic
---public import Cslib.Foundations.Semantics.LTS.Relation
---import Cslib.Foundations.Semantics.LTS.Notation
 public import Nemonuri.PropositionalLogics
---public import Cslib.Foundations.Semantics.LTS.Execution
---public import Cslib.Foundations.Semantics.LTS.OmegaExecution
+
 
 /-!
 
@@ -130,8 +127,9 @@ section Notation
 syntax:52 term:53 " ─⌞" term "⌟→{ " term " } " term:52 : term
 
 macro_rules
-  | `( $s1 ─⌞ $act ⌟→{ $ts } $s2 ) => ``( Cslib.LTS.Tr (TransitionSystem.lts $ts) $s1 $act $s2 )
+  | `( $s1 ─⌞ $act ⌟→{ $ts } $s2 ) => ``( (TransitionSystem.tr $ts) $s1 $act $s2 )
 
+--Cslib.LTS.Tr
 
 end Notation
 
@@ -199,98 +197,6 @@ theorem isSat_iff [DecidableEq ts.AP] (p: Formula ts.AP) (s: ts.S)
   dsimp [evalStateToFinset, labeling] --, Indicator.fn, Indicator.mk
   simp
   --simp [Indicator.ofFinset_toFinset_leftInverse.eq]
-
-
-
-/-!
-
-### Definition 2.3. Direct Predecessors and Successors
-
--/
-
-
-def SetOfDirectSuccessorAt (s: ts.S) (α: ts.Act) : Set ts.S := { s': ts.S | s ─⌞α⌟→{ts} s' }
-
-def SetOfDirectPredecessorAt (s: ts.S) (α: ts.Act) : Set ts.S := { s': ts.S | s' ─⌞α⌟→{ts} s }
-
-section Notation
-
-syntax:61 " 𝑃𝑜𝑠𝑡{" term "}⸨" term "," term "⸩ " : term
-syntax:61 " 𝑃𝑟𝑒{" term "}⸨" term "," term "⸩ " : term
-
-macro_rules
-  | `( 𝑃𝑜𝑠𝑡{ $ts }⸨ $s , $α ⸩ ) => ``( SetOfDirectSuccessorAt $ts $s $α )
-  | `( 𝑃𝑟𝑒{ $ts }⸨ $s , $α ⸩ ) => ``( SetOfDirectPredecessorAt $ts $s $α )
-
-end Notation
-
-
-def SetOfDirectSuccessor (s: ts.S) : Set ts.S := ⋃ α: ts.Act, 𝑃𝑜𝑠𝑡{ts}⸨s, α⸩
-
-def SetOfDirectPredecessor (s: ts.S) : Set ts.S := ⋃ α: ts.Act, 𝑃𝑟𝑒{ts}⸨s, α⸩
-
-
-section Notation
-
-syntax:61 " 𝑃𝑜𝑠𝑡{" term "}⸨" term "⸩ " : term
-syntax:61 " 𝑃𝑟𝑒{" term "}⸨" term "⸩ " : term
-
-macro_rules
-  | `( 𝑃𝑜𝑠𝑡{ $ts }⸨ $s ⸩ ) => ``( SetOfDirectSuccessor $ts $s )
-  | `( 𝑃𝑟𝑒{ $ts }⸨ $s ⸩ ) => ``( SetOfDirectPredecessor $ts $s )
-
-end Notation
-
-
-def UnionOfDirectSuccessorAt (C: Set ts.S) (α: ts.Act) : Set ts.S := ⋃ s ∈ C, 𝑃𝑜𝑠𝑡{ts}⸨s, α⸩
-
-def UnionOfDirectPredecessorAt (C: Set ts.S) (α: ts.Act) : Set ts.S := ⋃ s ∈ C, 𝑃𝑟𝑒{ts}⸨s, α⸩
-
-def UnionOfDirectSuccessor (C: Set ts.S) : Set ts.S := ⋃ s ∈ C, 𝑃𝑜𝑠𝑡{ts}⸨s⸩
-
-def UnionOfDirectPredecessor (C: Set ts.S) : Set ts.S := ⋃ s ∈ C, 𝑃𝑟𝑒{ts}⸨s⸩
-
-
-section Notation
-
-syntax:61 " 𝑃𝑜𝑠𝑡ᵤ{" term "}⸨" term "," term "⸩ " : term
-syntax:61 " 𝑃𝑟𝑒ᵤ{" term "}⸨" term "," term "⸩ " : term
-syntax:61 " 𝑃𝑜𝑠𝑡ᵤ{" term "}⸨" term "⸩ " : term
-syntax:61 " 𝑃𝑟𝑒ᵤ{" term "}⸨" term "⸩ " : term
-
-macro_rules
-  | `( 𝑃𝑜𝑠𝑡ᵤ{ $ts }⸨ $C, $α ⸩ ) => ``( UnionOfDirectSuccessorAt $ts $C $α )
-  | `( 𝑃𝑟𝑒ᵤ{ $ts }⸨ $C, $α ⸩ ) => ``( UnionOfDirectPredecessorAt $ts $C $α )
-  | `( 𝑃𝑜𝑠𝑡ᵤ{ $ts }⸨ $C ⸩ ) => ``( UnionOfDirectSuccessor $ts $C )
-  | `( 𝑃𝑟𝑒ᵤ{ $ts }⸨ $C ⸩ ) => ``( UnionOfDirectPredecessor $ts $C )
-
-end Notation
-
-
-/-!
-
-### Definition 2.4. Terminal State
-
--/
-
-def IsTerminal (s: ts.S) : Prop := 𝑃𝑜𝑠𝑡{ts}⸨s⸩ = ∅
-
-
-/-!
-
-### Definition 2.5. Deterministic Transition System
-
--/
-
-structure IsActionDeterministic (ts: TransitionSystem) : Prop where
-  initial_subsingleton : ts.I.Subsingleton
-  post_subsingleton (s: ts.S) (α: ts.Act) : (𝑃𝑜𝑠𝑡{ts}⸨s, α⸩).Subsingleton
-
-structure IsAPDeterministic (ts: TransitionSystem) [Fintype ts.AP] : Prop where
-  initial_subsingleton : ts.I.Subsingleton
-  post_subsingleton (s: ts.S) (A: ts.AP → Bool) : ((𝑃𝑜𝑠𝑡{ts}⸨s⸩) ∩ { s': ts.S | (𝐿{ts}⸨s'⸩) = { ap | A ap = .true } }).Subsingleton
-
-
 
 
 

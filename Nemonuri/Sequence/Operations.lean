@@ -600,6 +600,64 @@ def cons? (o: Option α) (seq: Sequence α) : Sequence α :=
   | .some a => cons a seq
   | .none   => seq
 
+def snoc (a: α) (seq: Sequence α) : Sequence α where
+  getAt? i := if seq.length? = ↑i then .some a else seq.getAt? i
+  length? := seq.length? + 1
+  length?_getAt? := by
+    intro i
+    generalize lm1: seq.length? = len?
+    cases len? with
+    | top =>
+      simp
+      have lm2 := @seq.length?_getAt? i
+      simp [lm1] at lm2
+      exact lm2
+    | coe i2 =>
+      simp
+      by_cases lm2: i2 = i
+      · subst lm2
+        simp
+        rw [← ENat.coe_one, ← ENat.coe_add, ENat.coe_lt_coe]
+        simp
+      · simp [lm2]
+        have lm3 := @seq.length?_getAt? i
+        rewrite [← lm3, lm1]
+        simp
+        conv =>
+          lhs
+          rw [← ENat.coe_one, ← ENat.coe_add, ENat.coe_lt_coe]
+        simp
+        constructor
+        · intro lm4
+          rcases lm4.eq_or_lt with lm5 | lm5
+          · simp [lm5] at lm2
+          · exact lm5
+        · intro lm4
+          exact le_of_lt lm4
+
+
+theorem snoc_eq_self_iff {a: α} {seq: Sequence α} : (seq.snoc a = seq) ↔ (seq.toFiniteLabel = .infinite) := by
+  constructor
+  · intro lm1
+    simp [Sequence.ext_iff, funext_iff] at lm1
+    dsimp [snoc] at lm1
+    simp at lm1
+    by_contra lm2
+    simp [FiniteLabel.ne_infinite_iff_eq_finite] at lm2
+    have lm3 := finite_iff_length?_eq_natCast.mp lm2
+    rcases lm3 with ⟨len, lm3⟩
+    specialize lm1 len lm3
+    have lm4 := getAt?_length_eq_none lm2
+    simp [Sequence.length, lm3] at lm4
+    simp [lm4] at lm1
+  · intro lm1
+    refine Sequence.ext ?_
+    refine funext ?_
+    intro i
+    have lm2 := infinite_iff_length?_eq_top.mp lm1
+    simp [snoc, lm2]
+
+
 
 end Nemonuri.Sequence
 
