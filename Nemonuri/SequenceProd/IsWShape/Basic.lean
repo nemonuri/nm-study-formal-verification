@@ -82,9 +82,25 @@ theorem minLength?_add_one_eq_fst_length? (h: IsWShape sp) : sp.minLength? + 1 =
   exact h.length?_eq.symm
 
 
+theorem minLength?_eq_iff_eq_at (h: IsWShape sp) (ml: ℕ∞) : (sp.minLength? = ml) ↔ ((sp.fst.length? = ml + 1) ∧ (sp.snd.length? = ml)) := by
+  rw [h.minLength?_eq_snd_length?]
+  simp
+  intro lm1
+  rw [← lm1]
+  exact h.length?_eq
+
+theorem minLength?_eq_iff_eq (h: IsWShape sp) {ml: ℕ∞} : (sp.minLength? = ml) ↔ ((sp.fst.length? = ml + 1) ∧ (sp.snd.length? = ml)) := h.minLength?_eq_iff_eq_at _
+
+
+def toFiniteLabel (h: IsWShape sp) : FiniteLabel := sp.toFiniteLabel h.finite_eq
+
+@[defeq]
+theorem toFiniteLabel_def {h: IsWShape sp} : h.toFiniteLabel = sp.toFiniteLabel h.finite_eq := rfl
+
 
 theorem finite_iff_minLength?_lt_top (h: IsWShape sp)
-  : (sp.toFiniteLabel h.finite_eq = .finite) ↔ (sp.minLength? < ⊤) := by
+  : (h.toFiniteLabel = .finite) ↔ (sp.minLength? < ⊤) := by
+  dsimp [toFiniteLabel_def]
   rw [← snd_self_finiteEq, h.minLength?_eq_snd_length?]
   exact sp.snd.finite_iff_length?_lt_top
 
@@ -97,18 +113,24 @@ theorem minLength?_add_one_eq_fst_length (h: IsWShape sp) (req: sp.toFiniteLabel
 
 
 theorem finite_iff_fst_finite (h: IsWShape sp)
-  : (sp.toFiniteLabel h.finite_eq = .finite) ↔ (sp.fst.toFiniteLabel = .finite) := by
+  : (h.toFiniteLabel = .finite) ↔ (sp.fst.toFiniteLabel = .finite) := by
+  dsimp [toFiniteLabel_def]
   rw [h.finite_eq |> fst_self_finiteEq]
 
 theorem finite_iff_snd_finite (h: IsWShape sp)
-  : (sp.toFiniteLabel h.finite_eq = .finite) ↔ (sp.snd.toFiniteLabel = .finite) := by
+  : (h.toFiniteLabel = .finite) ↔ (sp.snd.toFiniteLabel = .finite) := by
+  dsimp [toFiniteLabel_def]
   rw [h.finite_eq |> snd_self_finiteEq]
 
 
 theorem finite_iff_minLength?_eq_natCast (h: IsWShape sp)
-  : (sp.toFiniteLabel h.finite_eq = .finite) ↔ ∃(n: ℕ), sp.minLength? = (n: ℕ∞) := by
+  : (h.toFiniteLabel = .finite) ↔ ∃(n: ℕ), sp.minLength? = (n: ℕ∞) := by
+  dsimp [toFiniteLabel_def]
   rw [← snd_self_finiteEq, h.minLength?_eq_snd_length?]
   exact sp.snd.finite_iff_length?_eq_natCast
+
+
+
 
 
 end IsWShape

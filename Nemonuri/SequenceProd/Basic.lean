@@ -6,6 +6,8 @@ public import Nemonuri.OptionProd.Basic
 
 @[expose] public section
 
+set_option autoImplicit false
+
 namespace Nemonuri
 
 structure SequenceProd (α: Type _) (β: Type _) where
@@ -81,6 +83,12 @@ theorem finite_congr_of_finiteEq (req: sp.toFiniteLabelEq = .labelEq) {fl: Finit
   rw [snd_self_finiteEq req]
   simp
 
+theorem fst_toFiniteLabel_eq_of_toFiniteLabel_eq (req1: sp.toFiniteLabelEq = .labelEq) {fl: FiniteLabel} (req2: sp.toFiniteLabel req1 = fl) : sp.fst.toFiniteLabel = fl :=
+  (finite_congr_of_finiteEq req1).mp req2 |>.left
+
+theorem snd_toFiniteLabel_eq_of_toFiniteLabel_eq (req1: sp.toFiniteLabelEq = .labelEq) {fl: FiniteLabel} (req2: sp.toFiniteLabel req1 = fl) : sp.snd.toFiniteLabel = fl :=
+  (finite_congr_of_finiteEq req1).mp req2 |>.right
+
 
 def toEmptyLabelEq (sp: SequenceProd α β) : LabelEq EmptyLabel := LabelEq.emptyOfENat sp.fst.length? sp.snd.length?
 
@@ -109,6 +117,19 @@ theorem snd_self_emptyEq (req: sp.toEmptyLabelEq = .labelEq)
   calc
     _ = _ := emptyEq_iff_fst_snd_emptyEq.mp req |>.symm
     _ = _ := sp.fst_self_emptyEq req
+
+theorem empty_congr_of_emptyEq (req: sp.toEmptyLabelEq = .labelEq) {el: EmptyLabel}
+  : (sp.toEmptyLabel req = el) ↔ (sp.fst.toEmptyLabel = el) ∧ (sp.snd.toEmptyLabel = el) := by
+  rw [fst_self_emptyEq req]
+  rw [snd_self_emptyEq req]
+  simp
+
+theorem fst_toEmptyLabel_eq_of_toEmptyLabel_eq (req1: sp.toEmptyLabelEq = .labelEq) {el: EmptyLabel} (req2: sp.toEmptyLabel req1 = el) : sp.fst.toEmptyLabel = el :=
+  (empty_congr_of_emptyEq req1).mp req2 |>.left
+
+theorem snd_toEmptyLabel_eq_of_toEmptyLabel_eq (req1: sp.toEmptyLabelEq = .labelEq) {el: EmptyLabel} (req2: sp.toEmptyLabel req1 = el) : sp.snd.toEmptyLabel = el :=
+  (empty_congr_of_emptyEq req1).mp req2 |>.right
+
 
 
 def head? (sp: SequenceProd α β) : OptionProd α β :=
@@ -188,11 +209,46 @@ theorem minLength?_eq_natCast_minLength
   replace lm4 := Trans.trans lm3 lm4
   simp at lm4 )
 
+theorem minLength?_eq_natCast_of_minLength_eq
+  (sp: SequenceProd α β) (req1: sp.toFiniteLabelEq = .labelEq) (req2: sp.toFiniteLabel req1 = .finite) (fml: ℕ) (req3: sp.minLength req1 req2 = fml)
+  : sp.minLength? = ↑fml := by
+  rw [← req3]
+  exact sp.minLength?_eq_natCast_minLength req1 req2
 
 
-theorem lt_minLength?_iff_lt_length? {i: ℕ} : i < sp.minLength? ↔ (i < sp.fst.length?) ∧ (i < sp.snd.length?) := by
+theorem lt_minLength?_iff_lt_length? {i: ℕ} : ↑i < sp.minLength? ↔ (↑i < sp.fst.length?) ∧ (↑i < sp.snd.length?) := by
   dsimp only [minLength?]
   exact lt_inf_iff
+
+theorem minLength?_pos_iff_length?_pos : (0 < sp.minLength?) ↔ (0 < sp.fst.length?) ∧ (0 < sp.snd.length?) := by
+  rw [← ENat.coe_zero]
+  exact lt_minLength?_iff_lt_length?
+
+
+theorem minLength?_pos_of_nonempty (sp: SequenceProd α β) (req1: sp.toEmptyLabelEq = .labelEq) (req2: sp.toEmptyLabel req1 = .nonempty) : 0 < sp.minLength? := by
+  rw [minLength?_pos_iff_length?_pos]
+  refine ⟨?_, ?_⟩
+  · refine sp.fst.length?_pos_of_nonempty ?_
+    exact sp.fst_toEmptyLabel_eq_of_toEmptyLabel_eq req1 req2
+  · refine sp.snd.length?_pos_of_nonempty ?_
+    exact sp.snd_toEmptyLabel_eq_of_toEmptyLabel_eq req1 req2
+
+
+theorem nonempty_of_minLength?_pos (sp: SequenceProd α β) (req: 0 < sp.minLength?) : ∃(req: sp.toEmptyLabelEq = .labelEq), sp.toEmptyLabel req = .nonempty := by
+  rw [minLength?_pos_iff_length?_pos] at req
+  rcases req with ⟨lm1, lm2⟩
+  replace lm1 := sp.fst.nonempty_of_length?_pos lm1
+  replace lm2 := sp.snd.nonempty_of_length?_pos lm2
+  refine ⟨?_, ?_⟩
+  · rw [sp.emptyEq_iff_fst_snd_emptyEq, lm1, lm2]
+  · rw [← sp.fst_self_emptyEq]
+    exact lm1
+
+theorem minLength?_pos_iff_nonempty (sp: SequenceProd α β) : (0 < sp.minLength?) ↔ ∃(req: sp.toEmptyLabelEq = .labelEq), sp.toEmptyLabel req = .nonempty := by
+  constructor
+  · exact sp.nonempty_of_minLength?_pos
+  · rintro ⟨lm1, lm2⟩
+    exact sp.minLength?_pos_of_nonempty lm1 lm2
 
 
 def getAt (sp: SequenceProd α β) (i: ℕ) (req: i < sp.minLength?) : Prod α β :=
@@ -313,6 +369,10 @@ structure IsInfinite (sp: SequenceProd α β) : Prop where
 -/
 
 def InfiniteSet : Set (SequenceProd α β) := { sp | ∃(finiteEq: sp.toFiniteLabelEq = .labelEq), sp.toFiniteLabel finiteEq = .infinite }
+
+
+instance : WellFoundedRelation (SequenceProd α β) := invImage (fun (sp: SequenceProd α β) => sp.minLength?) inferInstance
+
 
 end SequenceProd
 

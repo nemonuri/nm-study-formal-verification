@@ -4,6 +4,7 @@ public import Nemonuri.Sequence.Basic
 
 @[expose] public section
 
+set_option autoImplicit false
 
 namespace Nemonuri.Sequence
 
@@ -205,6 +206,11 @@ theorem eq_nil_iff_empty : (seq = nil) ↔ (seq.toEmptyLabel = .empty) := by
     rewrite [empty_iff_forall_getAt?_eq_none] at lm1
     exact lm1
 
+theorem length?_eq_zero_iff_eq_nil : (seq.length? = 0) ↔ (seq = .nil) :=
+  calc
+    _ ↔ _ := seq.empty_iff_length?_eq_zero.symm
+    _ ↔ _ := seq.eq_nil_iff_empty.symm
+
 
 theorem nil_tail_eq_nil : (nil : Sequence α).tail = nil := by
   refine Sequence.ext ?_
@@ -304,6 +310,36 @@ theorem single_getAt?_zero : (single a).getAt? 0 = Option.some a := rfl
 @[defeq]
 theorem single_getAt?_add_one : (single a).getAt? (i + 1) = Option.none := rfl
 
+theorem single_injective : Function.Injective (single: α → Sequence α) := by
+  intro a1 a2 lm1
+  replace lm1 := Sequence.ext_iff.mp lm1
+  simp [funext_iff] at lm1
+  specialize lm1 0
+  dsimp [single_getAt?_zero] at lm1
+  simpa using lm1
+
+theorem head_single_eq_self_of_length?_eq_one (req: seq.length? = 1) : single (seq.head (seq.nonempty_of_length?_eq_one req)) = seq := by
+  refine Sequence.ext ?_
+  refine funext ?_
+  intro i
+  rcases i with _ | ⟨i⟩
+  · dsimp [single_getAt?_zero]
+    simp [← head?_eq_some_head]
+    exact seq.head?_eq_getAt?_zero
+  · dsimp [single_getAt?_add_one]
+    symm
+    refine seq.length_le_iff_getAt?_eq_none ?_ |>.mp ?_
+    · exact seq.finite_of_length?_eq_one req
+    · rw [seq.length_eq_one_of_length?_eq_one req]
+      simp
+
+theorem length?_eq_one_iff_single_eq_self_exists : (seq.length? = 1) ↔ (∃a, single a = seq) := by
+  constructor
+  · intro lm1
+    exact Exists.intro _ (head_single_eq_self_of_length?_eq_one lm1)
+  · rintro ⟨a, lm1⟩
+    rw [← lm1]
+    exact single_length?_eq_one
 
 def singleCons (a: α) : Sequence α := cons a nil
 
@@ -656,6 +692,181 @@ theorem snoc_eq_self_iff {a: α} {seq: Sequence α} : (seq.snoc a = seq) ↔ (se
     intro i
     have lm2 := infinite_iff_length?_eq_top.mp lm1
     simp [snoc, lm2]
+
+@[defeq]
+theorem snoc_length_eq_length_add_one : (seq.snoc a).length? = seq.length? + 1 := by dsimp [snoc]
+
+theorem snoc_length_eq_length_add_one_coe (fl: ℕ) (req: seq.length? = ↑fl) : (seq.snoc a).length? = ↑(fl + 1) := by
+  dsimp [snoc_length_eq_length_add_one]
+  rw [ENat.coe_add, ← req]
+  simp only [Nat.cast_one]
+
+theorem snoc_nonempty {a: α} : (seq.snoc a).toEmptyLabel = .nonempty := by
+  refine Sequence.nonempty_of_length?_pos ?_
+  dsimp [snoc]
+  simp
+
+theorem snoc_toFiniteLabel {a: α} : (seq.snoc a).toFiniteLabel = seq.toFiniteLabel := by
+  generalize lm1: seq.toFiniteLabel = lb
+  rcases lb
+  · rcases seq.finite_iff_length?_eq_natCast.mp lm1 with ⟨len, lm2⟩
+    refine Sequence.finite_iff_length?_eq_natCast.mpr ?_
+    dsimp [snoc]
+    rw [lm2]
+    exists ↑(len + 1)
+  · simp [Sequence.infinite_iff_length?_eq_top] at lm1 ⊢
+    dsimp [snoc]
+    rw [lm1]
+    simp
+
+theorem snoc_toFiniteLabel_eq_of_toFiniteLabel_eq {flb: FiniteLabel} (req: seq.toFiniteLabel = flb) (a: α) : (seq.snoc a).toFiniteLabel = flb := by
+  simp [snoc_toFiniteLabel]
+  exact req
+
+
+
+@[elab_as_elim]
+def recLengthEqRev.{um}
+  {motive: (seq: Sequence α) → (fl: ℕ) → (seq.length? = ↑fl) → Sort um}
+  (zero: motive (Sequence.nil) 0 nil_length?_eq_zero)
+  (succ: (a: α) → (seq: Sequence α) → (fl: ℕ) → (h: seq.length? = ↑fl) → motive seq fl h → motive (seq.snoc a) (↑(fl + 1)) (snoc_length_eq_length_add_one_coe fl h))
+  (seq: Sequence α) (fl: ℕ) (h: seq.length? = ↑fl)
+  : motive seq fl h :=
+  match fl with
+  | 0 => zero |> cast (by congr; symm; exact Sequence.length?_eq_zero_iff_eq_nil.mp h)
+  | fl + 1 =>
+    have lm1 : seq.toEmptyLabel = .nonempty := seq.nonempty_iff_length?_pos.mpr (by simp [h])
+    have lm2 : seq.toFiniteLabel = .finite := seq.finite_iff_length?_eq_natCast.mpr ⟨_, h⟩
+    let a : α := seq.last lm1 lm2
+    let seq2 : Sequence α := seq.take fl
+    have lm3 : seq2.length? = ↑fl := by subst seq2; dsimp [take]; simp [h]
+    succ a seq2 fl lm3 (recLengthEqRev zero succ seq2 fl lm3) |> cast (by
+      congr
+      subst seq2
+      refine Sequence.ext ?_
+      refine funext ?_
+      intro i
+      dsimp [snoc]
+      simp [lm3]
+      by_cases lm4: fl = i
+      · subst lm4
+        simp
+        subst a
+        rw [← (seq.last?_eq_some_last lm1 lm2), (seq.last?_eq_getFromLastAt?_zero)]
+        refine Eq.trans (seq.getFromLastAt?_eq_getAt? lm2 ?_) ?_
+        · dsimp [Sequence.length]
+          simp [h]
+        · congr
+          rcases (seq.length?_eq_natCast_iff_length_eq.mp h) with ⟨lm5_1, lm5⟩
+          rw [lm5]
+          simp
+      · simp [lm4]
+        dsimp [take]
+        simp
+        intro lm5
+        symm
+        refine (seq.length_le_iff_getAt?_eq_none lm2).mp ?_
+        rcases (seq.length?_eq_natCast_iff_length_eq.mp h) with ⟨lm6_1, lm6⟩
+        simp [lm6]
+        exact Nat.lt_of_le_of_ne lm5 lm4)
+
+@[elab_as_elim]
+def recLengthEqRevOn.{um}
+  {motive: (seq: Sequence α) → (fl: ℕ) → (seq.length? = ↑fl) → Sort um} {seq: Sequence α} {fl: ℕ}
+  (h: seq.length? = ↑fl)
+  (zero: motive (Sequence.nil) 0 nil_length?_eq_zero)
+  (succ: (a: α) → (seq: Sequence α) → (fl: ℕ) → (h: seq.length? = ↑fl) → motive seq fl h → motive (seq.snoc a) (↑(fl + 1)) (snoc_length_eq_length_add_one_coe fl h))
+  : motive seq fl h :=
+  recLengthEqRev (motive := motive) zero succ seq fl h
+
+
+def dropLast (seq: Sequence α) : Sequence α where
+  getAt? i := if i < seq.length? - 1 then seq.getAt? i else .none
+  length? := seq.length? - 1
+  length?_getAt? := by
+    intro i
+    constructor
+    · intro lm1
+      simp [lm1]
+      refine (@seq.length?_getAt? i).mp ?_
+      calc
+        _ < _ := lm1
+        _ ≤ _ := by simp
+    · intro lm1
+      replace lm1 := Option.isSome_iff_exists.mp lm1
+      simp at lm1
+      exact lm1.left
+
+theorem snoc_last_eq_of_length?_eq_natCast (fl: ℕ) (req: seq.length? = ↑fl) (a: α) : (seq.snoc a).last seq.snoc_nonempty (seq.snoc_toFiniteLabel ▸ (seq.finite_of_length?_eq_natCast req)) = a := by
+  have lm1 := seq.finite_of_length?_eq_natCast req
+  dsimp [last, getFromLastAt]
+  refine Option.get_of_eq_some _ ?_
+  refine Eq.trans (getFromLastAt?_eq_getAt?_at ?_ 0 ?_) ?_
+  · exact snoc_toFiniteLabel_eq_of_toFiniteLabel_eq lm1 a
+  · dsimp [length, snoc]; simp
+  · dsimp [length, snoc]; simp
+    intro lm2
+    simp [req] at lm2
+    conv at lm2 =>
+      arg 1
+      conv =>
+        rhs
+        rw [← ENat.coe_one, ← ENat.coe_add, ← ENat.coe_sub]
+      rw [ENat.coe_inj]
+    simp at lm2
+
+
+theorem snoc_last_eq_of_finite (req: seq.toFiniteLabel = .finite) {a: α} : (seq.snoc a).last seq.snoc_nonempty (seq.snoc_toFiniteLabel ▸ req) = a := by
+  rcases seq.finite_iff_length?_eq_natCast.mp req with ⟨fl, lm1⟩
+  exact snoc_last_eq_of_length?_eq_natCast fl lm1 a
+
+variable (seq) in
+theorem snoc_dropLast_eq_self (a: α) : (seq.snoc a).dropLast = seq := by
+  simp [Sequence.ext_iff, funext_iff]
+  intro i
+  rcases lm1: seq.toFiniteLabel
+  · rcases seq.finite_iff_length?_eq_natCast.mp lm1 with ⟨fl, lm2⟩
+    dsimp [dropLast, snoc]
+    simp [lm2]
+    have lm3 : ((↑i: ℕ∞) < ↑fl + 1 - 1) = (i < fl) := by
+      conv =>
+        lhs
+        rw [← ENat.coe_one, ← ENat.coe_add, ← ENat.coe_sub, ENat.coe_lt_coe]
+      rfl
+    simp [lm3]
+    by_cases lm4: i < fl
+    · simp [lm4]
+      intro lm5
+      simp [lm5] at lm4
+    · simp [lm4]
+      simp at lm4
+      symm
+      rw [← seq.length?_le_iff_getAt?_eq_none, lm2]
+      simpa using lm4
+  · have lm2 := seq.infinite_iff_length?_eq_top.mp lm1
+    dsimp [dropLast, snoc]
+    simp [lm2]
+
+
+
+
+theorem last_dropLast_snoc_eq_self_of_length?_eq_natCast_pos {len: ℕ} (req1: seq.length? = ↑len) (req2: 0 < len)
+  : Sequence.snoc (seq.last (seq.nonempty_of_length?_eq_natCast_pos req1 req2) (seq.finite_of_length?_eq_natCast req1)) (seq.dropLast) = seq := by
+  cases req1 using recLengthEqRevOn with
+  | zero => simp at req2
+  | succ a seq len lm1 lm2 =>
+    clear lm2
+    have lm2 := snoc_last_eq_of_length?_eq_natCast len lm1 a
+    rw [lm2, snoc_dropLast_eq_self _]
+
+
+theorem last_dropLast_snoc_eq_self_of_finite (req1: seq.toFiniteLabel = .finite) (req2: seq.toEmptyLabel = .nonempty)
+  : Sequence.snoc (seq.last req2 req1) (seq.dropLast) = seq := by
+  rcases seq.finite_iff_length?_eq_natCast.mp req1 with ⟨fl, lm1⟩
+  have lm2 := seq.nonempty_iff_length?_pos.mp req2
+  simp [lm1] at lm2
+  exact last_dropLast_snoc_eq_self_of_length?_eq_natCast_pos lm1 lm2
+
 
 
 

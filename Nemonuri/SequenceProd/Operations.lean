@@ -250,6 +250,34 @@ def stepR (a: α) (b: β) : SequenceProd α β → SequenceProd α β
   | ⟨fst, snd⟩ => ⟨Sequence.snoc a fst, Sequence.snoc b snd⟩
 
 
+
+def take (n1 n2: ℕ) : SequenceProd α β → SequenceProd α β
+  | ⟨fst, snd⟩ => ⟨fst.take n1, snd.take n2⟩
+
+
+def last (sp: SequenceProd α β)
+         (req1: sp.toFiniteLabelEq = .labelEq) (req2: sp.toFiniteLabel req1 = .finite)
+         (req3: sp.toEmptyLabelEq = .labelEq) (req4: sp.toEmptyLabel req3 = .nonempty) : (α × β) :=
+    let v1 : α := sp.fst.last (sp.fst_toEmptyLabel_eq_of_toEmptyLabel_eq _ req4) (sp.fst_toFiniteLabel_eq_of_toFiniteLabel_eq _ req2)
+    let v2 : β := sp.snd.last (sp.snd_toEmptyLabel_eq_of_toEmptyLabel_eq _ req4) (sp.snd_toFiniteLabel_eq_of_toFiniteLabel_eq _ req2)
+    (v1, v2)
+
+
+def dropLast : SequenceProd α β → SequenceProd α β
+  | ⟨fst, snd⟩ => ⟨fst.dropLast, snd.dropLast⟩
+
+
+theorem last_dropLast_stepR_eq_self (sp: SequenceProd α β)
+  (req1: sp.toFiniteLabelEq = .labelEq) (req2: sp.toFiniteLabel req1 = .finite)
+  (req3: sp.toEmptyLabelEq = .labelEq) (req4: sp.toEmptyLabel req3 = .nonempty)
+  : let v := sp.last req1 req2 req3 req4; SequenceProd.stepR v.fst v.snd (sp.dropLast) = sp := by
+  extract_lets v
+  dsimp [stepR, dropLast]
+  subst v
+  dsimp [SequenceProd.last]
+  simp [Sequence.last_dropLast_snoc_eq_self_of_finite]
+
+
 end Nemonuri.SequenceProd
 
 end

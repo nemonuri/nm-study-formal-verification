@@ -139,6 +139,19 @@ theorem nonempty_iff_getAt?_0_eq_some
     specialize cont 0
     simp [cont] at lm2
 
+theorem nonempty_of_length?_eq_one (req: seq.length? = 1) : seq.toEmptyLabel = .nonempty := by
+  refine seq.nonempty_iff_length?_pos.mpr ?_
+  simp [req]
+
+theorem nonempty_of_length?_eq_natCast_pos {len: ℕ} (req1: seq.length? = ↑len) (req2: 0 < len) : seq.toEmptyLabel = .nonempty := by
+  refine seq.nonempty_iff_length?_pos.mpr ?_
+  rw [req1]
+  simpa using req2
+
+theorem nonempty_of_length?_pos (req: 0 < seq.length?) : seq.toEmptyLabel = .nonempty := Sequence.nonempty_iff_length?_pos.mpr req
+
+theorem length?_pos_of_nonempty (req: seq.toEmptyLabel = .nonempty) : 0 < seq.length? := Sequence.nonempty_iff_length?_pos.mp req
+
 theorem empty_iff_getAt?_0_eq_none
   : (seq.toEmptyLabel = .empty) ↔ (seq.getAt? 0 = .none) := by
   constructor
@@ -150,6 +163,7 @@ theorem empty_iff_getAt?_0_eq_none
     refine seq.empty_iff_forall_getAt?_eq_none.mpr ?_
     intro n
     exact Nat.recAux lm1 lm2 n
+
 
 
 
@@ -597,6 +611,10 @@ theorem getFromLastAt?_eq_getAt? (req1: seq.toFiniteLabel = .finite) {i: ℕ} (r
     replace lm3 := Nat.le_trans lm1 lm3
     simp at lm3
 
+theorem getFromLastAt?_eq_getAt?_at (req1: seq.toFiniteLabel = .finite) (i: ℕ) (req2: i < seq.length req1)
+  : (seq.getFromLastAt? i) = (seq.getAt? ((seq.length req1) - (i + 1))) :=
+  getFromLastAt?_eq_getAt? req1 req2
+
 theorem finite_of_getFromLastAt?_isSome {i: ℕ} (req: (seq.getFromLastAt? i).isSome)
   : (seq.toFiniteLabel = .finite) := by
   have lm2 := Iff.not seq.forall_getFromLastAt?_eq_none_iff_infinite_or_empty
@@ -820,6 +838,8 @@ theorem ext_iff : (seq = seq2) ↔ (seq.getAt? = seq2.getAt?) := ⟨congrArg (Se
 
 end Ext
 
+
+instance : WellFoundedRelation (Sequence α) := invImage (Sequence.length?) inferInstance
 
 
 end Sequence
