@@ -157,6 +157,7 @@ theorem dropLast_isWShape_of_minLength?_post (h: IsWShape sp) (req: 0 < sp.minLe
     exact Nat.add_one_sub_one n
 
 
+def lastFst (h: IsWShape sp) (req: h.toFiniteLabel = .finite) : α := sp.fst.last h.fst_nonempty (h.finite_iff_fst_finite.mp req)
 
 
 

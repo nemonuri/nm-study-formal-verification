@@ -130,7 +130,10 @@ theorem finite_iff_minLength?_eq_natCast (h: IsWShape sp)
   exact sp.snd.finite_iff_length?_eq_natCast
 
 
-
+theorem finite_of_minLength?_eq_natCast (h: IsWShape sp) (fml: ℕ) (req: sp.minLength? = ↑fml) : h.toFiniteLabel = .finite := by
+  refine h.finite_iff_snd_finite.mpr ?_
+  rewrite [h.minLength?_eq_snd_length?] at req
+  exact sp.snd.finite_of_length?_eq_natCast req
 
 
 end IsWShape

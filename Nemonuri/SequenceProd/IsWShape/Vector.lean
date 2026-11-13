@@ -13,19 +13,19 @@ variable {α β: Type*}
 
 structure Vector (sp: SequenceProd α β) (ml: ℕ∞) : Prop where
   wShape : sp.IsWShape
-  minLength_eq : sp.minLength? = ml
+  minLength?_eq : sp.minLength? = ml
 
 namespace Vector
 
 variable (β) in
 theorem zero_singleFst (a: α) : IsWShape.Vector (singleFst α β a) 0 where
   wShape := .of_singleFst
-  minLength_eq := by
+  minLength?_eq := by
     rw [IsWShape.minLength?_eq_snd_length? .of_singleFst]
     dsimp [singleFst, Sequence.nil]
 
 
-theorem headFst_singleFst_eq_self_of_zero {sp: SequenceProd α β} (h: IsWShape.Vector sp 0) : (singleFst α β h.wShape.headFst) = sp := h.wShape.singleFst_eq_self_of_minLength?_eq_zero h.minLength_eq
+theorem headFst_singleFst_eq_self_of_zero {sp: SequenceProd α β} (h: IsWShape.Vector sp 0) : (singleFst α β h.wShape.headFst) = sp := h.wShape.singleFst_eq_self_of_minLength?_eq_zero h.minLength?_eq
 
 variable {sp: SequenceProd α β} {ml: ℕ∞}
 
@@ -79,9 +79,9 @@ def recSingleFstStepR.{u}
       congr
       exact h.headFst_singleFst_eq_self_of_zero)
   | fml + 1 =>
-    have lm1 : 0 < sp.minLength? := by rw [h.minLength_eq]; simp
+    have lm1 : 0 < sp.minLength? := by rw [h.minLength?_eq]; simp
     have lm2 : h.wShape.toFiniteLabel = .finite := by
-      have lm2_1 := h.minLength_eq
+      have lm2_1 := h.minLength?_eq
       refine h.wShape.finite_iff_minLength?_eq_natCast.mpr ?_
       exact Exists.intro _ lm2_1
     let v := h.wShape.last lm1 lm2
@@ -163,6 +163,13 @@ def recSingleFstStepROn.{u}
         exact lm1.symm )
   | fml + 1 =>
 -/
+
+def lastFst {fml: ℕ} (req: IsWShape.Vector sp ↑fml) : α := sp.fst.last req.wShape.fst_nonempty (by
+    have lm1 := req.minLength?_eq
+    replace lm1 := congrArg (· + 1) lm1
+    rw [req.wShape.minLength?_add_one_eq_fst_length?] at lm1
+    refine sp.fst.finite_iff_length?_eq_natCast.mpr ?_
+    exists (fml + 1) )
 
 end Vector
 

@@ -246,6 +246,8 @@ theorem finite_of_length?_eq_natCast {n: ℕ} (req: seq.length? = (Nat.cast n)) 
   refine finite_iff_length?_eq_natCast.mpr ?_
   exists n
 
+theorem length?_eq_natCast_exists_of_finite (req: seq.toFiniteLabel = .finite) : ∃(n: ℕ), seq.length? = ↑n :=
+  seq.finite_iff_length?_eq_natCast.mp req
 
 def head (seq: Sequence α) (req: seq.toEmptyLabel = .nonempty) : α :=
   seq[0]'(seq.nonempty_iff_length?_pos.mp req)
@@ -323,6 +325,10 @@ theorem length?_eq_natCast_iff_length_eq {n: ℕ}
 
 theorem length?_eq_natCast_iff_length_eq_at (n: ℕ) : (seq.length? = (Nat.cast n)) ↔ (∃req, (seq.length req) = n) :=
   @seq.length?_eq_natCast_iff_length_eq _ n
+
+theorem length_eq_of_length?_eq_natCast {fl: ℕ} (req: seq.length? = ↑fl) : seq.length (seq.finite_of_length?_eq_natCast req) = fl := by
+  dsimp [length_eq_length?_lift]
+  simp [req]
 
 
 theorem finite_of_length?_lt_natCast {n: ℕ} (req: seq.length? < (Nat.cast n)) : seq.toFiniteLabel = .finite := by
@@ -744,10 +750,27 @@ def last (seq: Sequence α) (req1: seq.toEmptyLabel = .nonempty) (req2: seq.toFi
   seq.getFromLastAt 0 req2 (seq.length_pos_of_nonempty_finite req1 req2)
 
 
+theorem length_sub_one_lt_length?_of_nonempty_finite (req1: seq.toEmptyLabel = .nonempty) (req2: seq.toFiniteLabel = .finite) : ↑(seq.length req2) - 1 < seq.length? := by
+  rcases length?_eq_natCast_exists_of_finite req2 with ⟨fl, lm1⟩
+  have lm2 := seq.length_eq_of_length?_eq_natCast lm1
+  rw [lm1, ← ENat.coe_one, ← ENat.coe_sub, ENat.coe_lt_coe, lm2]
+  simp
+  rw [← lm2]
+  exact seq.length_pos_of_nonempty_finite req1 req2
+
+
+
 theorem last?_eq_some_last (req1: seq.toEmptyLabel = .nonempty) (req2: seq.toFiniteLabel = .finite)
   : seq.last? = .some (seq.last req1 req2) := by
   dsimp [last?, last, getFromLastAt]
   simp only [Option.some_get]
+
+theorem last_eq_getAt (req1: seq.toEmptyLabel = .nonempty) (req2: seq.toFiniteLabel = .finite)
+  : seq.last req1 req2 = seq.getAt (seq.length req2 - 1) (seq.length_sub_one_lt_length?_of_nonempty_finite req1 req2) := by
+  rw [← Option.some_inj]
+  simp only [← last?_eq_some_last, ← getAt?_eq_some_getAt]
+  dsimp [last?_eq_getFromLastAt?_zero]
+  exact seq.getFromLastAt?_eq_getAt?_at req2 0 (seq.length_pos_of_nonempty_finite req1 req2)
 
 
 section Ext

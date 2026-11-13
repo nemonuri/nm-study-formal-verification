@@ -341,6 +341,21 @@ theorem length?_eq_one_iff_single_eq_self_exists : (seq.length? = 1) ↔ (∃a, 
     rw [← lm1]
     exact single_length?_eq_one
 
+--variable (a) in
+theorem single_finite : (single a).toFiniteLabel = .finite := Sequence.finite_of_length?_eq_one single_length?_eq_one
+
+theorem single_length?_pos : 0 < (single a).length? := by
+  dsimp [single_length?_eq_one]
+  simp
+
+--variable (a) in
+theorem single_getAt_zero : (single a).getAt 0 single_length?_pos = a := by
+  rw [← Option.some_inj]
+  simp only [← Sequence.getAt?_eq_some_getAt]
+  exact single_getAt?_zero
+
+
+
 def singleCons (a: α) : Sequence α := cons a nil
 
 theorem singleCons_eq_single : @singleCons = @single := by
@@ -724,6 +739,47 @@ theorem snoc_toFiniteLabel_eq_of_toFiniteLabel_eq {flb: FiniteLabel} (req: seq.t
   exact req
 
 
+theorem lt_snoc_length?_of_lt_length? (en: ℕ∞) (req: en < seq.length?) (a: α) : en < (seq.snoc a).length? := by
+  dsimp [snoc_length_eq_length_add_one]
+  calc
+    en < _ := req
+    _ ≤ _ := by simp
+
+theorem lt_snoc_length?_of_eq_length? (n: ℕ) (req: seq.length? = ↑n) (a: α) : ↑n < (seq.snoc a).length? := by
+  dsimp [snoc_length_eq_length_add_one]
+  rw [req, ← ENat.coe_one, ← ENat.coe_add, ENat.coe_lt_coe]
+  simp
+
+
+theorem snoc_getAt_eq_getAt (i: ℕ) (req: ↑i < seq.length?) (a: α)
+  : ((seq.snoc a).getAt i (seq.lt_snoc_length?_of_lt_length? _ req _)) = (seq.getAt i req) := by
+  rw [← Option.some_inj]
+  simp only [← Sequence.getAt?_eq_some_getAt]
+  simp [snoc]
+  intro lm1
+  rewrite [lm1] at req
+  simp at req
+
+theorem snoc_getAt_eq_of_length_eq_natCast (i: ℕ) (req: seq.length? = ↑i) (a: α)
+  : ((seq.snoc a).getAt i (seq.lt_snoc_length?_of_eq_length? _ req _)) = a := by
+  rw [← Option.some_inj]
+  simp only [← Sequence.getAt?_eq_some_getAt]
+  dsimp [snoc]
+  simp [req]
+
+theorem nil_snoc_eq_single (a: α) : Sequence.nil.snoc a = (Sequence.single a) := by
+  simp [Sequence.ext_iff, funext_iff]
+  intro i
+  rcases i with _ | ⟨i⟩
+  · dsimp [single_getAt?_zero, snoc, nil_length?_eq_zero]
+  · dsimp [single_getAt?_add_one, snoc, nil_length?_eq_zero, nil_getAt?_none]
+    simp
+    intro lm1
+    conv at lm1 =>
+      rw [← ENat.coe_zero, ← ENat.coe_one, ← ENat.coe_add, ENat.coe_inj]
+      simp
+    exact lm1
+
 
 @[elab_as_elim]
 def recLengthEqRev.{um}
@@ -796,6 +852,18 @@ def dropLast (seq: Sequence α) : Sequence α where
       replace lm1 := Option.isSome_iff_exists.mp lm1
       simp at lm1
       exact lm1.left
+
+theorem lt_length?_of_lt_dropLast_length? (i: ℕ) (req: i < seq.dropLast.length?) : i < seq.length? := by
+  dsimp [dropLast] at req
+  calc
+    ↑i < _ := req
+    _ ≤ seq.length? := by simp
+
+theorem dropLast_getAt_eq_getAt (i: ℕ) (req: i < seq.dropLast.length?) : seq.dropLast.getAt i req = seq.getAt i (seq.lt_length?_of_lt_dropLast_length? i req) := by
+  rw [← Option.some_inj]
+  simp only [← Sequence.getAt?_eq_some_getAt]
+  dsimp [dropLast] at ⊢ req
+  simp [req]
 
 theorem snoc_last_eq_of_length?_eq_natCast (fl: ℕ) (req: seq.length? = ↑fl) (a: α) : (seq.snoc a).last seq.snoc_nonempty (seq.snoc_toFiniteLabel ▸ (seq.finite_of_length?_eq_natCast req)) = a := by
   have lm1 := seq.finite_of_length?_eq_natCast req

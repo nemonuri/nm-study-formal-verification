@@ -215,6 +215,22 @@ theorem minLength?_eq_natCast_of_minLength_eq
   rw [← req3]
   exact sp.minLength?_eq_natCast_minLength req1 req2
 
+theorem finite_of_minLength?_eq_natCast_and_finiteEq (sp: SequenceProd α β) (fml: ℕ) (req1: sp.minLength? = ↑fml) (req2: sp.toFiniteLabelEq = .labelEq)
+  : sp.toFiniteLabel req2 = .finite := by
+  have lm1 := sp.finiteEq_iff_fst_snd_finiteEq.mp req2
+  have lm2 := sp.minLength?_eq_ite.symm.trans req1
+  split at lm2
+  · rw [← (sp.fst_self_finiteEq req2)]
+    exact sp.fst.finite_of_length?_eq_natCast lm2
+  · rw [← (sp.snd_self_finiteEq req2)]
+    exact sp.snd.finite_of_length?_eq_natCast lm2
+
+theorem minLength_eq_of_minLength?_eq_natCast (sp: SequenceProd α β) (fml: ℕ) (req1: sp.minLength? = ↑fml) (req2: sp.toFiniteLabelEq = .labelEq)
+  : sp.minLength req2 (sp.finite_of_minLength?_eq_natCast_and_finiteEq fml req1 req2) = fml := by
+  rw [← ENat.coe_inj, ← (sp.minLength?_eq_natCast_minLength)]
+  exact req1
+
+
 
 theorem lt_minLength?_iff_lt_length? {i: ℕ} : ↑i < sp.minLength? ↔ (↑i < sp.fst.length?) ∧ (↑i < sp.snd.length?) := by
   dsimp only [minLength?]
