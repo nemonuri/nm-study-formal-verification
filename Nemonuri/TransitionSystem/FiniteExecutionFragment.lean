@@ -2,6 +2,7 @@ module
 
 public import Nemonuri.Executions.Basic
 public import Nemonuri.TransitionSystem.Step
+public import Mathlib.Data.Seq.Defs
 
 @[expose] public section
 
@@ -36,6 +37,28 @@ theorem minLength_eq_snd_length (fef: FiniteExecutionFragment ts) : fef.minLengt
   dsimp [minLength_def]
   rw [← ENat.coe_inj, ← sp.minLength?_eq_natCast_minLength, ← sp.snd.length?_eq_natCast_length]
   exact lm1.wShape.minLength?_eq_snd_length?
+
+theorem minLength_add_one_eq_fst_length (fef: FiniteExecutionFragment ts) : (fef.minLength + 1) = fef.fst.length (fef.toSequenceProd.fst_toFiniteLabel_eq_of_toFiniteLabel_eq _ fef.valid.finite) := by
+  rcases fef with ⟨sp, lm1⟩
+  dsimp [minLength_def]
+  rw [← ENat.coe_inj, ENat.coe_add, ← sp.minLength?_eq_natCast_minLength, ← sp.fst.length?_eq_natCast_length]
+  exact lm1.wShape.minLength?_add_one_eq_fst_length?
+
+theorem fst_length?_eq_fst_length_natCast (fef: FiniteExecutionFragment ts) : fef.fst.length? = ↑(fef.fst.length (fef.toSequenceProd.fst_toFiniteLabel_eq_of_toFiniteLabel_eq _ fef.valid.finite)) :=
+  fef.fst.length?_eq_natCast_length _
+
+theorem snd_length?_eq_snd_length_natCast (fef: FiniteExecutionFragment ts) : fef.snd.length? = ↑(fef.snd.length (fef.toSequenceProd.snd_toFiniteLabel_eq_of_toFiniteLabel_eq _ fef.valid.finite)) :=
+  fef.snd.length?_eq_natCast_length _
+
+theorem minLength_sub_natCast_lt_fst_length? (fef: FiniteExecutionFragment ts) (subN: ℕ) : ↑(fef.minLength - subN) < fef.fst.length? := by
+  rw [fef.fst_length?_eq_fst_length_natCast, ENat.coe_lt_coe, ← fef.minLength_add_one_eq_fst_length]
+  simp
+
+theorem minLength_natCast_lt_fst_length? (fef: FiniteExecutionFragment ts) : (↑fef.minLength: ℕ∞) < fef.fst.length? := fef.minLength_sub_natCast_lt_fst_length? 0
+
+theorem minLength_sub_one_natCast_lt_snd_length?_of_lt (fef: FiniteExecutionFragment ts) {n: ℕ} (req: n < fef.minLength) : (↑(fef.minLength - 1): ℕ∞) < fef.snd.length? := by
+  rw [fef.snd_length?_eq_snd_length_natCast, ENat.coe_lt_coe, ← fef.minLength_eq_snd_length]
+  exact Nat.sub_one_lt_of_lt req
 
 
 def lastState (fef: FiniteExecutionFragment ts) : ts.S := fef.valid.wShape.lastFst fef.valid.finite
@@ -180,6 +203,61 @@ def lastStep (fef: FiniteExecutionFragment ts) (req: 0 < fef.minLength) : StepR 
         have := last_eqgetat
   }
 -/
+
+
+
+
+def lastStep (fef: FiniteExecutionFragment ts) (req: 0 < fef.minLength) : Step ts where
+  pre := fef.fst.getAt (fef.minLength - 1) (by
+    rw [fef.fst_length?_eq_fst_length_natCast, ENat.coe_lt_coe, ← fef.minLength_add_one_eq_fst_length]; simp)
+  act := fef.snd.getAt (fef.minLength - 1) (by
+    rw [fef.snd_length?_eq_snd_length_natCast, ENat.coe_lt_coe, ← fef.minLength_eq_snd_length]
+    refine Nat.sub_one_lt ?_
+    intro lm1; simp [lm1] at req )
+  post := fef.fst.getAt fef.minLength (by
+    rw [fef.fst_length?_eq_fst_length_natCast, ENat.coe_lt_coe, ← fef.minLength_add_one_eq_fst_length]; simp)
+  valid := by
+    have lm1 := fef.valid.lts_tr (fef.minLength - 1)
+    conv at lm1 =>
+      arg -2
+      rw [fef.snd_length?_eq_snd_length_natCast, ENat.coe_lt_coe, ← fef.minLength_eq_snd_length]
+    simp [req] at lm1
+    have lm2 : fef.minLength - 1 + 1 = fef.minLength := by omega
+    simp [lm2] at lm1
+    exact lm1
+
+
+def stepAt? (fef: FiniteExecutionFragment ts) (i: ℕ) : Option (Step ts) :=
+  if h1: fef.minLength ≤ i then .none else
+  have lm1 : i < fef.minLength := by simpa using h1
+  .some {
+    pre := fef.fst.getAt (fef.minLength - 1) (fef.minLength_sub_natCast_lt_fst_length? 1)
+    act := fef.snd.getAt (fef.minLength - 1) (fef.minLength_sub_one_natCast_lt_snd_length?_of_lt lm1)
+    post := fef.fst.getAt fef.minLength fef.minLength_natCast_lt_fst_length?
+    valid := by
+      have lm2 := fef.valid.lts_tr (fef.minLength - 1) (fef.minLength_sub_one_natCast_lt_snd_length?_of_lt lm1)
+      revert lm2
+      refine Eq.mp ?_
+      congr
+      refine Nat.sub_one_add_one_eq_of_pos ?_
+      calc
+        0 ≤ i := Nat.zero_le i
+        _ < _ := lm1 }
+
+theorem stepAt?_isStreamSeq (fef: FiniteExecutionFragment ts) : Stream'.IsSeq (fef.stepAt?) := by
+  intro i
+  simp [stepAt?]
+  intro lm1
+  calc
+    _ ≤ _ := lm1
+    _ ≤ i + 1 := Nat.le_add_right _ _
+
+def stepAtStreamSeq (fef: FiniteExecutionFragment ts) : Stream'.Seq (Step ts) := ⟨fef.stepAt?, fef.stepAt?_isStreamSeq⟩
+
+theorem stepAt?_eq_none_iff (fef: FiniteExecutionFragment ts) (i: ℕ) : (fef.stepAt? i = .none) ↔ (fef.minLength ≤ i) := by
+  dsimp [stepAt?]
+  simp
+
 
 end FiniteExecutionFragment
 
