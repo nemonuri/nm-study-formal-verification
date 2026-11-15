@@ -159,7 +159,12 @@ theorem dropLast_isWShape_of_minLength?_post (h: IsWShape sp) (req: 0 < sp.minLe
 
 def lastFst (h: IsWShape sp) (req: h.toFiniteLabel = .finite) : α := sp.fst.last h.fst_nonempty (h.finite_iff_fst_finite.mp req)
 
-
+theorem headFst_eq_lastFst_of_minLength?_eq_zero (h: sp.IsWShape) (req: sp.minLength? = 0)
+  : h.headFst = h.lastFst (h.finite_of_minLength?_eq_natCast 0 req) := by
+  dsimp [headFst_def, lastFst]
+  rw [sp.fst.last_eq_getAt, sp.fst.head_eq_getAt]
+  have lm1 := h.minLength?_add_one_eq_fst_length (h.finite_of_minLength?_eq_natCast 0 req)
+  simp [← lm1, req]
 
 
 /-

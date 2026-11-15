@@ -257,6 +257,11 @@ theorem head_eq_getElem (req: seq.toEmptyLabel = .nonempty)
   : seq.head req = seq[0]'(seq.nonempty_iff_length?_pos.mp req) :=
   rfl
 
+@[defeq]
+theorem head_eq_getAt (req: seq.toEmptyLabel = .nonempty)
+  : seq.head req = seq.getAt 0 (seq.nonempty_iff_length?_pos.mp req) :=
+  rfl
+
 def head? (seq: Sequence α) : Option α :=
   match lm1: seq.toEmptyLabel with
   | .nonempty => .some (seq.head lm1)

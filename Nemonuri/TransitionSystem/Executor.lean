@@ -1,6 +1,7 @@
 module
 
 public import Nemonuri.TransitionSystem.FiniteExecutionFragment
+public import Nemonuri.Sequence.Potential
 
 @[expose] public section
 
@@ -105,6 +106,40 @@ theorem stepOnce_minLength_le_minLength_add_one [DecidablePred ts.IsTerminal] (e
   · simp
   · simp [FiniteExecutionFragment.step_minLength]
 
+theorem stepOnce_of_not_isTerminal [DecidablePred ts.IsTerminal] (ex: Executor ts) (fef: FiniteExecutionFragment ts) (req: ¬ts.IsTerminal fef.lastState)
+  : ex.stepOnce fef = fef.step (ex.stepROf fef req) := by
+  dsimp [stepOnce]
+  simp [req]
+
+
+open FiniteExecutionFragment in
+theorem stepOnce_minLength_eq_minLength_iff_stepOnce_eq_self [DecidablePred ts.IsTerminal] (ex: Executor ts) (fef: FiniteExecutionFragment ts)
+  : ((ex.stepOnce fef).minLength = fef.minLength) ↔ (ex.stepOnce fef = fef) := by
+  dsimp [stepOnce]
+  split <;> rename_i lm1
+  · simp
+  · simp [step_minLength, step_ne_self]
+
+
+theorem stepOnce_minLength_eq_minLength_iff_isTerminal [DecidablePred ts.IsTerminal] (ex: Executor ts) (fef: FiniteExecutionFragment ts)
+  : ((ex.stepOnce fef).minLength = fef.minLength) ↔ ts.IsTerminal fef.lastState := by
+  rw [ex.stepOnce_minLength_eq_minLength_iff_stepOnce_eq_self fef]
+  dsimp [stepOnce]
+  simp [FiniteExecutionFragment.step_ne_self]
+
+theorem stepOnce_minLength_eq_minLength_add_one_iff_not_isTerminal [DecidablePred ts.IsTerminal] (ex: Executor ts) (fef: FiniteExecutionFragment ts)
+  : ((ex.stepOnce fef).minLength = fef.minLength + 1) ↔ (¬ts.IsTerminal fef.lastState) := by
+  dsimp [stepOnce]
+  split <;> (rename_i lm1; simp [lm1])
+  exact fef.step_minLength _
+
+theorem stepOnce_eq_self_iff_isTerminal [DecidablePred ts.IsTerminal] (ex: Executor ts) (fef: FiniteExecutionFragment ts)
+  : (ex.stepOnce fef = fef) ↔ ts.IsTerminal fef.lastState :=
+  calc
+    _ ↔ _ := ex.stepOnce_minLength_eq_minLength_iff_stepOnce_eq_self fef |>.symm
+    _ ↔ _ := ex.stepOnce_minLength_eq_minLength_iff_isTerminal fef
+
+
 theorem minLength_le_stepN [DecidablePred ts.IsTerminal] (ex: Executor ts) (fef: FiniteExecutionFragment ts) (fuel: ℕ)
   : fef.minLength ≤ (ex.stepN fef fuel).minLength := by
   rcases lm3: fuel with _ | ⟨fuel⟩
@@ -135,6 +170,10 @@ theorem stepN_minLength_le_add_fuel [DecidablePred ts.IsTerminal] (ex: Executor 
         rw [Nat.add_assoc]
         conv => lhs; arg 2; rw [Nat.add_comm]
 
+theorem stepN_minLength_le_and_le [DecidablePred ts.IsTerminal] (ex: Executor ts) (fef: FiniteExecutionFragment ts) (fuel: ℕ)
+  : (fef.minLength ≤ (ex.stepN fef fuel).minLength) ∧ ((ex.stepN fef fuel).minLength ≤ (fef.minLength + fuel)) :=
+  ⟨ex.minLength_le_stepN fef fuel, ex.stepN_minLength_le_add_fuel fef fuel⟩
+
 theorem stepOnce_stepN_minLength_le_stepN_minLength_add_one [DecidablePred ts.IsTerminal] (ex: Executor ts) (fef: FiniteExecutionFragment ts) (fuel: ℕ)
   : (ex.stepN (ex.stepOnce fef) fuel).minLength ≤ (ex.stepN fef fuel).minLength + 1 := by
   rcases lm1: fuel with _ | ⟨fuel⟩
@@ -142,6 +181,135 @@ theorem stepOnce_stepN_minLength_le_stepN_minLength_add_one [DecidablePred ts.Is
     exact ex.stepOnce_minLength_le_minLength_add_one fef
   · dsimp [stepN]
     exact ex.stepOnce_stepN_minLength_le_stepN_minLength_add_one (ex.stepOnce fef) fuel
+
+@[defeq]
+theorem stepN_add_one_def [DecidablePred ts.IsTerminal] {ex: Executor ts} {fef} {fuel: ℕ} : ex.stepN fef (fuel + 1) = ex.stepN (ex.stepOnce fef) fuel := rfl
+
+/-
+theorem stepN_minLength_le_of_minLength_le [DecidablePred ts.IsTerminal] (ex: Executor ts) (fef1 fef2: FiniteExecutionFragment ts) (req: fef1.minLength ≤ fef2.minLength) (fuel: ℕ)
+  : (ex.stepN fef1 fuel).minLength ≤ (ex.stepN fef2 fuel).minLength := by
+  rcases lm1: fuel with _ | ⟨fuel⟩
+  · dsimp [stepN]
+    exact req
+  · dsimp [stepN]
+    have lm2 req := ex.stepN_minLength_le_of_minLength_le (ex.stepOnce fef1) (ex.stepOnce fef2) req fuel
+    refine lm2 ?_
+    dsimp [stepOnce]
+-/
+    --have lm3 := ex.stepOnce_minLength_le_minLength_add_one fef1
+    --have lm4 := ex.minLength_le_stepOnce fef2
+
+@[defeq]
+theorem stepN_zero_minLength_eq_minLength [DecidablePred ts.IsTerminal] (ex: Executor ts) (fef: FiniteExecutionFragment ts) : (ex.stepN fef 0).minLength = fef.minLength := by
+  dsimp [stepN]
+
+
+theorem stepN_minLength_eq_minLength_of_isTerminal [DecidablePred ts.IsTerminal] (ex: Executor ts) (fef: FiniteExecutionFragment ts) (req: ts.IsTerminal fef.lastState) (fuel: ℕ)
+  : ((ex.stepN fef fuel).minLength = fef.minLength) := by
+  rcases lm1: fuel with _ | ⟨fuel⟩
+  · dsimp [stepN]
+  · dsimp [stepN]
+    rw [ex.stepOnce_eq_self_iff_isTerminal fef |>.mpr req]
+    exact ex.stepN_minLength_eq_minLength_of_isTerminal fef req fuel
+
+theorem stepN_one_minLength_eq_minLength_add_one_of_not_isTerminal [DecidablePred ts.IsTerminal] (ex: Executor ts) (fef: FiniteExecutionFragment ts) (req: ¬ts.IsTerminal fef.lastState)
+  : (ex.stepN fef 1).minLength = fef.minLength + 1 := by
+  have lm1 := ex.stepOnce_minLength_eq_minLength_add_one_iff_not_isTerminal fef |>.mpr req
+  dsimp [stepN]
+  exact lm1
+
+theorem minLength_lt_stepN_pos_minLength_of_not_isTerminal [DecidablePred ts.IsTerminal] (ex: Executor ts) (fef: FiniteExecutionFragment ts) (fuel: ℕ) (req1: 0 < fuel) (req2: ¬ts.IsTerminal fef.lastState)
+  : fef.minLength < (ex.stepN fef fuel).minLength := by
+  rcases lm1: fuel with _ | ⟨fuel⟩
+  · simp [lm1] at req1
+  · dsimp [stepN]
+    generalize lm2: ex.stepOnce fef = fef2
+    have lm3 := ex.minLength_le_stepN fef2 fuel
+    have lm4 := ex.stepOnce_minLength_eq_minLength_add_one_iff_not_isTerminal fef |>.mpr req2
+    rewrite [Eq.comm] at lm2
+    subst lm2
+    rewrite [lm4] at lm3
+    simp at lm3
+    exact lm3
+
+
+theorem stepN_minLength_le_stepN_add_one_minLength [DecidablePred ts.IsTerminal] (ex: Executor ts) (fef: FiniteExecutionFragment ts) (fuel: ℕ)
+  : (ex.stepN fef fuel).minLength ≤ (ex.stepN fef (fuel + 1)).minLength := by
+  by_cases lm1: ts.IsTerminal fef.lastState
+  · have lm2 := ex.stepN_minLength_eq_minLength_of_isTerminal _ lm1
+    simp [lm2]
+  · rcases lm2: fuel with _ | ⟨fuel⟩
+    · dsimp [stepN_zero_minLength_eq_minLength]
+      rw [ex.stepN_one_minLength_eq_minLength_add_one_of_not_isTerminal _ lm1]
+      simp
+    · conv =>
+        conv => lhs; dsimp [stepN]
+        conv =>
+          rhs
+          rw [← lm2]
+          dsimp [stepN]
+          rw [lm2]
+      exact ex.stepN_minLength_le_stepN_add_one_minLength (ex.stepOnce fef) fuel
+
+
+theorem stepN_add_minLength_le_stepN_minLength [DecidablePred ts.IsTerminal] (ex: Executor ts) (fef: FiniteExecutionFragment ts) (fuel fuel2: ℕ)
+  : (ex.stepN fef fuel).minLength ≤ (ex.stepN fef (fuel + fuel2)).minLength := by
+  rcases lm1: fuel2 with _ | ⟨fuel2⟩
+  · dsimp
+    exact Nat.le_refl _
+  · have lm3 := ex.stepN_minLength_le_stepN_add_one_minLength fef fuel
+    have lm4 := ex.stepN_add_minLength_le_stepN_minLength fef (fuel + 1) fuel2
+    conv at lm4 =>
+      rhs
+      arg 1
+      arg 3
+      rw [Nat.add_assoc]
+      arg 2
+      rw [Nat.add_comm]
+    exact Nat.le_trans lm3 lm4
+
+open FiniteExecutionFragment in
+theorem stepN_fst_getAt_stepN_add_one_getAt [DecidablePred ts.IsTerminal] (ex: Executor ts) (fef: FiniteExecutionFragment ts) (i: ℕ) (fuel: ℕ) (req: i ≤ (ex.stepN fef fuel).minLength)
+  : (ex.stepN fef fuel).fst.getAt i (natCast_lt_fst_length?_of_le_minLength _ i req) = (ex.stepN fef (fuel + 1)).fst.getAt i (natCast_lt_fst_length?_of_le_minLength _ i (Nat.le_trans req (ex.stepN_minLength_le_stepN_add_one_minLength _ _))) := by
+  dsimp [stepN, stepOnce]
+  split <;> rename_i lm1
+  · rfl
+  · let (eq := lm_fp) fuelProxy := fuel
+    rcases fuelProxy with _ | ⟨fuelProxy⟩ <;> (rewrite [Eq.comm] at lm_fp; subst lm_fp)
+    · dsimp [stepN, step, SequenceProd.stepR]
+      rw [← Option.some_inj]
+      simp only [← Sequence.getAt?_eq_some_getAt]
+      dsimp [Sequence.snoc]
+      simp
+      intro lm2
+      dsimp [stepN_zero_minLength_eq_minLength] at req
+      rewrite [fef.fst.length?_eq_natCast_length fef.valid.fst_finite, ENat.coe_inj] at lm2
+      rewrite [← lm2, ← fef.minLength_add_one_eq_fst_length] at req
+      simp at req
+    · dsimp [stepN]
+      have lm2 := ex.stepN_fst_getAt_stepN_add_one_getAt (ex.stepOnce fef) i fuelProxy
+      simp only [← stepOnce_of_not_isTerminal]
+      refine lm2 ?_
+      dsimp [← stepN_add_one_def]
+      exact req
+
+
+/-
+open FiniteExecutionFragment in
+theorem stepN_fst_getAt_eq_fst_getAt [DecidablePred ts.IsTerminal] (ex: Executor ts) (fef: FiniteExecutionFragment ts) (i: ℕ) (req: i ≤ fef.minLength) (fuel: ℕ)
+  : (ex.stepN fef fuel).fst.getAt i (natCast_lt_fst_length?_of_le_minLength _ i (Nat.le_trans req (ex.minLength_le_stepN fef fuel))) = fef.fst.getAt i (natCast_lt_fst_length?_of_le_minLength fef i req) := by
+  rcases lm1: fuel with _ | ⟨fuel⟩
+  · dsimp [stepN]
+  · dsimp [stepN]
+    have lm2 := ex.stepN_fst_getAt_eq_fst_getAt (ex.stepOnce fef) i (Nat.le_trans req (ex.minLength_le_stepOnce fef)) fuel
+    refine Eq.trans lm2 ?_
+    dsimp [stepOnce]
+    split
+    · rfl
+    · dsimp [step, SequenceProd.stepR]
+      exact fef.fst.snoc_getAt_eq_getAt i _ _
+-/
+
 
 
 theorem runStep?_isStreamSeq [DecidablePred ts.IsTerminal] (ex: Executor ts) (si: ↑ts.I) : Stream'.IsSeq (ex.runStep? si) := by
@@ -161,71 +329,23 @@ theorem runStep?_isStreamSeq [DecidablePred ts.IsTerminal] (ex: Executor ts) (si
 def runStepStreamSeq [DecidablePred ts.IsTerminal] (ex: Executor ts) (si: ↑ts.I) : Stream'.Seq (Step ts) :=
   ⟨ex.runStep? si, ex.runStep?_isStreamSeq si⟩
 
-
-
 /-
-  have lm4 := ex.stepOnce_minLength_le_minLength_add_one fef2
-  have lm5 := ex.stepN_minLength_le_add_fuel (ex.stepOnce fef2) i
--/
-  --have lm6 := Nat.add_le_add_right
-
-
-
---def run [DecidablePred ts.IsTerminal] (ex: Executor ts) (si: ↑ts.I) : Stream'.Seq (Step ts)
-
-/-
-def runStep? [DecidablePred ts.IsTerminal] (ex: Executor ts) (si: ↑ts.I) (fuel: ℕ) : Option (Step ts) :=
-  let fef := ex.runN (.initOf ts si.val) fuel
--/
---OptionProd ts.S ts.Act := ex.runN (.initOf ts si.val) (fuel + 1) |>.getAt? fuel
-
-
---open Classical in
---def DeterministicOn (exs: Set (Executor ts)) (seto: Setoid (ts.S → ℕ →)) :
-
-
-/-
-theorem runOnce_unique_iff [DecidablePred ts.IsTerminal] (ex1 ex2: Executor ts) : ex1.runOnce = ex2.runOnce := by
-  simp [funext_iff]
-  intro fef
-  dsimp [runOnce]
-  split
-  · rfl
-  · rename_i lm1
-    revert lm1
-    simp [isTerminal_iff]
-    intro act spo lm1
-    refine congrArg fef.step ?_
-    dsimp [stepROf]
-    simp
--/
-    --simp [isTerminal_iff] at lm1
-
-/-
-theorem deterministic [DecidablePred ts.IsTerminal] (req: ts.IsActionDeterministic) (ex1 ex2: Executor ts) : ex1.runFromN = ex2.runFromN := by
-  simp [funext_iff]
-  intro s lm1 fuel
-  dsimp [runFromN]
-  generalize lm2: FiniteExecutionFragment.initOf ts s = fef
-  rcases req with ⟨lm3, lm4⟩
-  simp [det_norm] at lm4
-  induction fuel with
-  | zero => dsimp [runN]
-  | succ fuel lm5 =>
-    dsimp [runN]
+theorem runStep?_eq_zero [DecidablePred ts.IsTerminal] (ex: Executor ts) (si: ↑ts.I) x : ex.runStep? si 0 = x := by
+  dsimp [runStep?, runN, stepN]
 -/
 
+--theorem stepN_getAt?_eq_
 
 
 end Executor
 
 
-
+/-
 open Classical in
 variable (ts) in
 def IsDeterministicOn (exs: Set (Executor ts)) (srel: Setoid (↑ts.I → Stream'.Seq (Step ts))) : Prop :=
   ∀⦃ex1⦄, (ex1 ∈ exs) → ∀⦃ex2⦄, (ex2 ∈ exs) → srel.r (ex1.runStepStreamSeq) (ex2.runStepStreamSeq)
-
+-/
 
 /-
 structure ExecutorStruct (ts: TransitionSystem) where
