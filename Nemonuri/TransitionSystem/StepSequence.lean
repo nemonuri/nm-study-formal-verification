@@ -152,21 +152,15 @@ def factory (ex: Executor ts) : StepSequence.Factory ts where
 
 end Executor
 
-
 open Classical in
-def IsDeterministicOn (ts: TransitionSystem) (exs: Set (Executor ts)) (srel: Setoid (StepSequence.Factory ts)) : Prop :=
-  ∀⦃ex1⦄, (ex1 ∈ exs) → ∀⦃ex2⦄, (ex2 ∈ exs) → srel.r ex1.factory ex2.factory
+def IsDeterministicExecutorSet (ts: TransitionSystem) (frel: Setoid (StepSequence.Factory ts)) (exs: Set (Executor ts)) : Prop :=
+  ∀⦃ex1⦄, (ex1 ∈ exs) → ∀⦃ex2⦄, (ex2 ∈ exs) → frel.r ex1.factory ex2.factory
 
-
-namespace IsDeterministicOn
-
-
-
+def IsDeterministicExecutorRel (ts: TransitionSystem) (frel: Setoid (StepSequence.Factory ts)) (erel: Setoid (Executor ts)) : Prop :=
+  ∀⦃ex1⦄, ts.IsDeterministicExecutorSet frel { ex2 | erel.r ex1 ex2 }
 
 
 
-
-end IsDeterministicOn
 
 end Nemonuri.TransitionSystem
 
