@@ -57,6 +57,9 @@ theorem valIndex_lt_types_length {tys: List (Type u)} (isum: IterSum tys) : isum
       dsimp [← valIndex_def]
       exact isum.valIndex_lt_types_length
 
+def valIndexFin {tys: List (Type u)} (isum: IterSum tys) : Fin (tys.length) := ⟨isum.valIndex, isum.valIndex_lt_types_length⟩
+
+
 abbrev ValTypeAt (tys: List (Type u)) (isum: IterSum tys) : Type u :=
   match tys with
   | [] => isum.elimNil
@@ -85,8 +88,7 @@ theorem valType_eq_types_getElem {tys: List (Type u)} (isum: IterSum tys) : isum
       exact isum.valType_eq_types_getElem
 
 
-theorem valType_eq_types_getElem' {tys: List (Type u)} (isum: IterSum tys) : isum.ValType = tys[isum.valIndex]'(isum.valIndex_lt_types_length) :=
-  isum.valType_eq_types_getElem
+theorem valType_eq_types_getElem_valIndexFin {tys: List (Type u)} (isum: IterSum tys) : isum.ValType = isum.types[isum.valIndexFin] := isum.valType_eq_types_getElem
 
 
 
@@ -99,6 +101,10 @@ def valAt (tys: List (Type u)) (isum: IterSum tys) : isum.ValType :=
   | cons _ _ isum => isum.valAt tys
 
 def val {tys: List (Type u)} (isum: IterSum tys) : isum.ValType := isum.valAt tys
+
+
+def valAsGetElem {tys: List (Type u)} (isum: IterSum tys) : isum.types[isum.valIndexFin] := isum.valType_eq_types_getElem_valIndexFin.mp isum.val
+
 
 
 theorem valType_eq_of_valIndex_eq (tys: List (Type u)) (isum1 isum2: IterSum tys) (req: isum1.valIndex = isum2.valIndex) : isum1.ValType = isum2.ValType := by
