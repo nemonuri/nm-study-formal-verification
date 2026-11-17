@@ -29,6 +29,9 @@ protected def elimNil {C: Sort*} (isum: IterSum []) : C := isum.not_nil.elim
 
 abbrev types {tys: List (Type u)} (_: IterSum tys) : List (Type u) := tys
 
+@[defeq]
+theorem types_def {tys: List (Type u)} {isum: IterSum tys} : isum.types = tys := rfl
+
 def valIndexAt (tys: List (Type u)) (isum: IterSum tys) : Nat :=
   match tys with
   | [] => isum.elimNil
@@ -58,6 +61,15 @@ theorem valIndex_lt_types_length {tys: List (Type u)} (isum: IterSum tys) : isum
       exact isum.valIndex_lt_types_length
 
 def valIndexFin {tys: List (Type u)} (isum: IterSum tys) : Fin (tys.length) := ⟨isum.valIndex, isum.valIndex_lt_types_length⟩
+
+
+theorem ofVal_valIndex_eq_zero {tys: List (Type u)} {Ty: Type u} {v: Ty} : (ofVal Ty tys v).valIndex = 0 := by
+  dsimp [valIndex_def]
+  simp [valIndexAt]
+
+theorem ofVal_valIndexFin_eq_zero {tys: List (Type u)} {Ty: Type u} {v: Ty} : (ofVal Ty tys v).valIndexFin = 0 := by
+  dsimp [valIndexFin]
+  simp [ofVal_valIndex_eq_zero]
 
 
 abbrev ValTypeAt (tys: List (Type u)) (isum: IterSum tys) : Type u :=
