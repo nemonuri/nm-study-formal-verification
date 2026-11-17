@@ -42,12 +42,97 @@ end Nemonuri.Relations.Heterogeneous
 
 namespace Nemonuri.TypeLists
 
+inductive BiIter.{u, u2} (D: Type u → Type u → Sort u2) : List (Type u) → Sort _ where
+  | single (Ty: Type u) : BiIter D [Ty]
+  | cons (Ty1 Ty2: Type u) (tys: List (Type u)) (d: D Ty1 Ty2) : BiIter D (Ty2::tys) → BiIter D (Ty1::Ty2::tys)
 
+inductive BiIter₂.{u, u2} (D: Type u → Type u → Sort u2) : List (Type u) → Sort _ where
+  | single (Ty: Type u) : BiIter₂ D [Ty]
+  | cons (Ty1 Ty2: Type u) (tys: List (Type u)) (d: D Ty1 Ty2) : BiIter D (Ty1::tys) → BiIter₂ D (Ty2::tys) → BiIter₂ D (Ty1::Ty2::tys)
+
+universe u u2
+
+namespace BiIter
+
+variable {D: Type u → Type u → Sort u2}
+
+def count {tys: List (Type u)} : BiIter D tys → Nat
+  | .single _ => 0
+  | .cons _ _ _ _ bi => bi.count + 1
+
+theorem count_eq_types_length_sub_one {tys: List (Type u)} {bi: BiIter D tys} : bi.count = tys.length - 1 := by
+  cases bi with
+  | single _ => dsimp [count]
+  | cons _ _ _ _ bi =>
+    dsimp [count]
+    have lm1 := bi.count_eq_types_length_sub_one
+    rw [lm1]
+    dsimp
+
+theorem count_add_one_eq_types_length {tys: List (Type u)} {bi: BiIter D tys} : bi.count + 1 = tys.length := by
+  have lm1 := bi.count_eq_types_length_sub_one
+  replace lm1 := congrArg (· + 1) lm1
+  refine Eq.trans lm1 ?_
+  refine Nat.sub_add_cancel ?_
+  rcases bi <;> simp
+
+
+end BiIter
+
+
+namespace BiIter₂
+
+variable {D: Type u → Type u → Sort u2}
+
+def count {tys: List (Type u)} : BiIter₂ D tys → Nat
+  | .single _ => 0
+  | .cons _ _ _ _ bi1 bi2 => bi2.count + bi1.count + 1
+
+theorem count_eq_types_length_pow {tys: List (Type u)} {bi: BiIter₂ D tys} : bi.count = ((tys.length - 1) * tys.length) / 2 := by
+  cases bi with
+  | single _ => dsimp [count]
+  | cons _ _ _ _ bi1 bi2 =>
+    dsimp [count]
+    have lm1 := bi1.count_eq_types_length_sub_one
+    have lm2 := bi2.count_eq_types_length_pow
+    dsimp at lm1 lm2
+    conv =>
+      rhs
+      conv =>
+        arg 1
+        conv => arg 2; rw [Nat.add_assoc]
+        rw [Nat.mul_add]
+      rw [Nat.add_mul_div_right _ _ (Nat.zero_lt_succ 1)]
+      dsimp
+      conv =>
+        lhs
+        arg 1
+        rw [Nat.mul_comm]
+      rw [← lm2, ← lm1, ← Nat.add_assoc]
+
+
+end BiIter₂
+
+
+
+def IterRel₂ (tys: List (Type u)) : Type _ := BiIter₂ (fun Ty1 Ty2 => Ty1 → Ty2 → Prop) tys
+
+
+  --(Ty: Type u) (tys: List (Type u)) (ds: BiIter D (Ty::tys))
+  --| single (Ty: Type u) : BiIter₂ D [Ty]
+  --| cons (Ty1 Ty2: Type u) (tys: List (Type u)) (ds: BiIter)
+
+
+  --| ofVal (Ty1 Ty2: Type u) (d: D Ty1 Ty2) : BiIter D [Ty1, Ty2]
+  --| cons (Ty: Type u)
+
+/-
 inductive IterHRel.{u} : List (Type u) → Type _ where
   | single (Head: Type u) : IterHRel [Head]
   | cons (Head1 Head2: Type u) (tail: List (Type u)) (rel: Head1 → Head2 → Prop) : IterHRel (Head1 :: tail) → IterHRel (Head2 :: tail) → IterHRel (Head1 :: Head2 :: tail)
+-/
 
-
+/-
 namespace IterHRel
 
 universe u
@@ -67,23 +152,6 @@ def tailPair {Ty1 Ty2: Type u} {tys: List (Type u)} : (IterHRel (Ty1::Ty2::tys))
 
 def swap {Ty1 Ty2: Type u} {tys: List (Type u)} : (IterHRel (Ty1::Ty2::tys)) → IterHRel (Ty2::Ty1::tys)
   | .cons _ _ _ rel irel1 irel2 => .cons _ _ _ (flip rel) irel2 irel1
-
-
-/-
-  match tys1, tys2, req, irel with
-  | [Ty], tys2, req, .single _ => irel |> cast (by)
--/
-
-/-
-def append (tys1: List (Type u)) (Ty: Type u) (tys2: List (Type u)) (iter1: IterHRel (tys1 ++ tys2)) (iter2: IterHRel (Ty::tys2)) : IterHRel (tys1 ++ Ty::tys2) :=
-  match tys1 with
-  | [] => iter2
-  | [Ty1] => .cons Ty1 Ty tys2
--/
-
-
-
-
 
 
 
@@ -153,15 +221,7 @@ inductive ReflSymmOfFin {tys: List (Type u)} (iter: IterHRel tys) (i1: Fin tys.l
   | rel (req1: i1 < i2) (req2: OfFinLt iter i1 i2 req1 v1 v2)
   | refl (req1: i1 = i2) (req2: v1 ≍ v2)
   | rel_symm (req1: i2 < i1) (req2: OfFinLt iter i2 i1 req1 v2 v1)
-/-
-  | rel (i1 i2: Fin tys.length) (req: i1 < i2) (v1: iter.types[i1]) (v2: iter.types[i2]) : ReflSymmOfFin iter i1 v1 i2 v2
-  | refl (i: Fin tys.length) (v: iter.types[i]) : ReflSymmOfFin iter i v i v
-  | rel_symm (i1 i2: Fin tys.length) (req: i1 < i2) (v1: iter.types[i1]) (v2: iter.types[i2]) : ReflSymmOfFin iter i2 v2 i1 v1
--/
-/-
-  symm (i1: Fin tys.length) (v1: iter.types[i1]) (i2: Fin tys.length) (v2: iter.types[i2]) (req: i2 < i1)
-        : ReflSymmOfFin iter i1 v1 i2 v2 → ReflSymmOfFin iter i2 v2 i1 v1
--/
+
 
 def IterSumRel {tys: List (Type u)} (iter: IterHRel tys) (isum1 isum2: IterSum tys) : Prop :=
   iter.ReflSymmOfFin isum1.valIndexFin isum1.valAsGetElem isum2.valIndexFin isum2.valAsGetElem
@@ -247,124 +307,14 @@ namespace IterTrans
 
 variable {tys: List (Type u)} {irel: (IterHRel tys)}
 
-/-
-theorem ofFinLt_trans (i1 i2 i3: Fin tys.length) (req1: i1 < i2) (req2: i2 < i3) (v1 v2 v3) (req3: OfFinLt irel i1 i2 req1 v1 v2) (req4: OfFinLt irel i2 i3 req2 v2 v3)
-  : OfFinLt irel i1 i3 (Nat.lt_trans req1 req2) v1 v3 := by
-  cases irel with
-  | single Ty =>
-    dsimp at i1 i2 i3
-    rcases i1 with ⟨i1, lm1⟩
-    rcases i2 with ⟨i2, lm2⟩
-    simp at lm1 lm2
-    subst lm1 lm2
-    simp at req1
-  | cons Ty1 Ty2 tys rel irel1 irel2 =>
-    dsimp at i1 i2 i3
-    cases irel2 with
-    | single _ =>
-      dsimp at i1 i2 i3
-      rcases i1 with ⟨i1, lm1⟩
-      rcases i2 with ⟨i2, lm2⟩
-      rcases i3 with ⟨i3, lm3⟩
-      simp at req1 req2
-      have lm4 (i: Nat) (req: i < 2) : i = 0 ∨ i = 1 := by
-        rcases i with _ | ⟨i⟩
-        · left; rfl
-        · rewrite [Nat.add_one_lt_add_one_iff] at req
-          simp at req
-          right
-          rw [req]
-      rcases (lm4 _ lm1) with lm_s | lm_s <;> (subst lm_s)
-      <;> rcases (lm4 _ lm2) with lm_s | lm_s <;> (subst lm_s)
-      <;> rcases (lm4 _ lm3) with lm_s | lm_s <;> (subst lm_s)
-      <;> simp_all only [Nat.lt_irrefl, Nat.not_lt_zero]
-    | cons _ Ty3 tys rel2 irel2 irel3 =>
-      dsimp at i1 i2 i3
-      unfold OfFinLt at req3 req4 ⊢
-      simp at req3 req4
--/
-      --simp [OfFinLt] at req3 req4
-
-
 
 end IterTrans
 
 
 
---OfFinLt {tys: List (Type u)} (iter: IterHRel tys) (i1 i2: Fin tys.length) (req: i1 < i2) : iter.types[i1] → iter.types[i2] → Prop :=
-
-
---abbrev IterHTrans {tys: List (Type u)} (irel: (IterHRel tys)) : Type _ := IterRelDep₂ (fun _ Ty2 _ rel1 rel2 => ∀(v2: Ty2), (∃v1, rel1 v1 v2) ↔ (∃v3, rel2 v2 v3)) tys irel
-
-
-         --(iter1: IterHRel (Ty2 :: tail)) (iterD1: IterRelDep₂ D (Ty2 :: tail) iter1)
-         --(iter2: IterHRel (Ty3 :: tail)) (iterD2: IterRelDep₂ D (Ty3 :: tail) iter2)
-         --: IterRelDep₂ D (Ty1 :: Ty2 :: Ty3 :: tail) (.cons Ty1 Ty2 (Ty3::tail) rel1 (.cons Ty1 Ty3 ) )
---(.cons Ty2 Ty3 tail rel2 iter1 iter2)
-/-
-  | cons (Head1 Head2: Type u) (tail: List (Type u)) (rel: Head1 → Head2 → Prop) (iter1: IterHRel (Head1 :: tail)) (iter2: IterHRel (Head2 :: tail))
-    : IterRelDep₂ D (Head1 :: Head2 :: tail) (.cons Head1 Head2 tail rel iter1 iter2)
--/
-/-
-  | cons_cons (Head1 Head2 Head3: Type u) (tail: List (Type u)) (rel1: Head1 → Head2 → Prop) (rel2: Head2 → Head3 → Prop) (dep₂: D _ _ _ rel1 rel2)
-              (iter1: IterHRel (Head2 :: tail)) (iter2: IterHRel (Head3 :: tail))
--/
-
 namespace IterSumRel
 
 variable {tys: List (Type u)} {irel: IterHRel tys}
-
-/-
-open IterSum in
-protected theorem trans (ibu: irel.IterBiUnique) (isum1 isum2 isum3: IterSum tys)
-  (h1: irel.IterSumRel isum1 isum2) (h2: irel.IterSumRel isum2 isum3) : irel.IterSumRel isum1 isum3 := by
-  dsimp [iterSumRel_def] at h1 h2 ⊢
-  cases h1 with
-  | rel lm1 lm2 =>
-    cases h2 with
-    | rel lm3 lm4 =>
--/
-/-
-  induction isum1 with
-  | ofVal Ty1 tys v1 =>
-    cases isum2 with
-    | ofVal _ _ v2 =>
-      cases isum3 with
-      | ofVal _ _ v3 =>
--/
-
-/-
-  dsimp [iterBiUnique_def] at ibu
-  cases ibu with
-  | single Ty =>
-    dsimp [iterSumRel_def] at h1 h2 ⊢
-    rcases isum1 --(try (refine IterSum.elimNil ?_; assumption))
-    <;> rcases isum2
-    <;> rcases isum3
-    <;> try (refine IterSum.elimNil ?_; assumption)
-    rename_i v1 v2 v3
-    dsimp [IterSum.types] at h1 h2
--/
-    --dsimp only [valAsGetElem] at h1 h2
-    --rw [ofVal_valIndexFin_eq_zero] at h1 h2
-    --rewrite [ofVal_valIndex_eq_zero] at h1 h2
-    --generalize lm1: (ofVal Ty [] v1) = isum1 at h1 h2
-    --generalize lm2: (ofVal Ty [] v2) = isum2 at h1 h2
-    --have lm3 :=
-/-
-    cases h1 with
-    | rel _ _ lm1 =>
-      dsimp [valIndexFin] at lm1
-      rw [Fin.mk_lt_mk] at lm1
-      dsimp [valIndex] at lm1
-      unfold valIndexAt at lm1
-      simp only at lm1
-      exact Nat.not_lt_zero _ lm1 |>.elim
-    | refl => exact h2
-    | symm _ _ _ _ lm1 =>
--/
-
-
 
 
 end IterSumRel
@@ -373,6 +323,7 @@ end IterSumRel
 
 
 end IterHRel
+-/
 
 end Nemonuri.TypeLists
 
