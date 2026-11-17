@@ -44,11 +44,11 @@ namespace Nemonuri.TypeLists
 
 inductive BiIter.{u, u2} (D: Type u → Type u → Sort u2) : List (Type u) → Sort _ where
   | single (Ty: Type u) : BiIter D [Ty]
-  | cons (Ty1 Ty2: Type u) (tys: List (Type u)) (d: D Ty1 Ty2) : BiIter D (Ty2::tys) → BiIter D (Ty1::Ty2::tys)
+  | cons (Ty1 Ty2: Type u) (tys: List (Type u)) (d: D Ty1 Ty2) : BiIter D (Ty1::tys) → BiIter D (Ty1::Ty2::tys)
 
 inductive BiIter₂.{u, u2} (D: Type u → Type u → Sort u2) : List (Type u) → Sort _ where
   | single (Ty: Type u) : BiIter₂ D [Ty]
-  | cons (Ty1 Ty2: Type u) (tys: List (Type u)) (d: D Ty1 Ty2) : BiIter D (Ty1::tys) → BiIter₂ D (Ty2::tys) → BiIter₂ D (Ty1::Ty2::tys)
+  | cons (Ty1 Ty2: Type u) (tys: List (Type u)) : BiIter D (Ty1::Ty2::tys) → BiIter₂ D (Ty2::tys) → BiIter₂ D (Ty1::Ty2::tys)
 
 universe u u2
 
@@ -77,6 +77,12 @@ theorem count_add_one_eq_types_length {tys: List (Type u)} {bi: BiIter D tys} : 
   rcases bi <;> simp
 
 
+abbrev getAt (Ty1: Type u) (mid: List (Type u)) (Ty2: Type u) (post: List (Type u)) (bi: BiIter D (Ty1 :: mid ++ Ty2 :: post)) : D Ty1 Ty2 :=
+  match mid, bi with
+  | [], .cons _ _ _ d _ => d
+  | _::mid, .cons _ _ _ _ bi => BiIter.getAt Ty1 mid Ty2 post bi
+
+
 end BiIter
 
 
@@ -86,12 +92,12 @@ variable {D: Type u → Type u → Sort u2}
 
 def count {tys: List (Type u)} : BiIter₂ D tys → Nat
   | .single _ => 0
-  | .cons _ _ _ _ bi1 bi2 => bi2.count + bi1.count + 1
+  | .cons _ _ _ bi1 bi2 => bi2.count + bi1.count
 
 theorem count_eq_types_length_pow {tys: List (Type u)} {bi: BiIter₂ D tys} : bi.count = ((tys.length - 1) * tys.length) / 2 := by
   cases bi with
   | single _ => dsimp [count]
-  | cons _ _ _ _ bi1 bi2 =>
+  | cons _ _ _ bi1 bi2 =>
     dsimp [count]
     have lm1 := bi1.count_eq_types_length_sub_one
     have lm2 := bi2.count_eq_types_length_pow
@@ -108,14 +114,46 @@ theorem count_eq_types_length_pow {tys: List (Type u)} {bi: BiIter₂ D tys} : b
         lhs
         arg 1
         rw [Nat.mul_comm]
-      rw [← lm2, ← lm1, ← Nat.add_assoc]
+      rw [← lm2, ← lm1]
+
+
+abbrev getAt (pre: List (Type u)) (Ty1: Type u) (mid: List (Type u)) (Ty2: Type u) (post: List (Type u)) (bi: BiIter₂ D (pre ++ Ty1 :: mid ++ Ty2 :: post)) : D Ty1 Ty2 :=
+  match pre, mid, bi with
+  | [], [], .cons _ _ _ bi1 _ => BiIter.getAt Ty1 [] Ty2 post bi1
+  | [], Ty3::mid, .cons _ _ _ bi1 _ => BiIter.getAt Ty1 (Ty3::mid) Ty2 post bi1
+  | [_], mid, .cons _ _ _ _ bi2 => BiIter₂.getAt [] Ty1 mid Ty2 post bi2
+  | _::Ty4::pre, mid, .cons _ _ _ _ bi2 => BiIter₂.getAt (Ty4::pre) Ty1 mid Ty2 post bi2
 
 
 end BiIter₂
 
 
+def IterRel (tys: List (Type u)) : Type _ := BiIter (fun Ty1 Ty2 => Ty1 → Ty2 → Prop) tys
+
 
 def IterRel₂ (tys: List (Type u)) : Type _ := BiIter₂ (fun Ty1 Ty2 => Ty1 → Ty2 → Prop) tys
+
+
+
+namespace IterRel₂
+
+
+abbrev RelAt (pre: List (Type u)) (Ty1: Type u) (mid: List (Type u)) (Ty2: Type u) (post: List (Type u)) (irel: IterRel₂ (pre ++ Ty1 :: mid ++ Ty2 :: post)) : Ty1 → Ty2 → Prop :=
+  BiIter₂.getAt pre Ty1 mid Ty2 post irel
+
+
+inductive SumRelGen : (tys: List (Type u)) → IterRel₂ tys → IterSum tys → IterSum tys → Prop where
+  | rel (Ty1: Type u) (mid: List (Type u)) (Ty2: Type u) (post: List (Type u)) (v1: Ty1) (v2: Ty2)
+        (irel: IterRel₂ (Ty1 :: mid ++ Ty2 :: post)) (req: IterRel₂.RelAt [] Ty1 mid Ty2 post irel v1 v2)
+    : SumRelGen (Ty1 :: mid ++ Ty2 :: post) irel (.ofVal Ty1 (mid ++ Ty2 :: post) v1) (IterSum.append (Ty1 :: mid) (.ofVal Ty2 post v2))
+  | cons (Ty1 Ty2: Type u) (tys: List (Type u)) (irel1: IterRel (Ty1::Ty2::tys)) (irel2: IterRel₂ (Ty2::tys)) (isum1 isum2: IterSum (Ty2::tys))
+    : (SumRelGen (Ty2::tys) irel2 isum1 isum2) → SumRelGen (Ty1::Ty2::tys) (.cons Ty1 Ty2 tys irel1 irel2) (.cons Ty1 _ isum1) (.cons Ty1 _ isum2)
+
+#print SumRelGen.rec
+
+
+end IterRel₂
+
 
 
   --(Ty: Type u) (tys: List (Type u)) (ds: BiIter D (Ty::tys))

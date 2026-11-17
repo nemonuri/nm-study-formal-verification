@@ -10,7 +10,20 @@ set_option autoImplicit false
 
 namespace Nemonuri.TypeLists
 
+/-
+protected def List.append : (xs ys : List α) → List α
+  | nil,       bs => bs
+  | cons a as, bs => cons a (List.append as bs)
+-/
 
+/-
+abbrev typeAppend.{u} : List (Type u) → List (Type u) → List (Type u)
+  | [], tys2 => tys2
+  | ty::tys1, tys2 => ty::(typeAppend tys1 tys2)
+
+
+infixl:65 " ++ᵗ " => typeAppend
+-/
 
 inductive IterSum.{u} : List (Type u) → Type _ where
   | ofVal (Head: Type u) (tail: List (Type u)) (head: Head) : IterSum (Head :: tail)
@@ -277,6 +290,13 @@ theorem areEq_eq_true_iff_eq {tys: List (Type u)} {isum1 isum2: IterSum tys} {it
 
 protected instance decidableEq (tys: List (Type u)) [HasIterDecidableEq tys] : DecidableEq (IterSum tys) :=
   fun isum1 isum2 => decidable_of_iff (areEq tys isum1 isum2 (@HasIterDecidableEq.iterDecidableEq tys _) = .true) areEq_eq_true_iff_eq
+
+
+abbrev append (tys1: List (Type u)) {tys2: List (Type u)} (isum: IterSum tys2) : IterSum (tys1 ++ tys2) :=
+  match tys1 with
+  | [] => isum
+  | Ty::tys1 => .cons Ty _ (append tys1 isum)
+
 
 
 end IterSum
