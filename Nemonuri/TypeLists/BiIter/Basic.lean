@@ -46,10 +46,6 @@ inductive BiIter.{u, u2} (D: Type u → Type u → Sort u2) : List (Type u) → 
   | single (Ty: Type u) : BiIter D [Ty]
   | cons (Ty1 Ty2: Type u) (tys: List (Type u)) (d: D Ty1 Ty2) : BiIter D (Ty1::tys) → BiIter D (Ty1::Ty2::tys)
 
-inductive BiIter₂.{u, u2} (D: Type u → Type u → Sort u2) : List (Type u) → Sort _ where
-  | single (Ty: Type u) : BiIter₂ D [Ty]
-  | cons (Ty1 Ty2: Type u) (tys: List (Type u)) : BiIter D (Ty1::Ty2::tys) → BiIter₂ D (Ty2::tys) → BiIter₂ D (Ty1::Ty2::tys)
-
 universe u u2
 
 namespace BiIter
@@ -98,10 +94,60 @@ def getOfIterSum (Ty: Type u) (tys: List (Type u)) (bi: BiIter D (Ty::tys)) (isu
   | .ofVal _ _ _ => d
   | .cons _ _ isum => getOfIterSum Ty tys2 bi2 (.cons Ty tys2 isum) ofRefl
 
+section GetOfIterSumSection
 
+variable {Ty: Type u} {ofRefl: (Ty: Type u) → D Ty Ty}
+
+@[defeq, simp]
+theorem getOfIterSum_nil_eq_refl (v: Ty) : getOfIterSum Ty [] (.single Ty) (.ofVal Ty [] v) ofRefl = ofRefl Ty := by
+  unfold getOfIterSum
+  simp only
+
+
+variable {Ty2: Type u} {tys2: List (Type u)} {d: D Ty Ty2} {bi2: BiIter D (Ty :: tys2)}
+
+@[defeq, simp]
+theorem getOfIterSum_ofVal_eq_refl (v: Ty) : getOfIterSum Ty (Ty2::tys2) (.cons Ty Ty2 tys2 d bi2) (.ofVal _ _ v) ofRefl = ofRefl Ty := by
+  unfold getOfIterSum
+  simp only
+
+@[defeq, simp]
+theorem getOfIterSum_ofVal_cons_eq (v2: Ty2) : getOfIterSum Ty (Ty2::tys2) (.cons Ty Ty2 tys2 d bi2) (.cons Ty _ (.ofVal Ty2 tys2 v2)) ofRefl = d := by
+  unfold getOfIterSum
+  simp only
+
+@[defeq, simp]
+theorem getOfIterSum_cons_cons_eq (isum2: IterSum tys2)
+  : getOfIterSum Ty (Ty2::tys2) (.cons Ty Ty2 tys2 d bi2) (.cons Ty _ (.cons Ty2 _ isum2)) ofRefl = getOfIterSum Ty tys2 bi2 (.cons Ty tys2 isum2) ofRefl := by
+  conv => lhs; unfold getOfIterSum; simp only
+
+end GetOfIterSumSection
+
+
+section HeadTailSection
+
+variable {Ty1 Ty2: Type u} {tys: List (Type u)}
+
+def head : BiIter D (Ty1::Ty2::tys) → D Ty1 Ty2
+  | .cons _ _ _ d _ => d
+
+def tail : BiIter D (Ty1::Ty2::tys) → BiIter D (Ty1::tys)
+  | .cons _ _ _ _ bi => bi
+
+@[defeq, simp]
+theorem head_def (d: D Ty1 Ty2) (bi: BiIter D (Ty1::tys)) : (BiIter.cons Ty1 Ty2 tys d bi).head = d := rfl
+
+@[defeq, simp]
+theorem tail_def (d: D Ty1 Ty2) (bi: BiIter D (Ty1::tys)) : (BiIter.cons Ty1 Ty2 tys d bi).tail = bi := rfl
+
+end HeadTailSection
 
 end BiIter
 
+
+inductive BiIter₂ (D: Type u → Type u → Sort u2) : List (Type u) → Sort _ where
+  | single (Ty: Type u) : BiIter₂ D [Ty]
+  | cons (Ty1 Ty2: Type u) (tys: List (Type u)) : BiIter D (Ty1::Ty2::tys) → BiIter₂ D (Ty2::tys) → BiIter₂ D (Ty1::Ty2::tys)
 
 namespace BiIter₂
 
@@ -153,8 +199,9 @@ def getOfIterSum {tys: List (Type u)} (bi: BiIter₂ D tys) (isum1 isum2: IterSu
     | .ofVal _ _ _, .ofVal _ _ _ => ofRefl Ty
   | Ty1::Ty2::tys2, .cons _ _ _ bi1 bi2 =>
     match isum1, isum2 with
-    | .ofVal _ _ _, isum2 => BiIter.getOfIterSum Ty1 (Ty2::tys2) bi1 isum2 ofRefl
-    | isum1, .ofVal _ _ _ => BiIter.getOfIterSum Ty1 (Ty2::tys2) bi1 isum1 ofRefl |> ofSymm _ _
+    | .ofVal _ _ _, .ofVal _ _ _ => ofRefl Ty1
+    | .ofVal _ _ _, .cons _ _ isum2 => BiIter.getOfIterSum Ty1 (Ty2::tys2) bi1 (.cons _ _ isum2) ofRefl
+    | .cons _ _ isum1, .ofVal _ _ _ => BiIter.getOfIterSum Ty1 (Ty2::tys2) bi1 (.cons _ _ isum1) ofRefl |> ofSymm _ _
     | .cons _ _ isum1, .cons _ _ isum2 => getOfIterSum bi2 isum1 isum2 ofRefl ofSymm
     --BiIter.getOfIterSum Ty2 tys2
 /-
@@ -170,111 +217,67 @@ def getOfIterSum {tys: List (Type u)} (bi: BiIter₂ D tys) (isum1 isum2: IterSu
     | .cons _ _ (.cons _ _ isum1), .cons _ _ (.ofVal _ _ v2) => getOfIterSum bi2 (.cons Ty2 tys2 isum1) (.ofVal Ty2 tys2 v2) ofRefl ofSymm
     | .cons _ _ (.cons _ _ isum1), .cons _ _ (.cons _ _ isum2) => getOfIterSum bi2 (.cons _ _ isum1) (.cons _ _ isum2) ofRefl ofSymm
 -/
+section GetOfIterSumSection
 
+variable {ofRefl: (Ty: Type u) → D Ty Ty} {ofSymm: (Ty1 Ty2: Type u) → D Ty1 Ty2 → D Ty2 Ty1}
+
+@[defeq, simp]
+theorem getOfIterSum_single_eq_refl {Ty: Type u} (v1 v2: Ty) : getOfIterSum (.single Ty) (.ofVal _ _ v1) (.ofVal _ _ v2) ofRefl ofSymm = ofRefl Ty := by
+  unfold getOfIterSum
+  simp only
+
+variable {Ty1 Ty2: Type u} {tys2: List (Type u)} {bi1 : BiIter D (Ty1 :: Ty2 :: tys2)} {bi2 : BiIter₂ D (Ty2 :: tys2)}
+
+@[defeq, simp]
+theorem getOfIterSum_ofVal_ofVal_eq_refl (v1 v2: Ty1)
+  : getOfIterSum (.cons _ _ _ bi1 bi2) (.ofVal _ _ v1) (.ofVal _ _ v2) ofRefl ofSymm = ofRefl Ty1 := by
+  unfold getOfIterSum
+  simp only
+
+@[defeq, simp]
+theorem getOfIterSum_ofVal_cons_eq (v1: Ty1) (isum2 : IterSum (Ty2 :: tys2))
+  : getOfIterSum (.cons _ _ _ bi1 bi2) (.ofVal _ _ v1) (.cons _ _ isum2) ofRefl ofSymm = BiIter.getOfIterSum Ty1 (Ty2::tys2) bi1 (.cons _ _ isum2) ofRefl := by
+  unfold getOfIterSum
+  simp only
+
+@[defeq, simp]
+theorem getOfIterSum_cons_ofVal_eq (isum1 : IterSum (Ty2 :: tys2)) (v2: Ty1)
+  : getOfIterSum (.cons _ _ _ bi1 bi2) (.cons _ _ isum1) (.ofVal _ _ v2) ofRefl ofSymm = ofSymm _ _ (BiIter.getOfIterSum Ty1 (Ty2::tys2) bi1 (.cons _ _ isum1) ofRefl) := by
+  unfold getOfIterSum
+  simp only
+
+@[defeq, simp]
+theorem getOfIterSum_cons_cons_eq (isum1 isum2 : IterSum (Ty2 :: tys2))
+  : getOfIterSum (.cons _ _ _ bi1 bi2) (.cons _ _ isum1) (.cons _ _ isum2) ofRefl ofSymm = getOfIterSum bi2 isum1 isum2 ofRefl ofSymm := by
+  conv => lhs; unfold getOfIterSum; simp
+
+
+end GetOfIterSumSection
+
+
+section HeadTailSection
+
+variable {Ty1 Ty2: Type u} {tys: List (Type u)}
+
+def head : BiIter₂ D (Ty1::Ty2::tys) → BiIter D (Ty1::Ty2::tys)
+  | .cons _ _ _ bi _ => bi
+
+def tail : BiIter₂ D (Ty1::Ty2::tys) → BiIter₂ D (Ty2::tys)
+  | .cons _ _ _ _ bi => bi
+
+@[defeq, simp]
+theorem head_def (bi1: BiIter D (Ty1::Ty2::tys)) (bi2: BiIter₂ D (Ty2::tys)) : (BiIter₂.cons _ _ _ bi1 bi2).head = bi1 := rfl
+
+@[defeq, simp]
+theorem tail_def (bi1: BiIter D (Ty1::Ty2::tys)) (bi2: BiIter₂ D (Ty2::tys)) : (BiIter₂.cons _ _ _ bi1 bi2).tail = bi2 := rfl
+
+
+end HeadTailSection
 
 
 end BiIter₂
 
 
---def IterRel (tys: List (Type u)) : Type _ := BiIter (fun Ty1 Ty2 => Ty1 → Ty2 → Prop) tys
-
-
-def IterRel₂ (tys: List (Type u)) : Type _ := BiIter₂ (fun Ty1 Ty2 => Ty1 → Ty2 → Prop) tys
-
-
-namespace IterRel₂
-
-abbrev SumRel {tys: List (Type u)} (irel: IterRel₂ tys) (isum1 isum2: IterSum tys) : Prop :=
-  BiIter₂.getOfIterSum irel isum1 isum2 (fun _ _ _ => True) (fun _ _ rel => flip rel) isum1.val isum2.val
-
-@[defeq]
-theorem sumRel_def {tys: List (Type u)} {irel: IterRel₂ tys} {isum1 isum2: IterSum tys}
-  : SumRel irel isum1 isum2 = BiIter₂.getOfIterSum irel isum1 isum2 (fun _ _ _ => True) (fun _ _ rel => flip rel) isum1.val isum2.val :=
-  rfl
-
-namespace SumRel
-
---variable {tys: List (Type u)}
-
-@[refl]
-protected theorem refl {tys: List (Type u)} (irel: IterRel₂ tys) (isum: IterSum tys) : irel.SumRel isum isum := by
-  dsimp [SumRel]
-  cases irel with
-  | single _ =>
-    cases isum with
-    | ofVal _ =>
-      unfold BiIter₂.getOfIterSum
-      simp only
-    | cons _ _ isum =>
-      exact isum.elimNil
-  | cons _ Ty2 tys bi1 bi2 =>
-    cases isum with
-    | ofVal _ =>
-      unfold BiIter₂.getOfIterSum
-      simp only
-      rcases bi1
-      unfold BiIter.getOfIterSum
-      simp only
-    | cons _ _ isum =>
-      unfold BiIter₂.getOfIterSum
-      simp only
-      exact SumRel.refl bi2 isum
-
-
-protected theorem symm {tys: List (Type u)} (irel: IterRel₂ tys) (isum1 isum2: IterSum tys) (req: irel.SumRel isum1 isum2) : irel.SumRel isum2 isum1 := by
-  dsimp [SumRel] at ⊢ req
-  cases irel with
-  | single _ =>
-    cases isum1 using IterSum.recSingleOn
-    cases isum2 using IterSum.recSingleOn
-    rename_i v1 v2
-    unfold BiIter₂.getOfIterSum
-    simp only
-  | cons _ _ _ bi1 bi2 =>
-    rcases bi1
-    rcases isum1
-    <;> rcases isum2
-    · unfold BiIter₂.getOfIterSum at ⊢ req
-      simp at ⊢ req
-      unfold BiIter.getOfIterSum at ⊢ req
-      simp at ⊢ req
-    · unfold BiIter₂.getOfIterSum at ⊢ req
-      simp at ⊢ req
-      dsimp [flip]
-      exact req
-    · unfold BiIter₂.getOfIterSum at ⊢ req
-      simp at ⊢ req
-      dsimp [flip] at req
-      exact req
-    · unfold BiIter₂.getOfIterSum at ⊢ req
-      simp at ⊢ req
-      exact SumRel.symm bi2 _ _ req
-
-
-
-end SumRel
-
-/-
-abbrev RelAt (pre: List (Type u)) (Ty1: Type u) (mid: List (Type u)) (Ty2: Type u) (post: List (Type u)) (irel: IterRel₂ (pre ++ Ty1 :: mid ++ Ty2 :: post)) : Ty1 → Ty2 → Prop :=
-  BiIter₂.getAt pre Ty1 mid Ty2 post irel
--/
-
-
-
---abbrev SumRelAt (pre: List (Type u)) (Ty1: Type u) (mid: List (Type u)) (Ty2: Type u) (post: List (Type u)) (irel: IterRel₂ (pre ++ Ty1 :: mid ++ Ty2 :: post))
-
-/-
-inductive SumRelGen : (tys: List (Type u)) → IterRel₂ tys → IterSum tys → IterSum tys → Prop where
-  | rel (Ty1: Type u) (mid: List (Type u)) (Ty2: Type u) (post: List (Type u)) (v1: Ty1) (v2: Ty2)
-        (irel: IterRel₂ (Ty1 :: mid ++ Ty2 :: post)) (req: IterRel₂.RelAt [] Ty1 mid Ty2 post irel v1 v2)
-    : SumRelGen (Ty1 :: mid ++ Ty2 :: post) irel (.ofVal Ty1 (mid ++ Ty2 :: post) v1) (IterSum.append (Ty1 :: mid) (.ofVal Ty2 post v2))
-  | cons (Ty1 Ty2: Type u) (tys: List (Type u)) (irel1: IterRel (Ty1::Ty2::tys)) (irel2: IterRel₂ (Ty2::tys)) (isum1 isum2: IterSum (Ty2::tys))
-    : (SumRelGen (Ty2::tys) irel2 isum1 isum2) → SumRelGen (Ty1::Ty2::tys) (.cons Ty1 Ty2 tys irel1 irel2) (.cons Ty1 _ isum1) (.cons Ty1 _ isum2)
--/
-
-
-
-end IterRel₂
 
 
 

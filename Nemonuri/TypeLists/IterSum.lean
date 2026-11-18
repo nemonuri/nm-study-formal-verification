@@ -50,46 +50,45 @@ abbrev types {tys: List (Type u)} (_: IterSum tys) : List (Type u) := tys
 @[defeq]
 theorem types_def {tys: List (Type u)} {isum: IterSum tys} : isum.types = tys := rfl
 
-def valIndexAt (tys: List (Type u)) (isum: IterSum tys) : Nat :=
-  match tys with
-  | [] => isum.elimNil
-  | _::tys =>
-  match isum with
-  | ofVal _ _ _ => 0
-  | cons _ _ isum =>
-    1 + isum.valIndexAt tys
 
-def valIndex {tys: List (Type u)} (isum: IterSum tys) : Nat := isum.valIndexAt tys
+def valIndex {tys: List (Type u)} (isum: IterSum tys) : Nat :=
+  match tys, isum with
+  | _, .ofVal _ _ _ => 0
+  | _, .cons _ _ isum => isum.valIndex + 1
 
-@[defeq]
-theorem valIndex_def {tys: List (Type u)} {isum: IterSum tys} : isum.valIndex = isum.valIndexAt tys := rfl
+
+@[defeq, simp]
+theorem valIndex_ofVal {Ty: Type u} {tys: List (Type u)} (v: Ty) : (ofVal Ty tys v).valIndex = 0 := rfl
+
+@[defeq, simp]
+theorem valIndex_cons {Ty: Type u} {tys: List (Type u)} (isum: IterSum tys) : (cons Ty tys isum).valIndex = isum.valIndex + 1 := rfl
+
 
 theorem valIndex_lt_types_length {tys: List (Type u)} (isum: IterSum tys) : isum.valIndex < isum.types.length := by
   dsimp [types]
   rcases tys with _ | ⟨ty, tys⟩
   · exact isum.elimNil
-  · dsimp [valIndex]
-    rcases isum with ⟨_,_,head⟩ | ⟨_,_,isum⟩
-    · simp only [valIndexAt]
+  · rcases isum with ⟨_,_,head⟩ | ⟨_,_,isum⟩
+    · dsimp
       exact Nat.zero_lt_succ _
-    · simp only [valIndexAt]
-      conv => lhs; rw [Nat.add_comm]
+    · dsimp
       refine Nat.add_lt_add_right ?_ 1
-      dsimp [← valIndex_def]
       exact isum.valIndex_lt_types_length
+
 
 def valIndexFin {tys: List (Type u)} (isum: IterSum tys) : Fin (tys.length) := ⟨isum.valIndex, isum.valIndex_lt_types_length⟩
 
-
+/-
 theorem ofVal_valIndex_eq_zero {tys: List (Type u)} {Ty: Type u} {v: Ty} : (ofVal Ty tys v).valIndex = 0 := by
   dsimp [valIndex_def]
   simp [valIndexAt]
+-/
 
 theorem ofVal_valIndexFin_eq_zero {tys: List (Type u)} {Ty: Type u} {v: Ty} : (ofVal Ty tys v).valIndexFin = 0 := by
   dsimp [valIndexFin]
-  simp [ofVal_valIndex_eq_zero]
 
 
+/-
 abbrev ValTypeAt (tys: List (Type u)) (isum: IterSum tys) : Type u :=
   match tys with
   | [] => isum.elimNil
@@ -99,22 +98,27 @@ abbrev ValTypeAt (tys: List (Type u)) (isum: IterSum tys) : Type u :=
   | cons _ _ isum => isum.ValTypeAt tys
 
 abbrev ValType {tys: List (Type u)} (isum: IterSum tys) : Type u := isum.ValTypeAt tys
+-/
+
+abbrev ValType {tys: List (Type u)} (isum: IterSum tys) : Type u :=
+  match tys, isum with
+  | _, ofVal Ty _ _ => Ty
+  | _, cons _ _ isum => isum.ValType
+
+@[defeq, simp]
+theorem valType_ofVal {Ty: Type u} {tys: List (Type u)} (v: Ty) : (ofVal Ty tys v).ValType = Ty := rfl
+
+@[defeq, simp]
+theorem valType_cons {Ty: Type u} {tys: List (Type u)} (isum: IterSum tys) : (cons Ty tys isum).ValType = isum.ValType := rfl
 
 
 theorem valType_eq_types_getElem {tys: List (Type u)} (isum: IterSum tys) : isum.ValType = isum.types[isum.valIndex]'(isum.valIndex_lt_types_length) := by
   dsimp [types]
   rcases tys with _ | ⟨ty, tys⟩
   · exact isum.elimNil
-  · dsimp [ValType, valIndex]
-    rcases isum with ⟨_,_,_⟩ | ⟨_,_,isum⟩
-    · simp [valIndexAt]
-      unfold ValTypeAt
-      simp only
-    · simp [valIndexAt]
-      unfold ValTypeAt
-      simp only
-      conv => rhs; arg 2; rw [Nat.add_comm]
-      simp
+  · rcases isum with ⟨_,_,_⟩ | ⟨_,_,isum⟩
+    · dsimp
+    · dsimp [ValType]
       exact isum.valType_eq_types_getElem
 
 
@@ -160,10 +164,8 @@ theorem valType_eq_of_valIndex_eq (tys: List (Type u)) (isum1 isum2: IterSum tys
 
 
 theorem valType_of_single {Ty: Type u} (isum: IterSum [Ty]) : isum.ValType = Ty := by
-  dsimp [ValType]
   rcases isum with ⟨_,_,head⟩ | ⟨_,_,isum⟩
-  · unfold ValTypeAt
-    simp only
+  · simp only
   · exact isum.elimNil
 
 
@@ -236,23 +238,11 @@ protected theorem ext (tys: List (Type u)) (isum1 isum2: IterSum tys) (req1: isu
   · exact isum1.elimNil
   · rcases isum1 with _ | ⟨_,_,isum1⟩
     <;> rcases isum2 with _ | ⟨_,_,isum2⟩
-    · dsimp [val] at req2
-      simp at req2 ⊢
-      exact eq_of_heq req2
-    · dsimp [valIndex] at req1
-      unfold valIndexAt at req1
-      simp at req1
-      conv at req1 => rhs; rw [Nat.add_comm]
-      exact Nat.zero_ne_add_one _ req1 |>.elim
-    · dsimp [valIndex] at req1
-      unfold valIndexAt at req1
-      simp only at req1
-      conv at req1 => rw [Eq.comm]; rhs; rw [Nat.add_comm]
-      exact Nat.zero_ne_add_one _ req1 |>.elim
+    <;> simp at req1 req2
+    · rw [req2]
     · simp
-      simp [valIndex, valIndexAt] at req1
-      dsimp at req2
       exact IterSum.ext tys isum1 isum2 req1 req2
+
 
 theorem ne_of_valIndex_ne (tys: List (Type u)) (isum1 isum2: IterSum tys) (req: isum1.valIndex ≠ isum2.valIndex) : isum1 ≠ isum2 := by
   intro lm1
@@ -261,12 +251,8 @@ theorem ne_of_valIndex_ne (tys: List (Type u)) (isum1 isum2: IterSum tys) (req: 
 
 theorem valType_eq_head_of_valIndex_eq_zero {Ty: Type u} {tys: List (Type u)} (isum: IterSum (Ty::tys)) (req: isum.valIndex = 0) : isum.ValType = Ty := by
   rcases isum with _ | ⟨_,_,_⟩
-  · simp [ValType]
-    unfold ValTypeAt
-    simp only
-  · simp [valIndex] at req
-    unfold valIndexAt at req
-    simp at req
+  · dsimp
+  · simp at req
 
 
 
@@ -333,6 +319,12 @@ def recSingleOn.{um}
   (ofVal: (Ty: Type u) → (v: Ty) → motive Ty (.ofVal Ty [] v))
   : motive Ty isum :=
   recSingle ofVal Ty isum
+
+
+theorem single_valIndex {Ty: Type u} (isum: IterSum [Ty]) : isum.valIndex = 0 := by
+  cases isum using recSingleOn
+  dsimp
+
 
 end IterSum
 
