@@ -16,14 +16,14 @@ protected def List.append : (xs ys : List α) → List α
   | cons a as, bs => cons a (List.append as bs)
 -/
 
-/-
+
 abbrev typeAppend.{u} : List (Type u) → List (Type u) → List (Type u)
   | [], tys2 => tys2
   | ty::tys1, tys2 => ty::(typeAppend tys1 tys2)
 
 
 infixl:65 " ++ᵗ " => typeAppend
--/
+
 
 inductive IterSum.{u} : List (Type u) → Type _ where
   | ofVal (Head: Type u) (tail: List (Type u)) (head: Head) : IterSum (Head :: tail)
@@ -32,6 +32,7 @@ inductive IterSum.{u} : List (Type u) → Type _ where
 namespace IterSum
 
 universe u
+
 
 theorem not_nil : (IterSum []) → False := by
   intro isum
@@ -117,15 +118,31 @@ theorem valType_eq_types_getElem_valIndexFin {tys: List (Type u)} (isum: IterSum
 
 
 
-def valAt (tys: List (Type u)) (isum: IterSum tys) : isum.ValType :=
+def val {tys: List (Type u)} (isum: IterSum tys) : isum.ValType :=
+  match tys, isum with
+  | _, .ofVal _ _ head => head
+  | _, .cons _ _ isum => isum.val
+/-
   match tys with
   | [] => isum.elimNil
   | _::tys =>
   match isum with
   | ofVal _ _ head => head
   | cons _ _ isum => isum.valAt tys
+-/
 
-def val {tys: List (Type u)} (isum: IterSum tys) : isum.ValType := isum.valAt tys
+--def val {tys: List (Type u)} (isum: IterSum tys) : isum.ValType := isum.valAt tys
+
+
+@[defeq, simp]
+theorem ofVal_val {Ty: Type u} {tys: List (Type u)} {v: Ty} : (ofVal Ty tys v).val = v := by
+  dsimp [val]
+
+@[defeq, simp]
+theorem cons_val {Ty: Type u} {tys: List (Type u)} {isum: IterSum tys} : (cons Ty tys isum).val = isum.val := by
+  dsimp [val]
+
+
 
 
 def valAsGetElem {tys: List (Type u)} (isum: IterSum tys) : isum.types[isum.valIndexFin] := isum.valType_eq_types_getElem_valIndexFin.mp isum.val
@@ -216,7 +233,6 @@ protected theorem ext (tys: List (Type u)) (isum1 isum2: IterSum tys) (req1: isu
   · rcases isum1 with _ | ⟨_,_,isum1⟩
     <;> rcases isum2 with _ | ⟨_,_,isum2⟩
     · dsimp [val] at req2
-      unfold valAt at req2
       simp at req2 ⊢
       exact eq_of_heq req2
     · dsimp [valIndex] at req1
@@ -231,7 +247,7 @@ protected theorem ext (tys: List (Type u)) (isum1 isum2: IterSum tys) (req1: isu
       exact Nat.zero_ne_add_one _ req1 |>.elim
     · simp
       simp [valIndex, valIndexAt] at req1
-      simp [val, valAt] at req2
+      dsimp at req2
       exact IterSum.ext tys isum1 isum2 req1 req2
 
 theorem ne_of_valIndex_ne (tys: List (Type u)) (isum1 isum2: IterSum tys) (req: isum1.valIndex ≠ isum2.valIndex) : isum1 ≠ isum2 := by
@@ -291,8 +307,8 @@ theorem areEq_eq_true_iff_eq {tys: List (Type u)} {isum1 isum2: IterSum tys} {it
 protected instance decidableEq (tys: List (Type u)) [HasIterDecidableEq tys] : DecidableEq (IterSum tys) :=
   fun isum1 isum2 => decidable_of_iff (areEq tys isum1 isum2 (@HasIterDecidableEq.iterDecidableEq tys _) = .true) areEq_eq_true_iff_eq
 
-
-abbrev append (tys1: List (Type u)) {tys2: List (Type u)} (isum: IterSum tys2) : IterSum (tys1 ++ tys2) :=
+@[implicit_reducible]
+def append (tys1: List (Type u)) {tys2: List (Type u)} (isum: IterSum tys2) : IterSum (tys1 ++ tys2) :=
   match tys1 with
   | [] => isum
   | Ty::tys1 => .cons Ty _ (append tys1 isum)
