@@ -41,6 +41,10 @@ theorem not_nil : (IterSum []) → False := by
 
 protected def elimNil {C: Sort*} (isum: IterSum []) : C := isum.not_nil.elim
 
+
+theorem nil_prop_eq_true (p: (tys: List (Type u)) → (IterSum tys) → Prop) (isum: IterSum []) : p [] isum = True := by
+  exact isum.elimNil
+
 abbrev types {tys: List (Type u)} (_: IterSum tys) : List (Type u) := tys
 
 @[defeq]
@@ -313,7 +317,22 @@ def append (tys1: List (Type u)) {tys2: List (Type u)} (isum: IterSum tys2) : It
   | [] => isum
   | Ty::tys1 => .cons Ty _ (append tys1 isum)
 
+@[elab_as_elim]
+def recSingle.{um}
+  {motive: (Ty: Type u) → (IterSum [Ty]) → Sort um}
+  (ofVal: (Ty: Type u) → (v: Ty) → motive Ty (.ofVal Ty [] v))
+  (Ty: Type u) (isum: IterSum [Ty])
+  : motive Ty isum :=
+  match isum with
+  | .ofVal _ _ v => ofVal Ty v
 
+@[elab_as_elim]
+def recSingleOn.{um}
+  {motive: (Ty: Type u) → (IterSum [Ty]) → Sort um}
+  {Ty: Type u} (isum: IterSum [Ty])
+  (ofVal: (Ty: Type u) → (v: Ty) → motive Ty (.ofVal Ty [] v))
+  : motive Ty isum :=
+  recSingle ofVal Ty isum
 
 end IterSum
 

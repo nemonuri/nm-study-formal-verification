@@ -81,7 +81,7 @@ theorem not_nil (bi: BiIter D []) : False := nomatch bi
 def elimNil {C: Sort*} (bi: BiIter D []) : C := bi.not_nil |>.elim
 
 
-abbrev getAt (Ty1: Type u) (mid: List (Type u)) (Ty2: Type u) (post: List (Type u)) (bi: BiIter D (Ty1 :: mid ++ Ty2 :: post)) : D Ty1 Ty2 :=
+def getAt (Ty1: Type u) (mid: List (Type u)) (Ty2: Type u) (post: List (Type u)) (bi: BiIter D (Ty1 :: mid ++ Ty2 :: post)) : D Ty1 Ty2 :=
   match mid, bi with
   | [], .cons _ _ _ d _ => d
   | _::mid, .cons _ _ _ _ bi => BiIter.getAt Ty1 mid Ty2 post bi
@@ -97,6 +97,7 @@ def getOfIterSum (Ty: Type u) (tys: List (Type u)) (bi: BiIter D (Ty::tys)) (isu
   match isum with
   | .ofVal _ _ _ => d
   | .cons _ _ isum => getOfIterSum Ty tys2 bi2 (.cons Ty tys2 isum) ofRefl
+
 
 
 end BiIter
@@ -219,13 +220,37 @@ protected theorem refl {tys: List (Type u)} (irel: IterRel₂ tys) (isum: IterSu
       simp only
       exact SumRel.refl bi2 isum
 
-/-
+
 protected theorem symm {tys: List (Type u)} (irel: IterRel₂ tys) (isum1 isum2: IterSum tys) (req: irel.SumRel isum1 isum2) : irel.SumRel isum2 isum1 := by
   dsimp [SumRel] at ⊢ req
   cases irel with
   | single _ =>
-    cases
--/
+    cases isum1 using IterSum.recSingleOn
+    cases isum2 using IterSum.recSingleOn
+    rename_i v1 v2
+    unfold BiIter₂.getOfIterSum
+    simp only
+  | cons _ _ _ bi1 bi2 =>
+    rcases bi1
+    rcases isum1
+    <;> rcases isum2
+    · unfold BiIter₂.getOfIterSum at ⊢ req
+      simp at ⊢ req
+      unfold BiIter.getOfIterSum at ⊢ req
+      simp at ⊢ req
+    · unfold BiIter₂.getOfIterSum at ⊢ req
+      simp at ⊢ req
+      dsimp [flip]
+      exact req
+    · unfold BiIter₂.getOfIterSum at ⊢ req
+      simp at ⊢ req
+      dsimp [flip] at req
+      exact req
+    · unfold BiIter₂.getOfIterSum at ⊢ req
+      simp at ⊢ req
+      exact SumRel.symm bi2 _ _ req
+
+
 
 end SumRel
 
