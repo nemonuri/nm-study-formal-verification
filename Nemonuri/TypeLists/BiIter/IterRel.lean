@@ -12,6 +12,7 @@ namespace Nemonuri.TypeLists.BiIter
 
 universe u
 
+def IterRel (tys: List (Type u)) : Type _ := BiIter (fun Ty1 Ty2 => Ty1 → Ty2 → Prop) tys
 
 def IterRel₂ (tys: List (Type u)) : Type _ := BiIter₂ (fun Ty1 Ty2 => Ty1 → Ty2 → Prop) tys
 
@@ -20,6 +21,10 @@ theorem iterRel₂_def {tys: List (Type u)} : IterRel₂ tys = BiIter₂ (fun Ty
 
 
 namespace IterRel₂
+
+
+
+
 
 def SumRel {tys: List (Type u)} (irel: IterRel₂ tys) (isum1 isum2: IterSum tys) : Prop :=
   BiIter₂.getOfIterSum irel isum1 isum2 (fun _ => Eq) (fun _ _ rel => flip rel) isum1.val isum2.val
@@ -128,17 +133,23 @@ theorem eq_of_valIndex_eq {tys: List (Type u)} {irel: IterRel₂ tys} {isum1 isu
 
 
 
-
-
-
 /-
-theorem sumRel_iff_of_valIndex_eq (tys: List (Type u)) (irel: IterRel₂ tys) (isum1 isum2: IterSum tys) (req: isum1.valIndex = isum2.valIndex)
-  : irel.SumRel isum1 isum2 ↔ (isum1 = isum2) := by
+theorem of_valIndex_lt {tys: List (Type u)} {irel: IterRel₂ tys} {isum1 isum2: IterSum tys} (h: irel.SumRel isum1 isum2) (req: isum1.valIndex < isum2.valIndex)
+  : BiIter₂.get₂ irel isum1.valIndex (isum2.valIndex - isum1.valIndex) (by simp) isum1.valAsGetElem isum2.valAsGetElem := by
 -/
 
 
-
 end SumRel
+
+theorem sumRel_iff_eq_of_valIndex_eq {tys: List (Type u)} {irel: IterRel₂ tys} (isum1 isum2: IterSum tys) (req: isum1.valIndex = isum2.valIndex)
+  : (irel.SumRel isum1 isum2) ↔ (isum1 = isum2) := by
+  constructor
+  · intro lm1
+    exact SumRel.eq_of_valIndex_eq lm1 req
+  · intro lm1
+    subst lm1
+    rfl
+
 
 /-
 open IterSum in

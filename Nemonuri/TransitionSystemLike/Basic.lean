@@ -1,6 +1,6 @@
 module
 
-public import Nemonuri.TransitionSystem
+public import Nemonuri.TransitionSystem.Basic
 
 
 @[expose] public section

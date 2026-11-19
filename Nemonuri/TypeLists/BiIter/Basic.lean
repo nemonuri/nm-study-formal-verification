@@ -52,9 +52,19 @@ namespace BiIter
 
 variable {D: Type u → Type u → Sort u2}
 
+
 def count {tys: List (Type u)} : BiIter D tys → Nat
   | .single _ => 0
   | .cons _ _ _ _ bi => bi.count + 1
+
+@[defeq, simp]
+theorem count_single {Ty: Type u} : (@BiIter.single D Ty).count = 0 := rfl
+
+@[defeq, simp]
+theorem count_cons {Ty1 Ty2: Type u} {tys: List (Type u)} {d: D Ty1 Ty2} {bi: BiIter D (Ty1::tys)}
+  : (BiIter.cons Ty1 Ty2 tys d bi).count = bi.count + 1 :=
+  rfl
+
 
 theorem count_eq_types_length_sub_one {tys: List (Type u)} {bi: BiIter D tys} : bi.count = tys.length - 1 := by
   cases bi with
@@ -72,9 +82,31 @@ theorem count_add_one_eq_types_length {tys: List (Type u)} {bi: BiIter D tys} : 
   refine Nat.sub_add_cancel ?_
   rcases bi <;> simp
 
+theorem add_one_lt_types_length_of_lt_count {tys: List (Type u)} {bi: BiIter D tys} {i: Nat} (req: i < bi.count) : (i + 1) < tys.length :=
+  calc
+    (i+1) < _ := Nat.add_lt_add_right req 1
+    _ = _ := count_add_one_eq_types_length
+
+
+theorem lt_types_length_of_lt_count {tys: List (Type u)} {bi: BiIter D tys} {i: Nat} (req: i < bi.count) : i < tys.length :=
+  calc
+    i < _ := Nat.lt_add_one i
+    _ < _ := add_one_lt_types_length_of_lt_count req
+
+
+macro_rules | `(tactic| get_elem_tactic_extensible) => `(tactic| apply add_one_lt_types_length_of_lt_count; assumption)
+--macro_rules | `(tactic| get_elem_tactic_extensible) => `(tactic| apply lt_types_length_of_lt_count; assumption)
+
 theorem not_nil (bi: BiIter D []) : False := nomatch bi
 
 def elimNil {C: Sort*} (bi: BiIter D []) : C := bi.not_nil |>.elim
+
+theorem length_pos {tys: List (Type u)} {bi: BiIter D tys} : 0 < tys.length := by
+  rcases tys with _ | _
+  · exact bi.elimNil
+  · simp
+
+macro_rules | `(tactic| get_elem_tactic_extensible) => `(tactic| apply length_pos; assumption)
 
 
 def getAt (Ty1: Type u) (mid: List (Type u)) (Ty2: Type u) (post: List (Type u)) (bi: BiIter D (Ty1 :: mid ++ Ty2 :: post)) : D Ty1 Ty2 :=
@@ -140,7 +172,37 @@ theorem head_def (d: D Ty1 Ty2) (bi: BiIter D (Ty1::tys)) : (BiIter.cons Ty1 Ty2
 @[defeq, simp]
 theorem tail_def (d: D Ty1 Ty2) (bi: BiIter D (Ty1::tys)) : (BiIter.cons Ty1 Ty2 tys d bi).tail = bi := rfl
 
+theorem tail_count_eq_count_sub_one (bi: BiIter D (Ty1::Ty2::tys)) : bi.tail.count = bi.count - 1 := by
+  rcases bi
+  dsimp
+
 end HeadTailSection
+
+
+section GetSection
+
+def get {tys: List (Type u)} (bi: BiIter D tys) (i: Nat) (req: i < bi.count) : D tys[0] tys[i + 1] :=
+  match tys, bi, i with
+  | [Ty], (.single _), _ => False.elim (by dsimp at req; exact Nat.not_lt_zero _ req)
+  | Ty1::Ty2::tys, .cons _ _ _ d _, 0 => d
+  | Ty1::Ty2::tys, .cons _ _ _ _ bi, i + 1 => get bi i (by simpa using req)
+
+variable {Ty1 Ty2: Type u} {tys: List (Type u)} {bi: BiIter D (Ty1::Ty2::tys)}
+
+@[simp]
+theorem get_zero (req: 0 < bi.count) : bi.get 0 req = bi.head := by
+  rcases bi
+  unfold get
+  simp only
+  dsimp
+
+@[simp]
+theorem get_add_one (i: Nat) (req: (i + 1) < bi.count) : bi.get (i + 1) req = bi.tail.get i (by simp [tail_count_eq_count_sub_one]; omega) := by
+  rcases bi
+  dsimp at ⊢ req
+  conv => lhs; unfold get; simp only
+
+end GetSection
 
 end BiIter
 
@@ -271,222 +333,257 @@ theorem head_def (bi1: BiIter D (Ty1::Ty2::tys)) (bi2: BiIter₂ D (Ty2::tys)) :
 @[defeq, simp]
 theorem tail_def (bi1: BiIter D (Ty1::Ty2::tys)) (bi2: BiIter₂ D (Ty2::tys)) : (BiIter₂.cons _ _ _ bi1 bi2).tail = bi2 := rfl
 
-
 end HeadTailSection
 
+
+section LengthSection
+
+def length {tys: List (Type u)} (bi: BiIter₂ D tys) : Nat :=
+  match tys, bi with
+  | [_], .single _ => 0
+  | _::_::_, .cons _ _ _ _ bi => bi.length + 1
+
+
+variable {Ty1 Ty2: Type u} {tys: List (Type u)}
+
+@[defeq, simp]
+theorem length_single : (@single D Ty1).length = 0 := rfl
+
+@[defeq, simp]
+theorem length_cons (bi₁: BiIter D (Ty1::Ty2::tys)) (bi₂: BiIter₂ D (Ty2::tys)) : (cons Ty1 Ty2 tys bi₁ bi₂).length = bi₂.length + 1 := rfl
+
+
+theorem cons_cons_length_pos (bi: BiIter₂ D (Ty1::Ty2::tys)) : 0 < bi.length := by
+  rcases bi
+  simp
+
+theorem length_eq_types_length_sub_one {tys: List (Type u)} (bi: BiIter₂ D tys) : bi.length = tys.length - 1 := by
+  rcases bi with _ | ⟨_,_,_,bi₁,bi⟩
+  · dsimp
+  · dsimp
+    have lm1 := length_eq_types_length_sub_one bi
+    dsimp at lm1
+    rw [lm1]
+
+theorem head_count_eq_length {Ty1 Ty2: Type u} {tys: List (Type u)} (bi: BiIter₂ D (Ty1::Ty2::tys)) : bi.head.count = bi.length := by
+  rcases bi with _ | ⟨_,_,_,bi₁,bi⟩
+  dsimp
+  rw [bi₁.count_eq_types_length_sub_one, bi.length_eq_types_length_sub_one]
+  dsimp
+
+theorem tail_length_eq_bi_length_sub_one {Ty1 Ty2: Type u} {tys: List (Type u)} (bi: BiIter₂ D (Ty1::Ty2::tys)) : bi.tail.length = bi.length - 1 := by
+  rcases bi with _ | ⟨_,_,_,bi₁,bi⟩
+  dsimp
+
+theorem add_one_lt_types_length_of_lt_length {tys: List (Type u)} {bi: BiIter₂ D tys} {i: Nat} (req: i < bi.length) : (i + 1) < tys.length := by
+  rewrite [length_eq_types_length_sub_one] at req
+  omega
+
+/-
+  rcases bi <;> simp at req
+  rcases i with _ | ⟨i⟩
+  · simp
+  · simp at req ⊢
+    have lm1 := lt_types_length_of_lt_length req
+    dsimp at lm1
+    exact lm1
+-/
+
+macro_rules | `(tactic| get_elem_tactic_extensible) => `(tactic| apply add_one_lt_types_length_of_lt_length; assumption)
+
+end LengthSection
+
+
+section GetSection
+
+
+def get {tys: List (Type u)} (bi: BiIter₂ D tys) (i: Nat) (req: i < bi.length) : BiIter D (tys.drop i) :=
+  match tys, bi, i with
+  | [_], .single _ , _ => False.elim (by simp at req)
+  | Ty1::Ty2::tys, .cons _ _ _ bi₁ bi, i =>
+  match i with
+  | 0 => bi₁
+  | i + 1 => bi.get i (by simpa using req)
+
+variable {Ty1 Ty2: Type u} {tys: List (Type u)}
+
+attribute [local simp] length_eq_types_length_sub_one in
+theorem get_zero_eq_head (bi₂: BiIter₂ D (Ty1::Ty2::tys)) : bi₂.get 0 (by simp) = bi₂.head := by
+  rcases bi₂
+  dsimp
+  unfold get
+  simp only
+
+attribute [local simp] tail_length_eq_bi_length_sub_one in
+theorem get_add_one_eq_tail_get (bi₂: BiIter₂ D (Ty1::Ty2::tys)) (i: Nat) (req: i + 1 < bi₂.length)
+  : bi₂.get (i + 1) req = bi₂.tail.get i (by simp; omega) := by
+  rcases bi₂
+  dsimp
+  conv => lhs; unfold get; simp only
+
+
+attribute [simp] get_zero_eq_head get_add_one_eq_tail_get
+
+
+theorem get_count_eq_length_sub {tys: List (Type u)} (bi: BiIter₂ D tys) (i: Nat) (req: i < bi.length) : (bi.get i req).count = bi.length - i := by
+  rcases bi with _ | ⟨_,_,_,bi1,bi⟩
+  · simp at req
+  · simp at req ⊢
+    rcases i with _ | ⟨i⟩
+    · simp
+      rw [bi1.count_eq_types_length_sub_one, bi.length_eq_types_length_sub_one]
+      dsimp
+    · simp at ⊢ req
+      exact get_count_eq_length_sub bi i req
+
+/-
+def get {tys: List (Type u)} (bi: BiIter₂ D tys) (i1 i2: Nat) (req1: i1 < bi.length) (req2: i2 < bi.length) (req3: i1 < i2) : D tys[i1] tys[i2] :=
+  match tys, bi, i1, i2 with
+  | [_], .single _, _, _ => False.elim (by simp at req1)
+  | Ty1::Ty2::tys, .cons _ _ _ bi₁ bi, i1, i2 =>
+  match i1, i2 with
+  | 0, 0 => False.elim (by simp at req3)
+  | 0, i2 + 1 => bi₁.get i2 (by
+    rw [bi₁.count_eq_types_length_sub_one]
+    simp at ⊢ req2
+    have lm1 := lt_types_length_of_lt_length req2
+    dsimp at lm1
+    exact lm1 )
+  | i1 + 1, 0 => False.elim (by simp at req3)
+  | i1 + 1, i2 + 1 => bi.get i1 i2 (by simpa using req1) (by simpa using req2) (by simpa using req3)
+
+
+variable {Ty1 Ty2: Type u} {tys: List (Type u)}
+
+@[simp]
+theorem get_zero_add_one (bi: BiIter₂ D (Ty1::Ty2::tys)) (i2: Nat) (req: i2 + 1 < bi.length)
+  : bi.get 0 (i2 + 1) (bi.cons_cons_length_pos) req (Nat.zero_lt_succ i2) = bi.head.get i2 (by rw [head_count_eq_length]; omega) := by
+  rcases bi with _ | ⟨_,_,_,bi₁,bi⟩
+  dsimp
+  unfold get
+  simp only
+
+@[simp]
+theorem get_add_one_add_one (bi: BiIter₂ D (Ty1::Ty2::tys)) (i1 i2: Nat) (req1: i1 + 1 < bi.length) (req2: i2 + 1 < bi.length) (req3: i1 < i2)
+  : bi.get (i1 + 1) (i2 + 1) req1 req2 (Nat.add_lt_add_right req3 1) = bi.tail.get i1 i2 (by rw [bi.tail_length_eq_bi_length_sub_one]; omega) (by rw [bi.tail_length_eq_bi_length_sub_one]; omega) req3 := by
+  rcases bi with _ | ⟨_,_,_,bi₁,bi⟩
+  dsimp
+  conv => lhs; unfold get; simp only
+-/
+
+
+end GetSection
+
+
+def get₂ {tys: List (Type u)} (bi: BiIter₂ D tys) (i1 i2: Nat) (req: i1 + i2 < bi.length) : D (tys[i1]'(by rw [bi.length_eq_types_length_sub_one] at req; omega)) tys[i1 + i2 + 1] :=
+  let bi1 := bi.get i1 (by omega)
+  bi1.get i2 (by subst bi1; rw [get_count_eq_length_sub]; omega) |> cast (by
+    subst bi1
+    simp
+    conv => lhs; arg 2; simp only [← Nat.add_assoc])
+
+section Get2Section
+
+variable {Ty1 Ty2: Type u} {tys: List (Type u)}
+
+@[simp]
+theorem get₂_zero_zero_eq_head_head (bi: BiIter₂ D (Ty1::Ty2::tys))
+  : bi.get₂ 0 0 (bi.cons_cons_length_pos) = bi.head.head := by
+  dsimp [get₂]
+  simp
+
+protected theorem get₂_zero_eq_head_get₂.aux1 {bi: BiIter₂ D (Ty1::Ty2::tys)} {i2: Nat} (req: i2 < bi.length) : 0 + i2 < bi.length := by
+  rw [Nat.zero_add i2]
+  exact req
+
+protected theorem get₂_zero_eq_head_get₂.aux2 {bi: BiIter₂ D (Ty1::Ty2::tys)} {i2: Nat} (req: i2 < bi.length) : i2 < bi.head.count := by
+  rw [bi.head_count_eq_length]
+  exact req
+
+protected theorem get₂_zero_eq_head_get₂.aux3 {bi: BiIter₂ D (Ty1::Ty2::tys)} {i2: Nat} (req: i2 < bi.length)
+  : D Ty1 ((Ty2::tys)[i2]'(by revert req; simp [bi.length_eq_types_length_sub_one])) = D Ty1 ((Ty1::Ty2::tys)[0 + i2 + 1]'(by revert req; simp [bi.length_eq_types_length_sub_one])) := by
+  simp
+
+theorem get₂_zero_eq_head_get (bi: BiIter₂ D (Ty1::Ty2::tys)) (i2: Nat) (req: i2 < bi.length)
+  : bi.get₂ 0 i2 (get₂_zero_eq_head_get₂.aux1 req) = (Equiv.cast (get₂_zero_eq_head_get₂.aux3 req)) (bi.head.get i2 (get₂_zero_eq_head_get₂.aux2 req)) := by
+  rcases bi with _ | ⟨_,_,_,bi1,bi⟩
+  dsimp [get₂]
+  congr
+
+
+
+
+protected theorem get₂_zero_add_one_eq.aux {bi: BiIter₂ D (Ty1::Ty2::tys)} {i2: Nat} (req: (i2 + 1) < bi.length) : i2 < (bi.get 0 (bi.cons_cons_length_pos)).tail.count := by
+  rcases bi
+  simp at ⊢ req
+  rw [BiIter.count_eq_types_length_sub_one]
+  rewrite [length_eq_types_length_sub_one] at req
+  dsimp at ⊢ req
+  exact req
+
+
+theorem get₂_zero_add_one_heq (bi: BiIter₂ D (Ty1::Ty2::tys)) (i2: Nat) (req: (i2 + 1) < bi.length)
+  : bi.get₂ 0 (i2 + 1) (by simpa using req) ≍ (bi.get 0 (bi.cons_cons_length_pos)).tail.get i2 (get₂_zero_add_one_eq.aux req) := by
+  rcases bi
+  dsimp [get₂]
+  simp
+
+
+protected theorem get₂_add_one_zero_eq.aux {bi: BiIter₂ D (Ty1::Ty2::tys)} {i1: Nat} (req: (i1 + 1) < bi.length) : i1 < bi.tail.length := by
+  rw [bi.tail_length_eq_bi_length_sub_one]
+  omega
+
+@[simp]
+theorem get₂_add_one_zero_eq (bi: BiIter₂ D (Ty1::Ty2::tys)) (i1: Nat) (req: (i1 + 1) < bi.length)
+  : bi.get₂ (i1 + 1) 0 req = bi.tail.get₂ i1 0 (get₂_add_one_zero_eq.aux req) := by
+  rcases bi
+  dsimp [get₂]
+  congr
+
+
+protected theorem get₂_add_one_eq.aux1 {bi: BiIter₂ D (Ty1::Ty2::tys)} {i1 i2: Nat} (req: (i1 + i2 + 1) < bi.length) : i1 + i2 < bi.tail.length := by
+  rw [bi.tail_length_eq_bi_length_sub_one]
+  omega
+
+protected theorem get₂_add_one_eq.aux2 {bi: BiIter₂ D (Ty1::Ty2::tys)} {i1 i2: Nat} (req: (i1 + i2 + 1) < bi.length) : i1 < tys.length + 1 := by
+  rewrite [bi.length_eq_types_length_sub_one] at req
+  simp at req
+  omega
+
+protected theorem get₂_add_one_eq.aux3 {bi: BiIter₂ D (Ty1::Ty2::tys)} {i1 i2: Nat} (req: (i1 + i2 + 1) < bi.length) : i1 + i2 < tys.length := by
+  rewrite [bi.length_eq_types_length_sub_one] at req
+  simpa using req
+
+protected theorem get₂_add_one_eq.aux4 {bi: BiIter₂ D (Ty1::Ty2::tys)} {i1 i2: Nat} (req: (i1 + i2 + 1) < bi.length) : (i1 + 1 + i2) < (Ty2 :: tys).length := by
+  have lm1 := get₂_add_one_eq.aux3 req
+  conv => lhs; rw [Nat.add_right_comm]
+  simpa using lm1
+
+protected theorem get₂_add_one_eq.aux5 {bi: BiIter₂ D (Ty1::Ty2::tys)} {i1 i2: Nat} (req: (i1 + i2 + 1) < bi.length)
+  : have := get₂_add_one_eq.aux2 req; have := get₂_add_one_eq.aux3 req; have := get₂_add_one_eq.aux4 req;
+    D (Ty2 :: tys)[i1] (tys)[i1 + i2] = D (Ty2 :: tys)[i1] (Ty2 :: tys)[i1 + 1 + i2] := by
+  dsimp
+  conv => rhs; arg 2; arg 2; rw [Nat.add_right_comm]
+  dsimp
+
+theorem get₂_add_one_eq (bi: BiIter₂ D (Ty1::Ty2::tys)) (i1 i2: Nat) (req: (i1 + i2 + 1) < bi.length)
+  : bi.get₂ (i1 + 1) i2 (by omega) = (Equiv.cast (get₂_add_one_eq.aux5 req)) (bi.tail.get₂ i1 i2 (get₂_add_one_eq.aux1 req)) := by
+  rcases bi with _ | ⟨_,_,_,_,bi⟩
+  revert req
+  simp
+  intro req
+  dsimp [get₂]
+  simp
+  congr
+
+
+end Get2Section
 
 end BiIter₂
 
 
 
 
-
-  --(Ty: Type u) (tys: List (Type u)) (ds: BiIter D (Ty::tys))
-  --| single (Ty: Type u) : BiIter₂ D [Ty]
-  --| cons (Ty1 Ty2: Type u) (tys: List (Type u)) (ds: BiIter)
-
-
-  --| ofVal (Ty1 Ty2: Type u) (d: D Ty1 Ty2) : BiIter D [Ty1, Ty2]
-  --| cons (Ty: Type u)
-
-/-
-inductive IterHRel.{u} : List (Type u) → Type _ where
-  | single (Head: Type u) : IterHRel [Head]
-  | cons (Head1 Head2: Type u) (tail: List (Type u)) (rel: Head1 → Head2 → Prop) : IterHRel (Head1 :: tail) → IterHRel (Head2 :: tail) → IterHRel (Head1 :: Head2 :: tail)
--/
-
-/-
-namespace IterHRel
-
-universe u
-
-abbrev types {tys: List (Type u)} (_: IterHRel tys) : List (Type u) := tys
-
-
-theorem not_nil (irel: IterHRel []) : False := nomatch irel
-
-def elimNil {C: Sort*} (irel: IterHRel []) : C := irel.not_nil |>.elim
-
-def headRel {Ty1 Ty2: Type u} {tys: List (Type u)} : IterHRel (Ty1::Ty2::tys) → Ty1 → Ty2 → Prop
-  | .cons _ _ _ rel _ _ => rel
-
-def tailPair {Ty1 Ty2: Type u} {tys: List (Type u)} : (IterHRel (Ty1::Ty2::tys)) → (IterHRel (Ty1::tys)) × (IterHRel (Ty2::tys))
-  | .cons _ _ _ _ irel1 irel2 => ⟨irel1, irel2⟩
-
-def swap {Ty1 Ty2: Type u} {tys: List (Type u)} : (IterHRel (Ty1::Ty2::tys)) → IterHRel (Ty2::Ty1::tys)
-  | .cons _ _ _ rel irel1 irel2 => .cons _ _ _ (flip rel) irel2 irel1
-
-
-
-inductive IterRelDep.{u2} (D: (Ty1 Ty2: Type u) → (rel: Ty1 → Ty2 → Prop) → Sort u2) : (tys: List (Type u)) → (IterHRel tys) → Sort _ where
-  | single (Head: Type u) : IterRelDep D [Head] (.single Head)
-  | cons (Head1 Head2: Type u) (tail: List (Type u)) (rel: Head1 → Head2 → Prop) (dep: D _ _ rel)
-         (iter1: IterHRel (Head1 :: tail)) (iterD1: IterRelDep D (Head1 :: tail) iter1)
-         (iter2: IterHRel (Head2 :: tail)) (iterD2: IterRelDep D (Head2 :: tail) iter2)
-         : IterRelDep D (Head1 :: Head2 :: tail) (.cons Head1 Head2 tail rel iter1 iter2)
-
-inductive IterRelDep₃.{u2} (D: (Ty1 Ty2 Ty3: Type u) → (rel1: Ty1 → Ty2 → Prop) → (rel2: Ty1 → Ty3 → Prop) → (rel3: Ty2 → Ty3 → Prop) → Sort u2) : (tys: List (Type u)) → (IterHRel tys) → Sort _ where
-  | single (Ty: Type u) : IterRelDep₃ D [Ty] (.single Ty)
-  | double (Ty1 Ty2: Type u) (rel: Ty1 → Ty2 → Prop) : IterRelDep₃ D [Ty1, Ty2] (.cons Ty1 Ty2 [] rel (.single _) (.single _))
-  | cons (Ty1 Ty2 Ty3: Type u) (tail: List (Type u)) (rel1: Ty1 → Ty2 → Prop) (rel2: Ty1 → Ty3 → Prop) (rel3: Ty2 → Ty3 → Prop) (dep: D _ _ _ rel1 rel2 rel3)
-         (iter1: IterHRel (Ty1 :: tail)) (iterD1: IterRelDep₃ D _ iter1)
-         (iter2: IterHRel (Ty2 :: tail)) (iterD2: IterRelDep₃ D _ iter2)
-         (iter3: IterHRel (Ty3 :: tail)) (iterD3: IterRelDep₃ D _ iter3)
-         : IterRelDep₃ D (Ty1::Ty2::Ty3::tail) (.cons Ty1 Ty2 (Ty3::tail) rel1 (.cons _ _ tail rel2 iter1 iter3) (.cons _ _ tail rel3 iter2 iter3))
-
-
-
-def RelAt (pre: List (Type u)) (Ty1: Type u) (mid: List (Type u)) (Ty2: Type u) (post: List (Type u)) (irel: IterHRel (pre ++ Ty1 :: mid ++ Ty2 :: post)) : Ty1 → Ty2 → Prop :=
-  match pre with
-  | [] =>
-    match mid with
-    | [] =>
-      match irel with
-      | .cons _ _ _ rel _ _ => rel
-    | Ty3::mid =>
-      match irel with
-      | .cons _ _ _ _ irel _ => RelAt [] Ty1 mid Ty2 post irel
-  | [Ty3] =>
-    match irel with
-    | .cons _ _ _ _ _ irel => RelAt [] Ty1 mid Ty2 post irel
-  | Ty3::Ty4::pre =>
-    match irel with
-    | .cons _ _ _ _ _ irel => RelAt (Ty4::pre) Ty1 mid Ty2 post irel
-
-#print RelAt._unary
-
-
-
-
---inductive RelAt (pre: List (Type u)) (Ty1: Type u) (mid: List (Type u)) (Ty2: Type u) (post: List (Type u)) (irel: IterHRel (pre ++ Ty1 :: mid ++ Ty2 :: post))
-
-def OfFinLt {tys: List (Type u)} (iter: IterHRel tys) (i1 i2: Fin tys.length) (req: i1 < i2) : iter.types[i1] → iter.types[i2] → Prop :=
-  match tys, iter with
-  | [Ty], .single _ => False.elim (by rcases i1 with ⟨i1, lm1⟩; rcases i2 with ⟨i2, lm2⟩; simp at lm1 lm2 req; simp [lm1, lm2] at req)
-  | Ty1::Ty2::tys, .cons _ _ _ rel iter1 iter2 =>
-  let ⟨i1, lm1⟩ := i1
-  let ⟨i2, lm2⟩ := i2
-  match i1 with
-  | 0 =>
-    match i2 with
-    | 0 => False.elim (by simp at req)
-    | 1 => rel
-    | i2 + 2 =>
-      OfFinLt iter1 ⟨0, (by simp)⟩ ⟨(i2 + 1), (by simp at lm2 ⊢; exact lm2)⟩ (by rw [Fin.mk_lt_mk]; simp) --|> cast (by dsimp)
-  | i1 + 1 =>
-    match i2 with
-    | 0 | 1 => False.elim (by rw [Fin.mk_lt_mk] at req; simp at req)
-    | i2 + 2 =>
-      OfFinLt iter2 ⟨i1, (by simp at lm1 ⊢; exact lm1)⟩ ⟨(i2 + 1), (by simp at ⊢ lm2; exact lm2)⟩ (by rw [Fin.mk_lt_mk] at ⊢ req; simpa using req)
-
-
-inductive ReflSymmOfFin {tys: List (Type u)} (iter: IterHRel tys) (i1: Fin tys.length) (v1: iter.types[i1]) (i2: Fin tys.length) (v2: iter.types[i2]) : Prop where
-  | rel (req1: i1 < i2) (req2: OfFinLt iter i1 i2 req1 v1 v2)
-  | refl (req1: i1 = i2) (req2: v1 ≍ v2)
-  | rel_symm (req1: i2 < i1) (req2: OfFinLt iter i2 i1 req1 v2 v1)
-
-
-def IterSumRel {tys: List (Type u)} (iter: IterHRel tys) (isum1 isum2: IterSum tys) : Prop :=
-  iter.ReflSymmOfFin isum1.valIndexFin isum1.valAsGetElem isum2.valIndexFin isum2.valAsGetElem
-
-@[defeq]
-theorem iterSumRel_def {tys: List (Type u)} {iter: IterHRel tys} {isum1 isum2: IterSum tys}
-  : IterSumRel iter isum1 isum2 = iter.ReflSymmOfFin isum1.valIndexFin isum1.valAsGetElem isum2.valIndexFin isum2.valAsGetElem :=
-  rfl
-
-
-namespace IterSumRel
-
-variable {tys: List (Type u)} {irel: IterHRel tys}
-
-@[refl]
-protected theorem refl (isum: IterSum tys) : irel.IterSumRel isum isum := by
-  dsimp [iterSumRel_def]
-  exact .refl rfl (HEq.refl _)
-
-open IterSum in
-theorem ofVal_ofVal_to_val_eq {Ty: Type u} {v1 v2: Ty} {irel: IterHRel (Ty::tys)} (h: IterSumRel irel (ofVal Ty tys v1) (ofVal Ty tys v2)) : v1 = v2 := by
-  dsimp [iterSumRel_def] at h
-  rcases h <;> rename_i lm1 lm2
-  · simp [ofVal_valIndexFin_eq_zero] at lm1
-  · simp [valAsGetElem, val, valAt] at lm2
-    exact eq_of_heq lm2
-  · simp [ofVal_valIndexFin_eq_zero] at lm1
-
-
-theorem ofVal_ofVal_iff_val_eq {Ty: Type u} {v1 v2: Ty} {irel: IterHRel (Ty::tys)} : IterSumRel irel (.ofVal Ty tys v1) (.ofVal Ty tys v2) ↔ (v1 = v2) := by
-  constructor
-  · exact ofVal_ofVal_to_val_eq
-  · intro lm1
-    subst lm1
-    rfl
-
-
-open IterSum in
-@[symm]
-protected theorem symm {isum1 isum2: IterSum tys} (h: irel.IterSumRel isum1 isum2) : irel.IterSumRel isum2 isum1 := by
-  dsimp [iterSumRel_def] at ⊢ h
-  cases h with
-  | rel lm1 lm2 => exact .rel_symm lm1 lm2
-  | refl lm1 lm2 => exact .refl lm1.symm lm2.symm
-  | rel_symm lm1 lm2 => exact .rel lm1 lm2
-
-
-instance : Std.Refl irel.IterSumRel := ⟨IterSumRel.refl⟩
-
-instance : Std.Symm irel.IterSumRel := ⟨fun _ _ => IterSumRel.symm⟩
-
-
-end IterSumRel
-
-
-
-
-abbrev IterBiUnique {tys: List (Type u)} (irel: (IterHRel tys)) : Type _ := IterRelDep (fun _ _ rel => Relator.BiUnique rel) tys irel
-
-@[defeq]
-theorem iterBiUnique_def {tys: List (Type u)} {irel: (IterHRel tys)} : IterBiUnique irel = IterRelDep (fun _ _ rel => Relator.BiUnique rel) tys irel :=
-  rfl
-
-abbrev IterDecidableRel {tys: List (Type u)} (irel: (IterHRel tys)) : Type _ := IterRelDep (fun _ _ rel => DecidableRel rel) tys irel
-
-@[defeq]
-theorem iterDecidableRel_def {tys: List (Type u)} {irel: (IterHRel tys)} : IterDecidableRel irel = IterRelDep (fun _ _ rel => DecidableRel rel) tys irel :=
-  rfl
-
-
-
-
-
-open Relations.Heterogeneous in
-abbrev IterTrans {tys: List (Type u)} (irel: (IterHRel tys)) : Type _ := IterRelDep₃ (fun _ _ _ rel1 rel2 rel3 => CanTransfer rel1 rel3 ∧ Comp rel1 rel3 = rel2 ) tys irel
-
-open Relations.Heterogeneous in
-@[defeq]
-theorem iterTrans_def {tys: List (Type u)} {irel: (IterHRel tys)} : IterTrans irel = IterRelDep₃ (fun _ _ _ rel1 rel2 rel3 => CanTransfer rel1 rel3 ∧ Comp rel1 rel3 = rel2 ) tys irel := rfl
-
-
-namespace IterTrans
-
-variable {tys: List (Type u)} {irel: (IterHRel tys)}
-
-
-end IterTrans
-
-
-
-namespace IterSumRel
-
-variable {tys: List (Type u)} {irel: IterHRel tys}
-
-
-end IterSumRel
-
-
-
-
-end IterHRel
--/
 
 end Nemonuri.TypeLists
 
