@@ -226,64 +226,133 @@ def equivToFinIndex (tt: TypeTable Ty tys) : (TypeInfo Ty tys) ≃ (Fin tt.lengt
 def InnerTypeOfFin (tt: TypeTable Ty tys) (i: Fin tt.length) : Type u := (tt.get i).InnerType
 
 
-def consTypeInfoPi {Ty Ty2: Type u} {tys: List (Type u)} --(tt: TypeTable Ty (Ty2::tys))
-  (ToType: (Ty: Type u) → (tys: List (Type u)) → (ti: TypeInfo Ty tys) → (v: ti.InnerType) → Sort u2)
-  (v1: Ty) (v2: ToType Ty (Ty2::tys) (.ofVal v1 (Ty2::tys)) v1)
-  (tipi: (ti: TypeInfo Ty2 tys) → (v: ti.InnerType) → ToType Ty2 tys ti v)
-  (ti: TypeInfo Ty (Ty2::tys)) (v: ti.InnerType) : ToType Ty (Ty2::tys) ti v :=
+
+def consPi {Ty2: Type u} (tt: TypeTable Ty (Ty2::tys)) (m: TypeInfo Ty (Ty2::tys) → Type u2) (v: m (tt.get 0))
+  (tif: (ti: TypeInfo Ty2 tys) → m (ti.cons Ty))
+  (ti: TypeInfo Ty (Ty2::tys)) : m ti :=
   if h1: ti.index = 0 then
-    v2 |> cast (by
-      have lm1 := ti.innerType_eq_of_index_eq_zero h1
-      congr
-      · dsimp [TypeInfo.ofVal]
-        rcases ti
-        dsimp at v h1 lm1
-        subst lm1 h1
-        rfl
-      · rcases ti with ⟨idx, ITy, ⟨esum⟩⟩
-        dsimp at v h1 lm1
-        subst lm1 h1
-        rcases esum  )
+    v |> cast (by congr; apply TypeInfo.ext; rw [h1, tt.index_eq_val]; dsimp)
   else
-  match tys with
-  | [] => False.elim (by)
-  --(v: ToType Ty (Ty2::tys) (tt.get 0)) (tipi: (ti: TypeInfo Ty2 tys) → ToType Ty2 tys ti)
-  --(ti: TypeInfo Ty (Ty2::tys)) : ToType Ty (Ty2::tys) ti :=
+    tif (ti.tail (Nat.pos_of_ne_zero h1)) |> cast (by congr; exact ti.tail_cons _)
+
+
+def consPi₂ {Ty2: Type u} (tt: TypeTable Ty (Ty2::tys)) (m₂: TypeInfo Ty (Ty2::tys) → TypeInfo Ty (Ty2::tys) → Type u2)
+  (v: m₂ (tt.get 0) (tt.get 0)) (vcol: (ti: TypeInfo Ty2 tys) → m₂ (ti.cons Ty) (tt.get 0)) (vrow: (ti: TypeInfo Ty2 tys) → m₂ (tt.get 0) (ti.cons Ty))
+  (tif₂: (ti1 ti2: TypeInfo Ty2 tys) → m₂ (ti1.cons Ty) (ti2.cons Ty))
+  (ti1 ti2: TypeInfo Ty (Ty2::tys)) : m₂ ti1 ti2 :=
+  if h1: ti1.index = 0 then
+    if h2: ti2.index = 0 then
+      v |> cast (by
+        congr <;> apply TypeInfo.ext
+        · rw [h1, tt.index_eq_val]; dsimp
+        · rw [h2, tt.index_eq_val]; dsimp )
+    else
+      vrow (ti2.tail (Nat.pos_of_ne_zero h2)) |> cast (by
+        congr
+        · apply TypeInfo.ext
+          rw [h1, tt.index_eq_val]; dsimp
+        · exact ti2.tail_cons _ )
+  else
+    if h2: ti2.index = 0 then --rw [ti2.innerType_eq_of_index_eq_zero h2]; dsimp [tail]
+      vcol (ti1.tail (Nat.pos_of_ne_zero h1)) |> cast (by
+        congr
+        · exact ti1.tail_cons _
+        · apply TypeInfo.ext
+          rw [h2, tt.index_eq_val]; dsimp )
+    else
+      tif₂ (ti1.tail (Nat.pos_of_ne_zero h1)) (ti2.tail (Nat.pos_of_ne_zero h2)) |> cast (by
+        congr <;> exact TypeInfo.tail_cons _ _)
+
+
+def consComp {Ty2: Type u} (tt: TypeTable Ty (Ty2::tys)) (m₂: TypeInfo Ty (Ty2::tys) → TypeInfo Ty (Ty2::tys) → Type u2)
+  (v: m₂ (tt.get 0) (tt.get 0) → m₂ (tt.get 0) (tt.get 0) → m₂ (tt.get 0) (tt.get 0))
+  (v_x: (ti1: TypeInfo Ty2 tys) → (m₂ (ti1.cons Ty) (tt.get 0)) → (m₂ (tt.get 0) (tt.get 0)) → m₂ (ti1.cons Ty) (tt.get 0))
+  (v_y: (ti2: TypeInfo Ty2 tys) → (m₂ (tt.get 0) (ti2.cons Ty)) → (m₂ (ti2.cons Ty) (tt.get 0)) → (m₂ (tt.get 0) (tt.get 0)))
+  (v_z: (ti3: TypeInfo Ty2 tys) → (m₂ (tt.get 0) (tt.get 0)) → (m₂ (tt.get 0) (ti3.cons Ty)) → (m₂ (tt.get 0) (ti3.cons Ty)))
+  (v_xy: (ti1 ti2: TypeInfo Ty2 tys) → (m₂ (ti1.cons Ty) (ti2.cons Ty)) → (m₂ (ti2.cons Ty) (tt.get 0)) → m₂ (ti1.cons Ty) (tt.get 0))
+  (v_xz: (ti1 ti3: TypeInfo Ty2 tys) → (m₂ (ti1.cons Ty) (tt.get 0)) → (m₂ (tt.get 0) (ti3.cons Ty)) → m₂ (ti1.cons Ty) (ti3.cons Ty))
+  (v_yz : (ti2 ti3: TypeInfo Ty2 tys) → (m₂ (tt.get 0) (ti2.cons Ty)) → (m₂ (ti2.cons Ty) (ti3.cons Ty)) → m₂ (tt.get 0) (ti3.cons Ty))
+  (tiComp: (ti1 ti2 ti3: TypeInfo Ty2 tys) → (m₂ (ti1.cons Ty) (ti2.cons Ty)) → (m₂ (ti2.cons Ty) (ti3.cons Ty)) → m₂ (ti1.cons Ty) (ti3.cons Ty))
+  (ti1 ti2 ti3: TypeInfo Ty (Ty2::tys)) (hom1: m₂ ti1 ti2) (hom2: m₂ ti2 ti3) : m₂ ti1 ti3 :=
+  have congr_m₂ {ti1 ti2 ti3 ti4: TypeInfo Ty (Ty2::tys)} (req1: ti1 = ti3) (req2: ti2 = ti4) : m₂ ti3 ti4 = m₂ ti1 ti2 := by congr <;> (symm; assumption)
+  have index_zero {ti: TypeInfo Ty (Ty2::tys)} (req: ti.index = 0) : (tt.get 0) = ti := by apply TypeInfo.ext; rw [req]; exact tt.index_eq_val 0  --(tt.index_eq_val 0).trans req.symm
+  if h1: ti1.index = 0 then
+    have lm1 := index_zero h1
+    if h2: ti2.index = 0 then
+      have lm2 := index_zero h2
+      if h3: ti3.index = 0 then
+        have lm3 := index_zero h3
+        v (cast (congr_m₂ lm1 lm2) hom1) (cast (congr_m₂ lm2 lm3) hom2) |> cast (congr_m₂ lm1.symm lm3.symm)
+      else
+        v_z (ti3.tail_of_ne_zero h3) (cast (congr_m₂ lm1 lm2) hom1) (cast (congr_m₂ lm2 (ti3.tail_cons _)) hom2) |> cast (congr_m₂ lm1.symm (ti3.tail_cons _).symm)
+    else
+      if h3: ti3.index = 0 then
+        have lm3 := index_zero h3
+        v_y (ti2.tail_of_ne_zero h2) (cast (congr_m₂ lm1 (ti2.tail_cons _)) hom1) (cast (congr_m₂ (ti2.tail_cons _) lm3) hom2) |> cast (congr_m₂ lm1.symm lm3.symm)
+      else
+        v_yz (ti2.tail_of_ne_zero h2) (ti3.tail_of_ne_zero h3) (cast (congr_m₂ lm1 (ti2.tail_cons _)) hom1) (cast (congr_m₂ (ti2.tail_cons _) (ti3.tail_cons _)) hom2) |> cast (congr_m₂ lm1.symm (ti3.tail_cons _).symm)
+  else
+    if h2: ti2.index = 0 then
+      have lm2 := index_zero h2
+      if h3: ti3.index = 0 then
+        have lm3 := index_zero h3
+        v_x (ti1.tail_of_ne_zero h1) (cast (congr_m₂ (ti1.tail_cons _) lm2) hom1) (cast (congr_m₂ lm2 lm3) hom2) |> cast (congr_m₂ (ti1.tail_cons _).symm lm3.symm)
+      else
+        v_xz (ti1.tail_of_ne_zero h1) (ti3.tail_of_ne_zero h3) (cast (congr_m₂ (ti1.tail_cons _) lm2) hom1) (cast (congr_m₂ lm2 (ti3.tail_cons _)) hom2) |> cast (congr_m₂ (ti1.tail_cons _).symm (ti3.tail_cons _).symm)
+    else
+      if h3: ti3.index = 0 then
+        have lm3 := index_zero h3
+        v_xy (ti1.tail_of_ne_zero h1) (ti2.tail_of_ne_zero h2) (cast (congr_m₂ (ti1.tail_cons _) (ti2.tail_cons _)) hom1) (cast (congr_m₂ (ti2.tail_cons _) lm3) hom2) |> cast (congr_m₂ (ti1.tail_cons _).symm lm3.symm)
+      else
+        tiComp (ti1.tail_of_ne_zero h1) (ti2.tail_of_ne_zero h2) (ti3.tail_of_ne_zero h3) (cast (congr_m₂ (ti1.tail_cons _) (ti2.tail_cons _)) hom1) (cast (congr_m₂ (ti2.tail_cons _) (ti3.tail_cons _)) hom2)
+        |> cast (congr_m₂ (ti1.tail_cons _).symm (ti3.tail_cons _).symm)
+
 
 
 /-
-def tailTypeInfoPi {Ty Ty2: Type u} {tys} (tt: TypeTable Ty (Ty2::tys))
-  (ToType: (Ty: Type u) → (tys: List (Type u)) → TypeInfo Ty tys → Sort u2)
-  (tipi: (ti: TypeInfo Ty (Ty2::tys)) → ToType Ty (Ty2::tys) ti)
-  (ti: TypeInfo Ty2 tys) : ToType Ty2 tys ti :=
+def consComp.{u2} {Ty2: Type u} (m₂: Type u → Type u → Type u2)
+  (v: m₂ Ty Ty → m₂ Ty Ty → m₂ Ty Ty)
+  (v_x: (ti1: TypeInfo Ty2 tys) → (m₂ ti1.InnerType Ty) → (m₂ Ty Ty) → m₂ ti1.InnerType Ty)
+  (v_y: (ti2: TypeInfo Ty2 tys) → (m₂ Ty ti2.InnerType) → (m₂ ti2.InnerType Ty) → (m₂ Ty Ty))
+  (v_z: (ti3: TypeInfo Ty2 tys) → (m₂ Ty Ty) → (m₂ Ty ti3.InnerType) → (m₂ Ty ti3.InnerType))
+  (v_xy: (ti1 ti2: TypeInfo Ty2 tys) → (m₂ ti1.InnerType ti2.InnerType) → (m₂ ti2.InnerType Ty) → m₂ ti1.InnerType Ty)
+  (v_xz: (ti1 ti3: TypeInfo Ty2 tys) → (m₂ ti1.InnerType Ty) → (m₂ Ty ti3.InnerType) → m₂ ti1.InnerType ti3.InnerType)
+  (v_yz : (ti2 ti3: TypeInfo Ty2 tys) → (m₂ Ty ti2.InnerType) → (m₂ ti2.InnerType ti3.InnerType) → m₂ Ty ti3.InnerType)
+  (tiComp: (ti1 ti2 ti3: TypeInfo Ty2 tys) → (m₂ ti1.InnerType ti2.InnerType) → (m₂ ti2.InnerType ti3.InnerType) → m₂ ti1.InnerType ti3.InnerType)
+  (ti1 ti2 ti3: TypeInfo Ty (Ty2::tys)) (hom1: m₂ ti1.InnerType ti2.InnerType) (hom2: m₂ ti2.InnerType ti3.InnerType) : m₂ ti1.InnerType ti3.InnerType :=
+  have congr_m₂ {Ty1 Ty2 Ty3 Ty4: Type u} (req1: Ty1 = Ty3) (req2: Ty2 = Ty4) : m₂ Ty1 Ty2 = m₂ Ty3 Ty4 := congrArg₂ m₂ req1 req2
+  if h1: ti1.index = 0 then
+    have lm1 := ti1.innerType_eq_of_index_eq_zero h1
+    if h2: ti2.index = 0 then
+      have lm2 := ti2.innerType_eq_of_index_eq_zero h2
+      if h3: ti3.index = 0 then
+        have lm3 := ti3.innerType_eq_of_index_eq_zero h3
+        v (cast (congr_m₂ lm1 lm2) hom1) (cast (congr_m₂ lm2 lm3) hom2) |> cast (congr_m₂ lm1.symm lm3.symm)
+      else
+        v_z (ti3.tail_of_ne_zero h3) (cast (congr_m₂ lm1 lm2) hom1) (cast (congr_m₂ lm2 rfl) hom2) |> cast (congr_m₂ lm1.symm rfl)
+    else
+      if h3: ti3.index = 0 then
+        have lm3 := ti3.innerType_eq_of_index_eq_zero h3
+        v_y (ti2.tail_of_ne_zero h2) (cast (congr_m₂ lm1 rfl) hom1) (cast (congr_m₂ rfl lm3) hom2) |> cast (congr_m₂ lm1.symm lm3.symm)
+      else
+        v_yz (ti2.tail_of_ne_zero h2) (ti3.tail_of_ne_zero h3) (cast (congr_m₂ lm1 rfl) hom1) hom2 |> cast (congr_m₂ lm1.symm rfl)
+  else
+    if h2: ti2.index = 0 then
+      have lm2 := ti2.innerType_eq_of_index_eq_zero h2
+      if h3: ti3.index = 0 then
+        have lm3 := ti3.innerType_eq_of_index_eq_zero h3
+        v_x (ti1.tail_of_ne_zero h1) (cast (congr_m₂ rfl lm2) hom1) (cast (congr_m₂ lm2 lm3) hom2) |> cast (congr_m₂ rfl lm3.symm)
+      else
+        v_xz (ti1.tail_of_ne_zero h1) (ti3.tail_of_ne_zero h3) (cast (congr_m₂ rfl lm2) hom1) (cast (congr_m₂ lm2 rfl) hom2)
+    else
+      if h3: ti3.index = 0 then
+        have lm3 := ti3.innerType_eq_of_index_eq_zero h3
+        v_xy (ti1.tail_of_ne_zero h1) (ti2.tail_of_ne_zero h2) hom1 (cast (congr_m₂ rfl lm3) hom2) |> cast (congr_m₂ rfl lm3.symm)
+      else
+        tiComp (ti1.tail_of_ne_zero h1) (ti2.tail_of_ne_zero h2) (ti3.tail_of_ne_zero h3) hom1 hom2
 -/
 
-/-
-def consTypeInfoPi {Ty Ty2: Type u} {tys} (tt: TypeTable Ty (Ty2::tys))
-  (ToType: (Ty: Type u) → (tys: List (Type u)) → TypeInfo Ty tys → Sort u2)
-  (v: ToType _ _ (tt.get 0)) (tipi: (ti: TypeInfo Ty2 tys) → ToType _ _ ti)
-  (ti: TypeInfo Ty (Ty2::tys)) : ToType _ _ ti :=
-  match lm1: ti.index with
-  | 0 => v |> cast (by
-    congr
-    refine TypeInfo.ext ?_
-    rw [lm1, tt.index_eq_val _]
-    dsimp)
-  | i+1 =>
-    let ti2 : TypeInfo Ty2 tys := ti.tail (by rw [lm1]; exact Nat.zero_lt_succ _)
-    match lm2: ti2.index with
-    | 0 =>
--/
-    --let tt2 := tt.tail
-    --consTypeInfoPi tt ToType (tipi)
 
---{Ty2: Type u} (tt: TypeTable Ty (Ty2::tys)) (ToType: TypeInfo Ty2 tys → Sort u2) (pi: (ti: TypeInfo Ty2 tys) → ToType ti)
-
-
-/-
-def liftTypeInfoFun {Ty2: Type u} (tt: TypeTable Ty (Ty2::tys)) {α: Sort*} (v: α) (tif: TypeInfo Ty2 tys → α) (ti: TypeInfo Ty (Ty2::tys)) : α :=
-  if h1: ti.index = 0 then v else tif (ti.tail (Nat.pos_of_ne_zero h1))
--/
 
 end TypeTable
 
@@ -296,6 +365,7 @@ end TypeTable
 
 namespace TypeInfo
 
+/-
 def consFun {α: Sort*} (v: α) {Ty: Type u} {Ty2: Type u} {tys: List (Type u)} (tif: TypeInfo Ty2 tys → α) (ti: TypeInfo Ty (Ty2::tys)) : α :=
   if h1: ti.index = 0 then v else tif (ti.tail (Nat.pos_of_ne_zero h1))
 
@@ -311,6 +381,7 @@ def consPi (toType: (Ty: Type u) → (tys: List (Type u)) → TypeInfo Ty tys �
       exact ti.innerType_eq_of_index_eq_zero h1 |>.symm)
   else
     tif (ti.tail (Nat.pos_of_ne_zero h1))
+-/
     --let tiTail := ti.tail (Nat.pos_of_ne_zero h1)
     --let v := tif tiTail
 /-

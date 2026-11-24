@@ -281,6 +281,28 @@ def tail {Ty2: Type u} (ti: TypeInfo Ty (Ty2::tys)) (req: 0 < ti.index) : TypeIn
       rcases lm1 with ⟨esum⟩
       exact .intro esum.tail)
 
+def tail_of_ne_zero {Ty2: Type u} (ti: TypeInfo Ty (Ty2::tys)) (req: ti.index ≠ 0) : TypeInfo Ty2 tys := ti.tail (Nat.pos_of_ne_zero req)
+
+@[defeq, simp]
+theorem tail_of_ne_zero_def {Ty2: Type u} (ti: TypeInfo Ty (Ty2::tys)) (req: ti.index ≠ 0) : ti.tail_of_ne_zero req = ti.tail (Nat.pos_of_ne_zero req) := rfl
+
+@[simp]
+theorem tail_cons {Ty2: Type u} (ti: TypeInfo Ty (Ty2::tys)) (req: 0 < ti.index) : (ti.tail req).cons Ty = ti := by
+  dsimp [tail, cons]
+  rcases ti with ⟨_,_,_⟩
+  simp at ⊢ req
+  exact Nat.sub_one_add_one (Nat.ne_zero_of_lt req)
+
+
+theorem cons_index_pos {Ty2} (ti: TypeInfo Ty2 tys) : 0 < (ti.cons Ty).index := by
+  dsimp [cons]
+  exact Nat.add_one_pos _
+
+@[defeq, simp]
+theorem cons_tail {Ty2: Type u} (ti: TypeInfo Ty2 tys) : (ti.cons Ty).tail (ti.cons_index_pos) = ti := by
+  dsimp [tail, cons]
+
+
 def ofNonempty (Ty: Type u) [Nonempty Ty] (tys: List (Type u)) : TypeInfo Ty tys := .mk 0 Ty (by
     rename_i lm1
     rcases lm1 with ⟨v⟩
@@ -400,7 +422,112 @@ def consPi₂.{u2} {Ty2: Type u} (m₂: Type u → Type u → Type u2)
     else
       tif₂ (ti1.tail (Nat.pos_of_ne_zero h1)) (ti2.tail (Nat.pos_of_ne_zero h2))
 
+def consComp.{u2} {Ty2: Type u} (m₂: Type u → Type u → Type u2)
+  (v: m₂ Ty Ty → m₂ Ty Ty → m₂ Ty Ty)
+  (v_x: (ti1: TypeInfo Ty2 tys) → (m₂ ti1.InnerType Ty) → (m₂ Ty Ty) → m₂ ti1.InnerType Ty)
+  (v_y: (ti2: TypeInfo Ty2 tys) → (m₂ Ty ti2.InnerType) → (m₂ ti2.InnerType Ty) → (m₂ Ty Ty))
+  (v_z: (ti3: TypeInfo Ty2 tys) → (m₂ Ty Ty) → (m₂ Ty ti3.InnerType) → (m₂ Ty ti3.InnerType))
+  (v_xy: (ti1 ti2: TypeInfo Ty2 tys) → (m₂ ti1.InnerType ti2.InnerType) → (m₂ ti2.InnerType Ty) → m₂ ti1.InnerType Ty)
+  (v_xz: (ti1 ti3: TypeInfo Ty2 tys) → (m₂ ti1.InnerType Ty) → (m₂ Ty ti3.InnerType) → m₂ ti1.InnerType ti3.InnerType)
+  (v_yz : (ti2 ti3: TypeInfo Ty2 tys) → (m₂ Ty ti2.InnerType) → (m₂ ti2.InnerType ti3.InnerType) → m₂ Ty ti3.InnerType)
+  (tiComp: (ti1 ti2 ti3: TypeInfo Ty2 tys) → (m₂ ti1.InnerType ti2.InnerType) → (m₂ ti2.InnerType ti3.InnerType) → m₂ ti1.InnerType ti3.InnerType)
+  (ti1 ti2 ti3: TypeInfo Ty (Ty2::tys)) (hom1: m₂ ti1.InnerType ti2.InnerType) (hom2: m₂ ti2.InnerType ti3.InnerType) : m₂ ti1.InnerType ti3.InnerType :=
+  have congr_m₂ {Ty1 Ty2 Ty3 Ty4: Type u} (req1: Ty1 = Ty3) (req2: Ty2 = Ty4) : m₂ Ty1 Ty2 = m₂ Ty3 Ty4 := congrArg₂ m₂ req1 req2
+  if h1: ti1.index = 0 then
+    have lm1 := ti1.innerType_eq_of_index_eq_zero h1
+    if h2: ti2.index = 0 then
+      have lm2 := ti2.innerType_eq_of_index_eq_zero h2
+      if h3: ti3.index = 0 then
+        have lm3 := ti3.innerType_eq_of_index_eq_zero h3
+        v (cast (congr_m₂ lm1 lm2) hom1) (cast (congr_m₂ lm2 lm3) hom2) |> cast (congr_m₂ lm1.symm lm3.symm)
+      else
+        v_z (ti3.tail_of_ne_zero h3) (cast (congr_m₂ lm1 lm2) hom1) (cast (congr_m₂ lm2 rfl) hom2) |> cast (congr_m₂ lm1.symm rfl)
+    else
+      if h3: ti3.index = 0 then
+        have lm3 := ti3.innerType_eq_of_index_eq_zero h3
+        v_y (ti2.tail_of_ne_zero h2) (cast (congr_m₂ lm1 rfl) hom1) (cast (congr_m₂ rfl lm3) hom2) |> cast (congr_m₂ lm1.symm lm3.symm)
+      else
+        v_yz (ti2.tail_of_ne_zero h2) (ti3.tail_of_ne_zero h3) (cast (congr_m₂ lm1 rfl) hom1) hom2 |> cast (congr_m₂ lm1.symm rfl)
+  else
+    if h2: ti2.index = 0 then
+      have lm2 := ti2.innerType_eq_of_index_eq_zero h2
+      if h3: ti3.index = 0 then
+        have lm3 := ti3.innerType_eq_of_index_eq_zero h3
+        v_x (ti1.tail_of_ne_zero h1) (cast (congr_m₂ rfl lm2) hom1) (cast (congr_m₂ lm2 lm3) hom2) |> cast (congr_m₂ rfl lm3.symm)
+      else
+        v_xz (ti1.tail_of_ne_zero h1) (ti3.tail_of_ne_zero h3) (cast (congr_m₂ rfl lm2) hom1) (cast (congr_m₂ lm2 rfl) hom2)
+    else
+      if h3: ti3.index = 0 then
+        have lm3 := ti3.innerType_eq_of_index_eq_zero h3
+        v_xy (ti1.tail_of_ne_zero h1) (ti2.tail_of_ne_zero h2) hom1 (cast (congr_m₂ rfl lm3) hom2) |> cast (congr_m₂ rfl lm3.symm)
+      else
+        tiComp (ti1.tail_of_ne_zero h1) (ti2.tail_of_ne_zero h2) (ti3.tail_of_ne_zero h3) hom1 hom2
 
+
+/-
+def consPi.{u2} {Ty2: Type u} (m: Type u → Type u2) (v: m Ty)
+  (tif: (ti: TypeInfo Ty2 tys) → m ti.InnerType) (ti: TypeInfo Ty (Ty2::tys)) : m ti.InnerType :=
+  if h1: ti.index = 0 then
+    v |> cast (by rw [ti.innerType_eq_of_index_eq_zero h1])
+  else
+    tif (ti.tail (Nat.pos_of_ne_zero h1))
+
+def consPi₂.{u2} {Ty2: Type u} (m₂: Type u → Type u → Type u2)
+  (v: m₂ Ty Ty) (vcol: (ti: TypeInfo Ty2 tys) → m₂ ti.InnerType Ty) (vrow: (ti: TypeInfo Ty2 tys) → m₂ Ty ti.InnerType)
+  (tif₂: (ti1 ti2: TypeInfo Ty2 tys) → m₂ ti1.InnerType ti2.InnerType)
+  (ti1 ti2: TypeInfo Ty (Ty2::tys)) : m₂ ti1.InnerType ti2.InnerType :=
+  if h1: ti1.index = 0 then
+    if h2: ti2.index = 0 then
+      v |> cast (by rw [ti1.innerType_eq_of_index_eq_zero h1, ti2.innerType_eq_of_index_eq_zero h2])
+    else
+      vrow (ti2.tail (Nat.pos_of_ne_zero h2)) |> cast (by rw [ti1.innerType_eq_of_index_eq_zero h1]; dsimp [tail])
+  else
+    if h2: ti2.index = 0 then
+      vcol (ti1.tail (Nat.pos_of_ne_zero h1)) |> cast (by rw [ti2.innerType_eq_of_index_eq_zero h2]; dsimp [tail])
+    else
+      tif₂ (ti1.tail (Nat.pos_of_ne_zero h1)) (ti2.tail (Nat.pos_of_ne_zero h2))
+
+def consComp.{u2} {Ty2: Type u} (m₂: Type u → Type u → Type u2)
+  (v: m₂ Ty Ty → m₂ Ty Ty → m₂ Ty Ty)
+  (v_x: (ti1: TypeInfo Ty2 tys) → (m₂ ti1.InnerType Ty) → (m₂ Ty Ty) → m₂ ti1.InnerType Ty)
+  (v_y: (ti2: TypeInfo Ty2 tys) → (m₂ Ty ti2.InnerType) → (m₂ ti2.InnerType Ty) → (m₂ Ty Ty))
+  (v_z: (ti3: TypeInfo Ty2 tys) → (m₂ Ty Ty) → (m₂ Ty ti3.InnerType) → (m₂ Ty ti3.InnerType))
+  (v_xy: (ti1 ti2: TypeInfo Ty2 tys) → (m₂ ti1.InnerType ti2.InnerType) → (m₂ ti2.InnerType Ty) → m₂ ti1.InnerType Ty)
+  (v_xz: (ti1 ti3: TypeInfo Ty2 tys) → (m₂ ti1.InnerType Ty) → (m₂ Ty ti3.InnerType) → m₂ ti1.InnerType ti3.InnerType)
+  (v_yz : (ti2 ti3: TypeInfo Ty2 tys) → (m₂ Ty ti2.InnerType) → (m₂ ti2.InnerType ti3.InnerType) → m₂ Ty ti3.InnerType)
+  (tiComp: (ti1 ti2 ti3: TypeInfo Ty2 tys) → (m₂ ti1.InnerType ti2.InnerType) → (m₂ ti2.InnerType ti3.InnerType) → m₂ ti1.InnerType ti3.InnerType)
+  (ti1 ti2 ti3: TypeInfo Ty (Ty2::tys)) (hom1: m₂ ti1.InnerType ti2.InnerType) (hom2: m₂ ti2.InnerType ti3.InnerType) : m₂ ti1.InnerType ti3.InnerType :=
+  have congr_m₂ {Ty1 Ty2 Ty3 Ty4: Type u} (req1: Ty1 = Ty3) (req2: Ty2 = Ty4) : m₂ Ty1 Ty2 = m₂ Ty3 Ty4 := congrArg₂ m₂ req1 req2
+  if h1: ti1.index = 0 then
+    have lm1 := ti1.innerType_eq_of_index_eq_zero h1
+    if h2: ti2.index = 0 then
+      have lm2 := ti2.innerType_eq_of_index_eq_zero h2
+      if h3: ti3.index = 0 then
+        have lm3 := ti3.innerType_eq_of_index_eq_zero h3
+        v (cast (congr_m₂ lm1 lm2) hom1) (cast (congr_m₂ lm2 lm3) hom2) |> cast (congr_m₂ lm1.symm lm3.symm)
+      else
+        v_z (ti3.tail_of_ne_zero h3) (cast (congr_m₂ lm1 lm2) hom1) (cast (congr_m₂ lm2 rfl) hom2) |> cast (congr_m₂ lm1.symm rfl)
+    else
+      if h3: ti3.index = 0 then
+        have lm3 := ti3.innerType_eq_of_index_eq_zero h3
+        v_y (ti2.tail_of_ne_zero h2) (cast (congr_m₂ lm1 rfl) hom1) (cast (congr_m₂ rfl lm3) hom2) |> cast (congr_m₂ lm1.symm lm3.symm)
+      else
+        v_yz (ti2.tail_of_ne_zero h2) (ti3.tail_of_ne_zero h3) (cast (congr_m₂ lm1 rfl) hom1) hom2 |> cast (congr_m₂ lm1.symm rfl)
+  else
+    if h2: ti2.index = 0 then
+      have lm2 := ti2.innerType_eq_of_index_eq_zero h2
+      if h3: ti3.index = 0 then
+        have lm3 := ti3.innerType_eq_of_index_eq_zero h3
+        v_x (ti1.tail_of_ne_zero h1) (cast (congr_m₂ rfl lm2) hom1) (cast (congr_m₂ lm2 lm3) hom2) |> cast (congr_m₂ rfl lm3.symm)
+      else
+        v_xz (ti1.tail_of_ne_zero h1) (ti3.tail_of_ne_zero h3) (cast (congr_m₂ rfl lm2) hom1) (cast (congr_m₂ lm2 rfl) hom2)
+    else
+      if h3: ti3.index = 0 then
+        have lm3 := ti3.innerType_eq_of_index_eq_zero h3
+        v_xy (ti1.tail_of_ne_zero h1) (ti2.tail_of_ne_zero h2) hom1 (cast (congr_m₂ rfl lm3) hom2) |> cast (congr_m₂ rfl lm3.symm)
+      else
+        tiComp (ti1.tail_of_ne_zero h1) (ti2.tail_of_ne_zero h2) (ti3.tail_of_ne_zero h3) hom1 hom2
+-/
 
 end TypeInfo
 
