@@ -28,6 +28,13 @@ theorem of_nonemptyAll (req: NonemptyAll (Ty::tys)) : HasTypeInfo Ty tys := req
 
 theorem head_nonempty (h: HasTypeInfo Ty tys) : Nonempty Ty := h.cons_nonemptyAll.nonempty_head
 
+variable (Ty) in
+theorem of_nonempty [Nonempty Ty] : HasTypeInfo Ty [] := by
+  rename_i lm1
+  rcases lm1 with ⟨v⟩
+  refine .cons Ty [] v ?_
+  exact .nil
+
 theorem tail_nonemptyAll (h: HasTypeInfo Ty tys) : NonemptyAll tys := by
   dsimp [HasTypeInfo] at h
   rcases h
@@ -225,6 +232,12 @@ def equivToFinIndex (tt: TypeTable Ty tys) : (TypeInfo Ty tys) ≃ (Fin tt.lengt
 
 def InnerTypeOfFin (tt: TypeTable Ty tys) (i: Fin tt.length) : Type u := (tt.get i).InnerType
 
+variable (Ty) in
+def ofNonempty [Nonempty Ty] : TypeTable Ty [] := HasTypeInfo.of_nonempty Ty |> ofHasTypeInfo
+
+
+theorem head_nonempty (tt: TypeTable Ty tys) : Nonempty Ty := tt.hasTypeInfo.head_nonempty
+
 
 
 def consPi {Ty2: Type u} (tt: TypeTable Ty (Ty2::tys)) (m: TypeInfo Ty (Ty2::tys) → Type u2) (v: m (tt.get 0))
@@ -308,227 +321,13 @@ def consComp {Ty2: Type u} (tt: TypeTable Ty (Ty2::tys)) (m₂: TypeInfo Ty (Ty2
         |> cast (congr_m₂ (ti1.tail_cons _).symm (ti3.tail_cons _).symm)
 
 
-
-/-
-def consComp.{u2} {Ty2: Type u} (m₂: Type u → Type u → Type u2)
-  (v: m₂ Ty Ty → m₂ Ty Ty → m₂ Ty Ty)
-  (v_x: (ti1: TypeInfo Ty2 tys) → (m₂ ti1.InnerType Ty) → (m₂ Ty Ty) → m₂ ti1.InnerType Ty)
-  (v_y: (ti2: TypeInfo Ty2 tys) → (m₂ Ty ti2.InnerType) → (m₂ ti2.InnerType Ty) → (m₂ Ty Ty))
-  (v_z: (ti3: TypeInfo Ty2 tys) → (m₂ Ty Ty) → (m₂ Ty ti3.InnerType) → (m₂ Ty ti3.InnerType))
-  (v_xy: (ti1 ti2: TypeInfo Ty2 tys) → (m₂ ti1.InnerType ti2.InnerType) → (m₂ ti2.InnerType Ty) → m₂ ti1.InnerType Ty)
-  (v_xz: (ti1 ti3: TypeInfo Ty2 tys) → (m₂ ti1.InnerType Ty) → (m₂ Ty ti3.InnerType) → m₂ ti1.InnerType ti3.InnerType)
-  (v_yz : (ti2 ti3: TypeInfo Ty2 tys) → (m₂ Ty ti2.InnerType) → (m₂ ti2.InnerType ti3.InnerType) → m₂ Ty ti3.InnerType)
-  (tiComp: (ti1 ti2 ti3: TypeInfo Ty2 tys) → (m₂ ti1.InnerType ti2.InnerType) → (m₂ ti2.InnerType ti3.InnerType) → m₂ ti1.InnerType ti3.InnerType)
-  (ti1 ti2 ti3: TypeInfo Ty (Ty2::tys)) (hom1: m₂ ti1.InnerType ti2.InnerType) (hom2: m₂ ti2.InnerType ti3.InnerType) : m₂ ti1.InnerType ti3.InnerType :=
-  have congr_m₂ {Ty1 Ty2 Ty3 Ty4: Type u} (req1: Ty1 = Ty3) (req2: Ty2 = Ty4) : m₂ Ty1 Ty2 = m₂ Ty3 Ty4 := congrArg₂ m₂ req1 req2
-  if h1: ti1.index = 0 then
-    have lm1 := ti1.innerType_eq_of_index_eq_zero h1
-    if h2: ti2.index = 0 then
-      have lm2 := ti2.innerType_eq_of_index_eq_zero h2
-      if h3: ti3.index = 0 then
-        have lm3 := ti3.innerType_eq_of_index_eq_zero h3
-        v (cast (congr_m₂ lm1 lm2) hom1) (cast (congr_m₂ lm2 lm3) hom2) |> cast (congr_m₂ lm1.symm lm3.symm)
-      else
-        v_z (ti3.tail_of_ne_zero h3) (cast (congr_m₂ lm1 lm2) hom1) (cast (congr_m₂ lm2 rfl) hom2) |> cast (congr_m₂ lm1.symm rfl)
-    else
-      if h3: ti3.index = 0 then
-        have lm3 := ti3.innerType_eq_of_index_eq_zero h3
-        v_y (ti2.tail_of_ne_zero h2) (cast (congr_m₂ lm1 rfl) hom1) (cast (congr_m₂ rfl lm3) hom2) |> cast (congr_m₂ lm1.symm lm3.symm)
-      else
-        v_yz (ti2.tail_of_ne_zero h2) (ti3.tail_of_ne_zero h3) (cast (congr_m₂ lm1 rfl) hom1) hom2 |> cast (congr_m₂ lm1.symm rfl)
-  else
-    if h2: ti2.index = 0 then
-      have lm2 := ti2.innerType_eq_of_index_eq_zero h2
-      if h3: ti3.index = 0 then
-        have lm3 := ti3.innerType_eq_of_index_eq_zero h3
-        v_x (ti1.tail_of_ne_zero h1) (cast (congr_m₂ rfl lm2) hom1) (cast (congr_m₂ lm2 lm3) hom2) |> cast (congr_m₂ rfl lm3.symm)
-      else
-        v_xz (ti1.tail_of_ne_zero h1) (ti3.tail_of_ne_zero h3) (cast (congr_m₂ rfl lm2) hom1) (cast (congr_m₂ lm2 rfl) hom2)
-    else
-      if h3: ti3.index = 0 then
-        have lm3 := ti3.innerType_eq_of_index_eq_zero h3
-        v_xy (ti1.tail_of_ne_zero h1) (ti2.tail_of_ne_zero h2) hom1 (cast (congr_m₂ rfl lm3) hom2) |> cast (congr_m₂ rfl lm3.symm)
-      else
-        tiComp (ti1.tail_of_ne_zero h1) (ti2.tail_of_ne_zero h2) (ti3.tail_of_ne_zero h3) hom1 hom2
--/
-
-
-
 end TypeTable
 
 
 
 
---abbrev TypeMap (Ty: Type u) (tys: List (Type u)) (α: Sort u2) : Sort _ :=
 
-
-
-namespace TypeInfo
-
-/-
-def consFun {α: Sort*} (v: α) {Ty: Type u} {Ty2: Type u} {tys: List (Type u)} (tif: TypeInfo Ty2 tys → α) (ti: TypeInfo Ty (Ty2::tys)) : α :=
-  if h1: ti.index = 0 then v else tif (ti.tail (Nat.pos_of_ne_zero h1))
-
-def consPi (toType: (Ty: Type u) → (tys: List (Type u)) → TypeInfo Ty tys → Sort u2)
-  {Ty: Type u} {Ty2: Type u} {tys: List (Type u)} [Nonempty Ty] (v: toType Ty (Ty2::tys) (.ofNonempty Ty (Ty2::tys)))
-  (tif: (ti: TypeInfo Ty2 tys) → toType Ty2 tys ti)
-  (ti: TypeInfo Ty (Ty2::tys)) : toType Ty (Ty2::tys) ti :=
-  if h1: ti.index = 0 then
-    v |> cast (by
-      congr
-      dsimp [ofNonempty]
-      congr <;> (try exact h1.symm)
-      exact ti.innerType_eq_of_index_eq_zero h1 |>.symm)
-  else
-    tif (ti.tail (Nat.pos_of_ne_zero h1))
--/
-    --let tiTail := ti.tail (Nat.pos_of_ne_zero h1)
-    --let v := tif tiTail
-/-
-    let tiTail := ti.tail (Nat.pos_of_ne_zero h1)
-    let v := tif tiTail
--/
-
-/-
-def consPi (Ty: Type u) (v: Ty) {Ty2: Type u} {tys: List (Type u)}
-           (toType: TypeInfo Ty2 tys → Type u2) (tif: (ti: TypeInfo Ty2 tys) → toType ti)
-           (ti: TypeInfo Ty (Ty2::tys)) : consFun Ty toType ti :=
-  if h1: ti.index = 0 then
--/
---def liftTypeFun (f: Type u → Sort u2) {Ty: Type u} {tys: List (Type u)} (ti: TypeInfo Ty tys) : Sort u2 :=
-
-/-
-def consPi {Ty: Type u} {α: Sort*} (f: Ty → α) {Ty2: Type u} {tys: List (Type u)}
-           (tif: TypeInfo Ty2 tys → α)
--/
-
-
-end TypeInfo
-
-
-/-
-class TypeTable (Head: Type u) (tail: List (Type u)) : Prop where
-  nonemptyAll: NonemptyAll (Head::tail)
--/
-
-/-
-namespace TypeTable
-
---variable {Ty: Type u} {tys: List (Type u)}
-
-variable (Ty tys) in
-def lengthAt [TypeTable Ty tys] : Nat := tys.length + 1
-
-theorem tailAt (Ty Ty2: Type u) (tys: List (Type u)) [TypeTable Ty (Ty2::tys)] : TypeTable Ty2 tys where
-  nonemptyAll := by
-    rename_i lm1
-    rcases lm1 with ⟨lm1⟩
-    rcases lm1
-    assumption
-
-
-def getTypeInfoAt (Ty: Type u) (tys: List (Type u)) [TypeTable Ty tys] (i: Nat) (req: i < lengthAt Ty tys) : TypeInfo Ty tys :=
-  match i with
-  | 0 => .mk 0 Ty (by
-      rename_i lm1
-      rcases lm1 with ⟨lm1⟩
-      rcases lm1
-      refine .intro (.ofVal tys ?_)
-      assumption )
-  | i+1 =>
-  match tys with
-  | Ty2::tys =>
-    have lm1 : TypeTable Ty2 tys := by
-    --let ti : TypeInfo Ty2 tys := getTypeInfoAt Ty2 tys i _
-    --Typein
-/-
-  match i, tys with
-  | 0, tys => .mk 0 Ty (by
-      rename_i lm1
-      rcases lm1 with ⟨lm1⟩
-      rcases lm1
-      rename Ty => v
-      refine .intro ?_
-      exact .ofVal tys v )
-  | i+1, [] => False.elim (by dsimp [lengthAt] at req)
-  | i+1, Ty2::tys =>
-    have lm1 : TypeTable Ty2 tys := tailOf Ty Ty2 tys
-    let ti : TypeInfo Ty2 tys := getTypeInfo i (by simp)
-    Type
--/
-
-
---def types [TypeTable Ty tys] :
-
-
-end TypeTable
--/
-
-/-
-inductive HasTypeMap : Type u → List (Type u) → Prop where
-  | single (Ty: Type u) : Explicit Ty 0 Ty [] → HasTypeMap Ty []
-  | cons (Ty: Type u) (tail: List (Type u)) : Explicit Ty 0 Ty tail
--/
-
-/-
-def IterProdT (m: Type u → Type u2) (Ty: Type u) : List (Type u) → Type u2
-  | [] => m Ty
-  | Ty2::tys => (m Ty) × (IterProdT m Ty2 tys)
-
-def TypeTable (Ty: Type u) (tys: List (Type u)) : Prop :=
-  match tys with
-  | [] => Nonempty (Explicit Ty 0 Ty [])
-  | Ty2::tys => (Nonempty (Explicit Ty2 0 Ty2 tys)) ∧ (TypeTable Ty2 tys)
--/
-  --(Explicit Ty2 0 Ty2 tys) × (TypeTable Ty2 tys)
-
-/-
-inductive TypeTable : Type u → List (Type u) → Type _ where
-  | single (Ty: Type u) (ti: TypeInfo Ty []) : TypeTable Ty []
-  | cons (Ty Ty2: Type u) (tail: List (Type u)) (ti: TypeInfo Ty2 tail) : TypeTable Ty2 tail →
--/
-
-/-
-mutual
-
-
-
-end
--/
-
-/-
-def TypeTable (Ty: Type u) : List (Type u) → Type _
-  | [] => Ty
-  | Ty2::tys => Ty × (TypeTable Ty2 tys)
-
-#print TypeTable
--/
-
-/-
-def TypeTable (Ty: Type u) : List (Type u) → Type _
-  | [] => Explicit Ty 0 Ty []
-  | Ty2::tys => Explicit Ty2
--/
-
-
-
-namespace TypeTable
-
-
-
-end TypeTable
-
-/-
-namespace TypeInfo
-
-variable {Ty Ty2: Type u} {tys: List (Type u)}
-
-def consFun {α: Sort u2} (f: Ty → α) (tif: TypeInfo Ty2 tys → α) (ti: TypeInfo Ty (Ty2::tys)) : α :=
-  match ti with
-  | .mk i Tye lm1 =>
-
-
-end TypeInfo
--/
 
 end Nemonuri.TypeLists.IterSum
+
+end

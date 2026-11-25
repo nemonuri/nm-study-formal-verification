@@ -396,6 +396,14 @@ def recOfNonemptyConsOn.{um}
   recOfNonemptyCons ofNonempty cons Ty tys ti
 
 
+instance single_subsingleton : Subsingleton (TypeInfo Ty []) where
+  allEq ti1 ti2 := by
+    cases ti1 using recOfNonemptyConsOn
+    cases ti2 using recOfNonemptyConsOn
+    rfl
+
+
+
 def consFun {Ty2: Type u} {α: Sort*} (v: α) (tif: TypeInfo Ty2 tys → α) (ti: TypeInfo Ty (Ty2::tys)) : α :=
   if h1: ti.index = 0 then v else tif (ti.tail (Nat.pos_of_ne_zero h1))
 

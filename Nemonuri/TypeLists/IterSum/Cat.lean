@@ -2,6 +2,7 @@ module
 
 
 public import Nemonuri.TypeLists.IterSum.TypeTable
+public import Nemonuri.TypeLists.IterSum.Generic
 public import Mathlib.CategoryTheory.Category.Basic
 
 @[expose] public section
@@ -71,76 +72,113 @@ def category (cat: Cat Ty tys Hom) : CategoryTheory.Category (TypeInfo Ty tys) w
   comp_id := cat.valid.comp_id _ _
   assoc := cat.valid.assoc _ _ _ _
 
+open TypeInfo.FreeBiGeneric
 
-structure SingleStruct (Hom: Type uh) where
-  id: Hom
-  comp: Hom → Hom → Hom
+structure SingleStruct (tt: TypeTable Ty []) (he: HomEquiv) where
+  id: he.Ap₂ (tt.get 0) (tt.get 0)
+  comp: he.Ap₂ (tt.get 0) (tt.get 0) → he.Ap₂ (tt.get 0) (tt.get 0) → he.Ap₂ (tt.get 0) (tt.get 0)
 
 namespace SingleStruct
 
-def toLastCatStruct (Ty: Type u) (Hom: Type uh) (ss: SingleStruct Hom) : CatStruct Ty [] (fun _ _ => Hom) where
-  id _ := ss.id
-  comp := ss.comp
+open TypeInfo in
+def toCatStruct {tt: TypeTable Ty []} {he: HomEquiv} (s: SingleStruct tt he) : CatStruct Ty [] (he.Hom) where
+  id _ := s.id |> cast (by congr <;> exact Subsingleton.elim _ _)
+  comp := s.comp |> cast (by congr <;> exact Subsingleton.elim _ _)
 
 end SingleStruct
 
 
-structure Last (Ty: Type u) (Hom: Type uh) extends toStruct: SingleStruct Hom where
-  valid: IsCat Ty [] (fun _ _ => Hom) (toStruct.toLastCatStruct Ty)
-
-def toCat {Ty: Type u} {Hom: Type uh} (l: Last Ty Hom) : Cat Ty [] (fun _ _ => Hom) := ⟨l.toStruct.toLastCatStruct Ty, l.valid⟩
+structure Single (tt: TypeTable Ty []) (he: HomEquiv) extends toStruct: SingleStruct tt he where
+  valid: IsCat Ty [] he.Hom toStruct.toCatStruct
 
 
+namespace Single
+
+def toCat {tt: TypeTable Ty []} {he: HomEquiv} (s: Single tt he) : Cat Ty [] he.Hom := ⟨s.toCatStruct, s.valid⟩
+
+end Single
 
 
-structure ConsStruct (Hom: Type uh) (Ty: Type u) (tys: List (Type u))
-  (HomCol: TypeInfo Ty tys → Type uh) (HomRow: TypeInfo Ty tys → Type uh) (HomTail: TypeInfo Ty tys → TypeInfo Ty tys → Type uh) extends toSingle: SingleStruct Hom where
+structure ConsStruct {Ty2: Type u} (tt: TypeTable Ty (Ty2::tys)) (he: HomEquiv) where
+  single: SingleStruct (@TypeTable.ofNonempty Ty tt.head_nonempty) he
+  tail: CatStruct Ty2 tys he.Hom
+  glue: TypeInfo Ty2 tys
+
+
+--(HomCol: TypeInfo Ty tys → Type uh) (HomRow: TypeInfo Ty tys → Type uh)
+
+/-
+structure ConsStruct (Hom: Type uh) (Ty: Type u) (tys: List (Type u)) (HomTail: TypeInfo Ty tys → TypeInfo Ty tys → Type uh) extends toSingle: SingleStruct Hom where
   tail: CatStruct Ty tys HomTail
-  col (ti1: TypeInfo Ty tys) : HomCol ti1
-  row (ti2: TypeInfo Ty tys) : HomRow ti2
+  glue: TypeInfo Ty tys
+  HomCol: Type uh
+  HomRow: Type uh
+  compCol: HomCol → Hom → HomCol
+  compRow: Hom → HomRow → HomRow
+  compColRow: HomCol → HomRow → HomTail glue glue
+  compRowCol: HomRow → HomCol → Hom
+-/
+
+/-
+  compCol : HomCol glue → Hom → HomCol glue
+  compRow : Hom → HomRow glue → HomRow glue
+  compColRow : HomCol glue → HomRow glue → HomTail glue glue
+  compRowCol : HomRow glue → HomCol glue → Hom
+-/
+
 
 
 namespace ConsStruct
 
-variable {Hom: Type uh} {Ty2: Type u} {tys: List (Type u)}
-         {HomCol: TypeInfo Ty2 tys → Type uh} {HomRow: TypeInfo Ty2 tys → Type uh} {HomTail: TypeInfo Ty2 tys → TypeInfo Ty2 tys → Type uh}
+variable {Hom: Type uh} {Ty2: Type u} {tys: List (Type u)} {HomTail: TypeInfo Ty2 tys → TypeInfo Ty2 tys → Type uh}
 
-def ConsHom (_: ConsStruct Hom Ty2 tys HomCol HomRow HomTail) (Ty: Type u) : TypeInfo Ty (Ty2::tys) → TypeInfo Ty (Ty2::tys) → Type uh :=
-  TypeInfo.consPi₂ (fun _ _ => Type uh) Hom HomCol HomRow HomTail
+def ConsHom (s: ConsStruct Hom Ty2 tys HomTail) (Ty: Type u) : TypeInfo Ty (Ty2::tys) → TypeInfo Ty (Ty2::tys) → Type uh :=
+  TypeInfo.consPi₂ (fun _ _ => Type uh) Hom (fun _ => s.HomCol) (fun _ => s.HomRow) HomTail
+
 
 @[defeq]
-theorem consHom_def {s: ConsStruct Hom Ty2 tys HomCol HomRow HomTail} {Ty: Type u}
-  : s.ConsHom Ty = TypeInfo.consPi₂ (fun _ _ => Type uh) Hom HomCol HomRow HomTail :=
+theorem consHom_def {s: ConsStruct Hom Ty2 tys HomTail} {Ty: Type u}
+  : s.ConsHom Ty = TypeInfo.consPi₂ (fun _ _ => Type uh) Hom (fun _ => s.HomCol) (fun _ => s.HomRow) HomTail :=
   rfl
 
-theorem consHom_zero_zero (s: ConsStruct Hom Ty2 tys HomCol HomRow HomTail) {Ty: Type u} (tt: TypeTable Ty (Ty2::tys))
+theorem consHom_zero_zero (s: ConsStruct Hom Ty2 tys HomTail) {Ty: Type u} (tt: TypeTable Ty (Ty2::tys))
   : s.ConsHom Ty (tt.get 0) (tt.get 0) = Hom := by
   dsimp [consHom_def, TypeInfo.consPi₂]
   simp [tt.index_eq_val]
 
-theorem consHom_zero_cons (s: ConsStruct Hom Ty2 tys HomCol HomRow HomTail) {Ty: Type u} (tt: TypeTable Ty (Ty2::tys)) (ti: TypeInfo Ty2 tys)
-  : s.ConsHom Ty (tt.get 0) (ti.cons Ty) = HomRow ti := by
+theorem consHom_zero_cons (s: ConsStruct Hom Ty2 tys HomTail) {Ty: Type u} (tt: TypeTable Ty (Ty2::tys)) (ti: TypeInfo Ty2 tys)
+  : s.ConsHom Ty (tt.get 0) (ti.cons Ty) = s.HomRow := by
   dsimp [consHom_def, TypeInfo.consPi₂]
   simp [tt.index_eq_val]
   intro lm1
   simp [TypeInfo.cons] at lm1
 
-theorem consHom_cons_zero (s: ConsStruct Hom Ty2 tys HomCol HomRow HomTail) {Ty: Type u} (tt: TypeTable Ty (Ty2::tys)) (ti: TypeInfo Ty2 tys)
-  : s.ConsHom Ty (ti.cons Ty) (tt.get 0) = HomCol ti := by
+theorem consHom_cons_zero (s: ConsStruct Hom Ty2 tys HomTail) {Ty: Type u} (tt: TypeTable Ty (Ty2::tys)) (ti: TypeInfo Ty2 tys)
+  : s.ConsHom Ty (ti.cons Ty) (tt.get 0) = s.HomCol := by
   dsimp [consHom_def, TypeInfo.consPi₂]
   simp [tt.index_eq_val]
   intro lm1
   simp [TypeInfo.cons] at lm1
 
 @[defeq]
-theorem consHom_cons_cons (s: ConsStruct Hom Ty2 tys HomCol HomRow HomTail) {Ty: Type u} (ti1 ti2: TypeInfo Ty2 tys)
+theorem consHom_cons_cons (s: ConsStruct Hom Ty2 tys HomTail) {Ty: Type u} (ti1 ti2: TypeInfo Ty2 tys)
   : s.ConsHom Ty (ti1.cons Ty) (ti2.cons Ty) = HomTail ti1 ti2 := by
   dsimp [consHom_def, TypeInfo.consPi₂, TypeInfo.cons, TypeInfo.tail]
 
 
+def compHom (s: ConsStruct Hom Ty2 tys HomTail) (req: IsCat Ty2 tys HomTail s.tail) {Ty: Type u} (tt: TypeTable Ty (Ty2::tys))
+  (ti1 ti2 ti3: TypeInfo Ty (Ty2::tys)) (hom1: s.ConsHom Ty ti1 ti2) (hom2: s.ConsHom Ty ti2 ti3) : s.ConsHom Ty ti1 ti3 :=
+
+
+
+
+/-
 def toCatStruct (s: ConsStruct Hom Ty2 tys HomCol HomRow HomTail) (tt: TypeTable Ty (Ty2::tys)) : CatStruct Ty (Ty2::tys) (s.ConsHom Ty) where
   id ti := tt.consPi (fun ti0 => (s.ConsHom Ty) ti0 ti0) (cast (s.consHom_zero_zero tt).symm s.id) s.tail.id ti
   comp {ti1 ti2 ti3} hom1 hom2 :=
+    tt.consComp (fun ti0_1 ti0_2 => (s.ConsHom Ty) ti0_1 ti0_2) (s.comp |> cast (by congr <;> (symm; exact s.consHom_zero_zero _)))
+-/
+
     --tt.consPi₂ (s.ConsHom Ty) (cast (s.consHom_zero_zero tt).symm s.id) (cast (s.consHom_cons_zero tt _) s.row)
 
 --structure IsCat (Ty: Type u) (tys: List (Type u)) (Hom: TypeInfo Ty tys → TypeInfo Ty tys → Type uh) (s: CatStruct Ty tys Hom) : Prop where
