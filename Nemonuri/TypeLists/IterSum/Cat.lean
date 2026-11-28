@@ -74,36 +74,58 @@ def category (cat: Cat Ty tys Hom) : CategoryTheory.Category (TypeInfo Ty tys) w
 
 open TypeInfo.FreeBiGeneric
 
-structure SingleStruct (tt: TypeTable Ty []) (he: HomEquiv) where
-  id: he.Ap₂ (tt.get 0) (tt.get 0)
-  comp: he.Ap₂ (tt.get 0) (tt.get 0) → he.Ap₂ (tt.get 0) (tt.get 0) → he.Ap₂ (tt.get 0) (tt.get 0)
+structure SingleStruct (he: HomCompEquiv) (Ty: Type u) [Nonempty Ty] where
+  id: he.Single Ty
+  comp: he.Single Ty → he.Single Ty → he.Single Ty
 
 namespace SingleStruct
 
 open TypeInfo in
-def toCatStruct {tt: TypeTable Ty []} {he: HomEquiv} (s: SingleStruct tt he) : CatStruct Ty [] (he.Hom) where
-  id _ := s.id |> cast (by congr <;> exact Subsingleton.elim _ _)
-  comp := s.comp |> cast (by congr <;> exact Subsingleton.elim _ _)
+def toCatStruct {he: HomCompEquiv} [Nonempty Ty] (s: SingleStruct he Ty) : CatStruct Ty [] (he.Hom) where
+  id _ := s.id |> cast (by dsimp [FreeBiGeneric.Single]; congr <;> exact Subsingleton.elim _ _)
+  comp := s.comp |> cast (by dsimp [FreeBiGeneric.Single]; congr <;> exact Subsingleton.elim _ _)
+
+
+/-
+def consId {Ty2: Type u} {he: HomCompEquiv} [Nonempty Ty] (ss: SingleStruct he Ty) (cs: CatStruct Ty2 tys he.Hom) (ti: TypeInfo Ty (Ty2::tys)) : he.Hom ti ti :=
+  (he.diagEquiv Ty Ty2 tys).symm ⟨((he.equivSinglePi Ty).symm ss.id), cs.id⟩ ti
+-/
+
+
+
+
 
 end SingleStruct
 
 
-structure Single (tt: TypeTable Ty []) (he: HomEquiv) extends toStruct: SingleStruct tt he where
+structure Single (he: HomCompEquiv) (Ty: Type u) [Nonempty Ty] extends toStruct: SingleStruct he Ty where
   valid: IsCat Ty [] he.Hom toStruct.toCatStruct
 
 
 namespace Single
 
-def toCat {tt: TypeTable Ty []} {he: HomEquiv} (s: Single tt he) : Cat Ty [] he.Hom := ⟨s.toCatStruct, s.valid⟩
+def toCat {he: HomCompEquiv} {Ty: Type u} [Nonempty Ty] (s: Single he Ty) : Cat Ty [] he.Hom := ⟨s.toCatStruct, s.valid⟩
 
 end Single
 
+structure Glue {Ty2: Type u} (he: HomCompEquiv) (tt: TypeTable Ty (Ty2::tys)) where
+  typeInfo: TypeInfo Ty2 tys
+  col: he.Ap₂ (typeInfo.cons Ty) tt.headTypeInfo
+  row: he.Ap₂ tt.headTypeInfo (typeInfo.cons Ty)
 
-structure ConsStruct {Ty2: Type u} (tt: TypeTable Ty (Ty2::tys)) (he: HomEquiv) where
-  single: SingleStruct (@TypeTable.ofNonempty Ty tt.head_nonempty) he
+
+structure ConsStruct {Ty2: Type u} (he: HomCompEquiv) (tt: TypeTable Ty (Ty2::tys)) where
+  single: @SingleStruct he Ty tt.head_nonempty
+  glueTypeInfo: TypeInfo Ty2 tys
+
+
+/-
+structure ConsStruct {Ty2: Type u} (tt: TypeTable Ty (Ty2::tys)) (he: HomCompEquiv) where
+  single: SingleStruct tt.headOnly he
   tail: CatStruct Ty2 tys he.Hom
   glue: TypeInfo Ty2 tys
-
+  compCol: he.Hom tt.headOnly.headTypeInfo tt.headOnly.headTypeInfo
+-/
 
 --(HomCol: TypeInfo Ty tys → Type uh) (HomRow: TypeInfo Ty tys → Type uh)
 

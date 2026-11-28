@@ -303,6 +303,10 @@ theorem cons_tail {Ty2: Type u} (ti: TypeInfo Ty2 tys) : (ti.cons Ty).tail (ti.c
   dsimp [tail, cons]
 
 
+def tailD {Ty2: Type u} (ti: TypeInfo Ty (Ty2::tys)) (dft: TypeInfo Ty2 tys) : TypeInfo Ty2 tys :=
+  if h1: ti.index = 0 then dft else ti.tail_of_ne_zero h1
+
+
 def ofNonempty (Ty: Type u) [Nonempty Ty] (tys: List (Type u)) : TypeInfo Ty tys := .mk 0 Ty (by
     rename_i lm1
     rcases lm1 with ⟨v⟩
